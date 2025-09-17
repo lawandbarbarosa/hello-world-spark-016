@@ -5,7 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Mail, Trash2, Clock, ArrowDown, Eye } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag } from "lucide-react";
 
 interface EmailStep {
   id: string;
@@ -30,12 +31,29 @@ interface EmailSequenceProps {
 
 const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   const [sequence, setSequence] = useState<EmailStep[]>(data.sequence || []);
-  const [previewContact] = useState({
+  
+  // Get available merge tags from uploaded contacts
+  const getAvailableMergeTags = () => {
+    if (!data.contacts || data.contacts.length === 0) {
+      return ['firstName', 'lastName', 'company', 'email'];
+    }
+    
+    // Get all unique keys from contacts
+    const allKeys = new Set<string>();
+    data.contacts.forEach(contact => {
+      Object.keys(contact).forEach(key => allKeys.add(key));
+    });
+    
+    return Array.from(allKeys).sort();
+  };
+  
+  const availableMergeTags = getAvailableMergeTags();
+  const previewContact = data.contacts?.[0] || {
     firstName: 'John',
-    lastName: 'Doe',
+    lastName: 'Doe', 
     company: 'Example Corp',
     email: 'john@example.com'
-  });
+  };
 
   useEffect(() => {
     onUpdate({ sequence });
@@ -63,11 +81,22 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   };
 
   const replaceVariables = (text: string) => {
-    return text
-      .replace(/{{firstName}}/g, previewContact.firstName)
-      .replace(/{{lastName}}/g, previewContact.lastName)
-      .replace(/{{company}}/g, previewContact.company)
-      .replace(/{{email}}/g, previewContact.email);
+    let result = text;
+    availableMergeTags.forEach(tag => {
+      const regex = new RegExp(`{{${tag}}}`, 'g');
+      const value = previewContact[tag] || `[${tag}]`;
+      result = result.replace(regex, String(value));
+    });
+    return result;
+  };
+
+  const insertMergeTag = (stepId: string, field: 'subject' | 'body', tag: string) => {
+    const step = sequence.find(s => s.id === stepId);
+    if (!step) return;
+    
+    const currentValue = step[field];
+    const newValue = currentValue + `{{${tag}}}`;
+    updateStep(stepId, { [field]: newValue });
   };
 
   return (
@@ -172,18 +201,42 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
 
                   {/* Subject Line */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">Subject Line</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium text-foreground">Subject Line</Label>
+                      <div className="flex items-center gap-1">
+                        <Tag className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Click tags to insert:</span>
+                      </div>
+                    </div>
                     <Input
                       placeholder="e.g., Quick question about {{company}}"
                       value={step.subject}
                       onChange={(e) => updateStep(step.id, { subject: e.target.value })}
                       className="bg-background border-border text-foreground"
                     />
+                    <div className="flex flex-wrap gap-1">
+                      {availableMergeTags.map(tag => (
+                        <Badge 
+                          key={tag}
+                          variant="outline" 
+                          className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                          onClick={() => insertMergeTag(step.id, 'subject', tag)}
+                        >
+                          {`{{${tag}}}`}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Email Body */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">Email Body</Label>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium text-foreground">Email Body</Label>
+                      <div className="flex items-center gap-1">
+                        <Tag className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Click tags to insert:</span>
+                      </div>
+                    </div>
                     <Textarea
                       placeholder={`Hi {{firstName}},\n\nI hope this email finds you well...\n\nBest regards,\n[Your name]`}
                       value={step.body}
@@ -191,8 +244,20 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                       rows={8}
                       className="bg-background border-border text-foreground font-mono text-sm"
                     />
+                    <div className="flex flex-wrap gap-1">
+                      {availableMergeTags.map(tag => (
+                        <Badge 
+                          key={tag}
+                          variant="outline" 
+                          className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
+                          onClick={() => insertMergeTag(step.id, 'body', tag)}
+                        >
+                          {`{{${tag}}}`}
+                        </Badge>
+                      ))}
+                    </div>
                     <div className="text-xs text-muted-foreground">
-                      Available merge tags: {`{{firstName}}, {{lastName}}, {{company}}, {{email}}`}
+                      Available merge tags from your CSV: {availableMergeTags.join(', ')}
                     </div>
                   </div>
 

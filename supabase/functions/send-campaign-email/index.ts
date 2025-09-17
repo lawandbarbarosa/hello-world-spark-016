@@ -215,25 +215,61 @@ const handler = async (req: Request): Promise<Response> => {
           return contact[field] || fallback;
         });
 
-        // Replace simple merge tags with fallback from settings
+        // Replace simple merge tags with dynamic field matching
         personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\}\}/g, (match, field) => {
-          if (field === 'first_name' || field === 'firstName') {
-            return contact.first_name || fallbackTags.first_name;
+          // Check direct field match first
+          if (contact[field] !== undefined && contact[field] !== null) {
+            return String(contact[field]);
+          }
+          
+          // Check case-insensitive match
+          const fieldLower = field.toLowerCase();
+          const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
+          if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
+            return String(contact[contactKey]);
+          }
+          
+          // Legacy field mappings for backward compatibility
+          if (field === 'firstName' || field === 'first_name') {
+            return contact.first_name || contact.firstName || fallbackTags.first_name;
+          }
+          if (field === 'lastName' || field === 'last_name') {
+            return contact.last_name || contact.lastName || '';
           }
           if (field === 'company') {
             return contact.company || fallbackTags.company;
           }
-          return contact[field] || contact[field.toLowerCase()] || match;
+          
+          // Return the tag unchanged if no match found
+          return match;
         });
 
         personalizedBody = personalizedBody.replace(/\{\{(\w+)\}\}/g, (match, field) => {
-          if (field === 'first_name' || field === 'firstName') {
-            return contact.first_name || fallbackTags.first_name;
+          // Check direct field match first
+          if (contact[field] !== undefined && contact[field] !== null) {
+            return String(contact[field]);
+          }
+          
+          // Check case-insensitive match
+          const fieldLower = field.toLowerCase();
+          const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
+          if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
+            return String(contact[contactKey]);
+          }
+          
+          // Legacy field mappings for backward compatibility
+          if (field === 'firstName' || field === 'first_name') {
+            return contact.first_name || contact.firstName || fallbackTags.first_name;
+          }
+          if (field === 'lastName' || field === 'last_name') {
+            return contact.last_name || contact.lastName || '';
           }
           if (field === 'company') {
             return contact.company || fallbackTags.company;
           }
-          return contact[field] || contact[field.toLowerCase()] || match;
+          
+          // Return the tag unchanged if no match found
+          return match;
         });
 
         // Create the email send record to get the ID for tracking
