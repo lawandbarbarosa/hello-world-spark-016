@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
 interface SidebarProps {
   activeTab: string;
@@ -21,6 +22,7 @@ interface SidebarProps {
 
 const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -28,6 +30,8 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
       toast.error('Failed to sign out');
     } else {
       toast.success('Signed out successfully');
+      // Navigate to auth page after successful sign out
+      navigate('/auth');
     }
   };
 
