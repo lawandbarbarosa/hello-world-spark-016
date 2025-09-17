@@ -143,6 +143,51 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // Check daily limits for all sender accounts and sort by remaining capacity
+    const senderStatusPromises = senderAccounts.map(async (sender) => {
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+
+      const { count: dailyCount, error: countError } = await supabase
+        .from('email_sends')
+        .select('*', { count: 'exact', head: true })
+        .eq('sender_account_id', sender.id)
+        .gte('created_at', todayStart.toISOString())
+        .lt('created_at', todayEnd.toISOString())
+        .in('status', ['sent', 'pending']);
+
+      const dailyLimit = userSettings?.daily_send_limit || 50;
+      const sentToday = countError ? 0 : (dailyCount || 0);
+      const remaining = Math.max(0, dailyLimit - sentToday);
+
+      return {
+        ...sender,
+        sentToday,
+        remaining,
+        canSend: remaining > 0
+      };
+    });
+
+    const senderStatuses = await Promise.all(senderStatusPromises);
+    const availableSenders = senderStatuses
+      .filter(s => s.canSend)
+      .sort((a, b) => b.remaining - a.remaining); // Sort by most remaining capacity first
+
+    if (availableSenders.length === 0) {
+      console.log("All sender accounts have reached their daily limit");
+      return new Response(JSON.stringify({ 
+        error: "All sender accounts have reached their daily sending limit. Try again tomorrow or increase your daily limit in settings.",
+        details: senderStatuses.map(s => ({ 
+          email: s.email, 
+          sent: s.sentToday, 
+          limit: userSettings?.daily_send_limit || 50 
+        }))
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Process the first email sequence (step 1)
     const firstSequence = sequences.find(seq => seq.step_number === 1);
     if (!firstSequence) {
@@ -154,31 +199,54 @@ const handler = async (req: Request): Promise<Response> => {
 
     let emailsSent = 0;
     let emailsError = 0;
-    const senderIndex = 0; // Start with first sender account
+    let senderIndex = 0;
 
-    // Send emails to all contacts
+    // Send emails to all contacts using round-robin with available senders
     for (const contact of contacts) {
-      try {
-        const senderAccount = senderAccounts[senderIndex % senderAccounts.length];
+      // Find next available sender with capacity
+      let currentSender = null;
+      let attempts = 0;
+      
+      while (!currentSender && attempts < availableSenders.length) {
+        const potentialSender = availableSenders[senderIndex % availableSenders.length];
         
-        // Check daily limit for this sender account
+        // Double-check this sender still has capacity
         const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-        const { count: dailyCount, error: countError } = await supabase
+        const { count: currentCount } = await supabase
           .from('email_sends')
           .select('*', { count: 'exact', head: true })
-          .eq('sender_account_id', senderAccount.id)
+          .eq('sender_account_id', potentialSender.id)
           .gte('created_at', todayStart.toISOString())
-          .lt('created_at', todayEnd.toISOString());
+          .lt('created_at', todayEnd.toISOString())
+          .in('status', ['sent', 'pending']);
 
         const dailyLimit = userSettings?.daily_send_limit || 50;
-        if ((dailyCount || 0) >= dailyLimit) {
-          console.log(`Daily limit reached for sender ${senderAccount.email}: ${dailyCount}/${dailyLimit}`);
-          emailsError++;
-          continue;
-        }
+        const remaining = Math.max(0, dailyLimit - (currentCount || 0));
 
+        if (remaining > 0) {
+          currentSender = potentialSender;
+        } else {
+          // Remove this sender from available list
+          availableSenders.splice(senderIndex % availableSenders.length, 1);
+          if (availableSenders.length === 0) {
+            console.log("All senders reached their limit during campaign execution");
+            break;
+          }
+        }
+        
+        attempts++;
+        senderIndex = (senderIndex + 1) % Math.max(1, availableSenders.length);
+      }
+
+      if (!currentSender) {
+        console.log(`No available sender for contact ${contact.email} - all limits reached`);
+        emailsError++;
+        continue;
+      }
+
+      try {
         // Get fallback merge tags from user settings
         const fallbackTags = userSettings?.fallback_merge_tags || { first_name: 'there', company: 'your company' };
         
@@ -215,14 +283,14 @@ const handler = async (req: Request): Promise<Response> => {
           return contact[field] || contact[field.toLowerCase()] || match;
         });
 
-        // First create the email send record to get the ID for tracking
+        // Create the email send record to get the ID for tracking
         const { data: insertedEmailSend, error: insertError } = await supabase
           .from("email_sends")
           .insert({
             campaign_id: campaignId,
             contact_id: contact.id,
             sequence_id: firstSequence.id,
-            sender_account_id: senderAccount.id,
+            sender_account_id: currentSender.id,
             status: "pending",
           })
           .select()
@@ -258,11 +326,11 @@ const handler = async (req: Request): Promise<Response> => {
         const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
         const emailBodyWithTracking = finalBody.replace(/\n/g, '<br>') + trackingPixel;
 
-        // Send email using Resend with tracking pixel
-        console.log(`Attempting to send email to ${contact.email} with subject: "${personalizedSubject}"`);
+        // Send email using Resend with current sender
+        console.log(`Attempting to send email to ${contact.email} from ${currentSender.email} (${currentSender.remaining} remaining capacity)`);
         
         const emailResponse = await resend.emails.send({
-          from: `${senderAccount.email}`, // Use the actual sender account email
+          from: `${currentSender.email}`,
           to: [contact.email],
           subject: personalizedSubject,
           html: emailBodyWithTracking,
@@ -294,21 +362,29 @@ const handler = async (req: Request): Promise<Response> => {
               sent_at: new Date().toISOString(),
             })
             .eq("id", insertedEmailSend.id);
+
+          // Update sender's remaining capacity
+          currentSender.remaining--;
         }
+
+        // Move to next sender for round-robin distribution
+        senderIndex = (senderIndex + 1) % availableSenders.length;
+        
       } catch (error) {
         console.error("Error sending email to contact:", contact.email, error);
         emailsError++;
         
-        // Record failed email send
-        const senderAccount = senderAccounts[senderIndex % senderAccounts.length];
-        await supabase.from("email_sends").insert({
-          campaign_id: campaignId,
-          contact_id: contact.id,
-          sequence_id: firstSequence.id,
-          sender_account_id: senderAccount.id,
-          status: "failed",
-          error_message: error.message,
-        });
+        // Record failed email send if we have a current sender
+        if (currentSender) {
+          await supabase.from("email_sends").insert({
+            campaign_id: campaignId,
+            contact_id: contact.id,
+            sequence_id: firstSequence.id,
+            sender_account_id: currentSender.id,
+            status: "failed",
+            error_message: error.message,
+          });
+        }
       }
     }
 
@@ -318,13 +394,23 @@ const handler = async (req: Request): Promise<Response> => {
       .update({ status: "active" })
       .eq("id", campaignId);
 
+    const message = availableSenders.length < senderStatuses.length 
+      ? `Campaign launched with ${emailsSent} emails sent. ${senderStatuses.length - availableSenders.length} sender(s) reached daily limit.`
+      : `Campaign launched successfully. Sent ${emailsSent} emails across ${availableSenders.length} sender account(s).`;
+
     console.log(`Campaign ${campaignId} processed: ${emailsSent} sent, ${emailsError} failed`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       emailsSent, 
       emailsError,
-      message: `Campaign launched successfully. Sent ${emailsSent} emails.`
+      message,
+      senderStats: senderStatuses.map(s => ({
+        email: s.email,
+        sentToday: s.sentToday,
+        remaining: s.remaining,
+        limit: userSettings?.daily_send_limit || 50
+      }))
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
