@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Mail, Trash2, Settings } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 interface SenderAccount {
   id: string;
@@ -41,6 +42,20 @@ const SenderAccounts = ({ data, onUpdate }: SenderAccountsProps) => {
 
   const handleAddAccount = () => {
     if (newAccount.email && newAccount.provider) {
+      // Check if email already exists
+      const emailExists = accounts.some(account => 
+        account.email.toLowerCase() === newAccount.email.toLowerCase()
+      );
+      
+      if (emailExists) {
+        toast({
+          title: "Duplicate Email",
+          description: "This email address is already added as a sender account.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       const account: SenderAccount = {
         id: Date.now().toString(),
         email: newAccount.email,
