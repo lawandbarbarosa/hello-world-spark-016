@@ -123,29 +123,34 @@ const handler = async (req: Request): Promise<Response> => {
           .replace(/\{\{lastName\}\}/g, contact.last_name || "")
           .replace(/\{\{email\}\}/g, contact.email);
 
-        // Send email using Resend
+        // Send email using Resend with sandbox sender
+        console.log(`Attempting to send email to ${contact.email} with subject: "${personalizedSubject}"`);
+        
         const emailResponse = await resend.emails.send({
-          from: senderAccount.email,
+          from: "Campaign <onboarding@resend.dev>", // Use Resend's sandbox sender
           to: [contact.email],
           subject: personalizedSubject,
           html: personalizedBody.replace(/\n/g, '<br>'),
+          reply_to: senderAccount.email, // Set original sender as reply-to
         });
 
+        console.log("Resend API response:", emailResponse);
+
         if (emailResponse.error) {
-          console.error("Email send error:", emailResponse.error);
+          console.error("Email send error for", contact.email, ":", emailResponse.error);
           emailsError++;
           
-          // Record failed email send
+          // Record failed email send with detailed error
           await supabase.from("email_sends").insert({
             campaign_id: campaignId,
             contact_id: contact.id,
             sequence_id: firstSequence.id,
             sender_account_id: senderAccount.id,
             status: "failed",
-            error_message: emailResponse.error.message,
+            error_message: JSON.stringify(emailResponse.error),
           });
         } else {
-          console.log("Email sent successfully:", emailResponse.data?.id);
+          console.log("Email sent successfully to", contact.email, "with ID:", emailResponse.data?.id);
           emailsSent++;
           
           // Record successful email send

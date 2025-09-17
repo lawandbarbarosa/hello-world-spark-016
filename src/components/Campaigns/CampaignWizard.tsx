@@ -173,17 +173,26 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
       }
 
       // Launch the campaign
+      console.log("Invoking send-campaign-email function for campaign:", campaign.id);
       const { data: launchData, error: launchError } = await supabase.functions.invoke('send-campaign-email', {
         body: { campaignId: campaign.id }
       });
 
+      console.log("Launch response:", launchData, "Error:", launchError);
+
       if (launchError) {
         console.error('Error launching campaign:', launchError);
-        toast.error('Failed to launch campaign. Please try again.');
+        toast.error(`Failed to launch campaign: ${launchError.message || 'Unknown error'}`);
         return;
       }
 
-      toast.success(`Campaign launched successfully! ${launchData.message}`);
+      if (launchData?.error) {
+        console.error('Campaign launch returned error:', launchData.error);
+        toast.error(`Campaign launch failed: ${launchData.error}`);
+        return;
+      }
+
+      toast.success(`Campaign launched successfully! ${launchData?.message || `Sent ${launchData?.emailsSent || 0} emails.`}`);
       onBack();
     } catch (error) {
       console.error('Error launching campaign:', error);
