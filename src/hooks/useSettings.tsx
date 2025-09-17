@@ -8,6 +8,7 @@ export interface UserSettings {
   daily_send_limit: number;
   send_time_start: string;
   send_time_end: string;
+  sending_days: string[];
   reply_handling_enabled: boolean;
   fallback_merge_tags: {
     first_name: string;
@@ -32,6 +33,7 @@ const defaultSettings: UserSettings = {
   daily_send_limit: 50,
   send_time_start: '08:00',
   send_time_end: '18:00',
+  sending_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
   reply_handling_enabled: true,
   fallback_merge_tags: {
     first_name: 'there',
@@ -83,6 +85,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           daily_send_limit: data.daily_send_limit || defaultSettings.daily_send_limit,
           send_time_start: data.send_time_start || defaultSettings.send_time_start,
           send_time_end: data.send_time_end || defaultSettings.send_time_end,
+          sending_days: (data.sending_days as string[]) || defaultSettings.sending_days,
           reply_handling_enabled: data.reply_handling_enabled ?? defaultSettings.reply_handling_enabled,
           fallback_merge_tags: {
             first_name: fallbackTags.first_name || defaultSettings.fallback_merge_tags.first_name,
@@ -115,6 +118,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         daily_send_limit: newSettings.daily_send_limit,
         send_time_start: newSettings.send_time_start,
         send_time_end: newSettings.send_time_end,
+        sending_days: newSettings.sending_days,
         reply_handling_enabled: newSettings.reply_handling_enabled,
         fallback_merge_tags: newSettings.fallback_merge_tags,
         default_signature: newSettings.default_signature,

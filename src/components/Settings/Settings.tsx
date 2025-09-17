@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -44,6 +45,7 @@ const settingsSchema = z.object({
   daily_send_limit: z.number().min(1, 'Daily limit must be at least 1').max(10000, 'Daily limit cannot exceed 10,000'),
   send_time_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
   send_time_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
+  sending_days: z.array(z.string()).min(1, 'At least one day must be selected'),
   reply_handling_enabled: z.boolean(),
   
   // Email Composition Settings
@@ -71,6 +73,16 @@ const timezones = [
   'Australia/Sydney',
 ];
 
+const daysOfWeek = [
+  { value: 'monday', label: 'Monday' },
+  { value: 'tuesday', label: 'Tuesday' },
+  { value: 'wednesday', label: 'Wednesday' },
+  { value: 'thursday', label: 'Thursday' },
+  { value: 'friday', label: 'Friday' },
+  { value: 'saturday', label: 'Saturday' },
+  { value: 'sunday', label: 'Sunday' },
+];
+
 const Settings = () => {
   const { theme, setTheme } = useTheme();
   const { settings, loading, updateSettings } = useSettings();
@@ -84,6 +96,7 @@ const Settings = () => {
       daily_send_limit: 50,
       send_time_start: '08:00',
       send_time_end: '18:00',
+      sending_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
       reply_handling_enabled: true,
       default_signature: '',
       from_name_format: 'first_last',
@@ -101,6 +114,7 @@ const Settings = () => {
         daily_send_limit: settings.daily_send_limit,
         send_time_start: settings.send_time_start,
         send_time_end: settings.send_time_end,
+        sending_days: settings.sending_days || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
         reply_handling_enabled: settings.reply_handling_enabled,
         default_signature: settings.default_signature,
         from_name_format: settings.from_name_format,
