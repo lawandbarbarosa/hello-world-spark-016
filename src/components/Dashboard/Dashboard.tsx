@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import DailyLimitCard from './DailyLimitCard';
 import { 
   Mail, 
   Users, 
@@ -295,9 +294,6 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
           );
         })}
       </div>
-
-      {/* Daily Limits Card */}
-      <DailyLimitCard />
 
       {/* Recent Campaigns */}
       <Card className="shadow-md">
