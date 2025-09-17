@@ -38,7 +38,8 @@ interface DashboardStats {
   activeContacts: number;
   emailsSent: number;
   emailsOpened: number;
-  responseRate: number;
+  responseRate: number; // This is now reply rate
+  openRate: number; // Add separate open rate
 }
 
 const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
@@ -50,6 +51,7 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
     emailsSent: 0,
     emailsOpened: 0,
     responseRate: 0,
+    openRate: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -85,7 +87,7 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
       // Fetch campaign statistics
       const { data: contactsData, error: contactsError } = await supabase
         .from('contacts')
-        .select('id')
+        .select('id, replied_at')
         .eq('user_id', user?.id)
         .eq('status', 'active');
 
@@ -100,14 +102,19 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
 
       const totalSent = emailSendsData?.filter(e => e.status === 'sent').length || 0;
       const totalOpened = emailSendsData?.filter(e => e.opened_at).length || 0;
-      const responseRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
+      const totalContacted = contactsData?.length || 0;
+      const totalReplied = contactsData?.filter(c => c.replied_at).length || 0;
+      
+      const openRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
+      const replyRate = totalContacted > 0 ? Math.round((totalReplied / totalContacted) * 100) : 0;
 
       setStats({
         totalCampaigns: campaignData?.length || 0,
-        activeContacts: contactsData?.length || 0,
+        activeContacts: totalContacted,
         emailsSent: totalSent,
         emailsOpened: totalOpened,
-        responseRate,
+        responseRate: replyRate, // This is now actually the reply rate
+        openRate: openRate, // Add separate open rate
       });
 
     } catch (error) {
@@ -258,15 +265,15 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
   const performanceStats = [
     {
       title: "Open Rate",
-      value: stats.emailsSent > 0 ? `${Math.round((stats.emailsOpened / stats.emailsSent) * 100)}%` : "0%",
-      change: stats.emailsOpened > 0 ? `${stats.emailsOpened} emails opened` : "No opens yet",
+      value: `${stats.openRate}%`,
+      change: stats.emailsOpened > 0 ? `${stats.emailsOpened} of ${stats.emailsSent} emails opened` : "No opens yet",
       icon: Eye,
       color: "text-primary"
     },
     {
-      title: "Reply Rate",
+      title: "Reply Rate", 
       value: `${stats.responseRate}%`,
-      change: stats.emailsSent > 0 ? `Response rate tracking` : "Start sending campaigns",
+      change: stats.responseRate > 0 ? `Contacts replied to your emails` : "No replies yet",
       icon: TrendingUp,
       color: "text-warning"
     }
