@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,7 +18,9 @@ import {
   XCircle,
   Eye,
   Clock,
-  Inbox as InboxIcon
+  Inbox as InboxIcon,
+  Users,
+  BarChart3
 } from "lucide-react";
 
 interface SentEmail {
@@ -52,9 +55,22 @@ interface SentEmail {
   };
 }
 
+interface ContactGroup {
+  contactEmail: string;
+  contactName: string;
+  emails: SentEmail[];
+  totalSent: number;
+  totalOpened: number;
+  totalFailed: number;
+  latestSent: string | null;
+  campaigns: string[];
+}
+
 const Inbox = () => {
   const { user } = useAuth();
   const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
+  const [contactGroups, setContactGroups] = useState<ContactGroup[]>([]);
+  const [activeTab, setActiveTab] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
 
@@ -123,6 +139,59 @@ const Inbox = () => {
       }));
 
       setSentEmails(transformedEmails);
+
+      // Group emails by contact
+      const groupedByContact = transformedEmails.reduce((groups: Record<string, ContactGroup>, email) => {
+        const contactEmail = email.contact.email;
+        
+        if (!groups[contactEmail]) {
+          groups[contactEmail] = {
+            contactEmail,
+            contactName: `${email.contact.first_name} ${email.contact.last_name}`.trim() || email.contact.email,
+            emails: [],
+            totalSent: 0,
+            totalOpened: 0,
+            totalFailed: 0,
+            latestSent: null,
+            campaigns: [],
+          };
+        }
+
+        groups[contactEmail].emails.push(email);
+        
+        // Update statistics
+        if (email.status === 'sent') {
+          groups[contactEmail].totalSent++;
+        }
+        if (email.status === 'failed') {
+          groups[contactEmail].totalFailed++;
+        }
+        if (email.opened_at) {
+          groups[contactEmail].totalOpened++;
+        }
+        
+        // Update latest sent date
+        if (email.sent_at && (!groups[contactEmail].latestSent || email.sent_at > groups[contactEmail].latestSent)) {
+          groups[contactEmail].latestSent = email.sent_at;
+        }
+        
+        // Add campaign if not already included
+        if (!groups[contactEmail].campaigns.includes(email.campaign.name)) {
+          groups[contactEmail].campaigns.push(email.campaign.name);
+        }
+
+        return groups;
+      }, {});
+
+      // Convert to array and sort by latest sent date
+      const contactGroupsArray = Object.values(groupedByContact).sort((a, b) => {
+        if (!a.latestSent && !b.latestSent) return 0;
+        if (!a.latestSent) return 1;
+        if (!b.latestSent) return -1;
+        return new Date(b.latestSent).getTime() - new Date(a.latestSent).getTime();
+      });
+
+      setContactGroups(contactGroupsArray);
 
     } catch (error) {
       console.error('Error fetching sent emails:', error);
@@ -194,7 +263,7 @@ const Inbox = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Inbox</h1>
           <p className="text-muted-foreground mt-1">
-            View all sent emails and their delivery status
+            View all sent emails organized by prospect/receiver
           </p>
         </div>
         <Button 
@@ -208,137 +277,305 @@ const Inbox = () => {
         </Button>
       </div>
 
-      <Card className="shadow-md">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <InboxIcon className="w-5 h-5 text-primary" />
-            Sent Emails ({sentEmails.length})
-          </CardTitle>
-          <CardDescription>
-            All emails sent from your campaigns
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-muted-foreground mt-2">Loading sent emails...</p>
-            </div>
-          ) : sentEmails.length > 0 ? (
-            <div className="space-y-2">
-              {sentEmails.map((email) => (
-                <Collapsible
-                  key={email.id}
-                  open={expandedEmails.has(email.id)}
-                  onOpenChange={() => toggleEmailExpansion(email.id)}
-                >
-                  <CollapsibleTrigger asChild>
-                    <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-gradient-card hover:bg-accent/50 cursor-pointer transition-colors">
-                      <div className="flex items-center gap-3 flex-1">
-                        {getStatusIcon(email.status, email.sent_at, email.opened_at)}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-foreground truncate">
-                              {personalizeContent(email.email_sequence.subject, email.contact)}
-                            </h4>
-                            {getStatusBadge(email.status, email.sent_at, email.opened_at)}
-                          </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <User className="w-3 h-3" />
-                              {email.contact.email}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {email.campaign.name}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="w-3 h-3" />
-                              {email.sent_at 
-                                ? new Date(email.sent_at).toLocaleString()
-                                : new Date(email.created_at).toLocaleString()
-                              }
-                            </span>
+      {loading ? (
+        <Card>
+          <CardContent className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+            <p className="text-muted-foreground mt-2">Loading sent emails...</p>
+          </CardContent>
+        </Card>
+      ) : sentEmails.length > 0 ? (
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <TabsList className="grid w-full grid-cols-2 sm:w-auto">
+              <TabsTrigger value="all" className="flex items-center gap-2">
+                <BarChart3 className="w-4 h-4" />
+                All Emails ({sentEmails.length})
+              </TabsTrigger>
+              <TabsTrigger value="contacts" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                By Contact ({contactGroups.length})
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <TabsContent value="all" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <InboxIcon className="w-5 h-5 text-primary" />
+                  All Sent Emails ({sentEmails.length})
+                </CardTitle>
+                <CardDescription>
+                  Chronological view of all emails sent from your campaigns
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {sentEmails.map((email) => (
+                    <Collapsible
+                      key={email.id}
+                      open={expandedEmails.has(email.id)}
+                      onOpenChange={() => toggleEmailExpansion(email.id)}
+                    >
+                      <CollapsibleTrigger asChild>
+                        <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-gradient-card hover:bg-accent/50 cursor-pointer transition-colors">
+                          <div className="flex items-center gap-3 flex-1">
+                            {getStatusIcon(email.status, email.sent_at, email.opened_at)}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h4 className="font-medium text-foreground truncate">
+                                  {personalizeContent(email.email_sequence.subject, email.contact)}
+                                </h4>
+                                {getStatusBadge(email.status, email.sent_at, email.opened_at)}
+                              </div>
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <User className="w-3 h-3" />
+                                  {email.contact.email}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Mail className="w-3 h-3" />
+                                  {email.campaign.name}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  {email.sent_at 
+                                    ? new Date(email.sent_at).toLocaleString()
+                                    : new Date(email.created_at).toLocaleString()
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {expandedEmails.has(email.id) ? (
+                                <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                              )}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {expandedEmails.has(email.id) ? (
-                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                          ) : (
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="px-4 pb-4">
+                        <div className="mt-4 space-y-4 bg-background/50 rounded-lg p-4 border">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                              <strong>From:</strong> {email.sender_account.email}
+                            </div>
+                            <div>
+                              <strong>To:</strong> {email.contact.email}
+                            </div>
+                            <div>
+                              <strong>Campaign:</strong> {email.campaign.name}
+                            </div>
+                            <div>
+                              <strong>Step:</strong> {email.email_sequence.step_number}
+                            </div>
+                            {email.opened_at && (
+                              <div>
+                                <strong>Opened:</strong> {new Date(email.opened_at).toLocaleString()}
+                                <Badge className="ml-2 bg-success text-success-foreground text-xs">
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  Email Opened!
+                                </Badge>
+                              </div>
+                            )}
+                            {email.clicked_at && (
+                              <div>
+                                <strong>Clicked:</strong> {new Date(email.clicked_at).toLocaleString()}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="border-t pt-4">
+                            <strong className="text-sm">Subject:</strong>
+                            <p className="mt-1 font-medium">{personalizeContent(email.email_sequence.subject, email.contact)}</p>
+                          </div>
+                          
+                          <div className="border-t pt-4">
+                            <strong className="text-sm">Message:</strong>
+                            <div 
+                              className="mt-2 prose prose-sm max-w-none text-foreground"
+                              dangerouslySetInnerHTML={{ 
+                                __html: personalizeContent(email.email_sequence.body, email.contact).replace(/\n/g, '<br>') 
+                              }}
+                            />
+                          </div>
+
+                          {email.error_message && (
+                            <div className="border-t pt-4">
+                              <strong className="text-sm text-destructive">Error:</strong>
+                              <p className="mt-1 text-sm text-destructive">{email.error_message}</p>
+                            </div>
                           )}
                         </div>
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="px-4 pb-4">
-                    <div className="mt-4 space-y-4 bg-background/50 rounded-lg p-4 border">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <strong>From:</strong> {email.sender_account.email}
-                        </div>
-                        <div>
-                          <strong>To:</strong> {email.contact.email}
-                        </div>
-                        <div>
-                          <strong>Campaign:</strong> {email.campaign.name}
-                        </div>
-                        <div>
-                          <strong>Step:</strong> {email.email_sequence.step_number}
-                        </div>
-                        {email.opened_at && (
-                          <div>
-                            <strong>Opened:</strong> {new Date(email.opened_at).toLocaleString()}
-                            <Badge className="ml-2 bg-success text-success-foreground text-xs">
-                              <Eye className="w-3 h-3 mr-1" />
-                              Email Opened!
-                            </Badge>
-                          </div>
-                        )}
-                        {email.clicked_at && (
-                          <div>
-                            <strong>Clicked:</strong> {new Date(email.clicked_at).toLocaleString()}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="border-t pt-4">
-                        <strong className="text-sm">Subject:</strong>
-                        <p className="mt-1 font-medium">{personalizeContent(email.email_sequence.subject, email.contact)}</p>
-                      </div>
-                      
-                      <div className="border-t pt-4">
-                        <strong className="text-sm">Message:</strong>
-                        <div 
-                          className="mt-2 prose prose-sm max-w-none text-foreground"
-                          dangerouslySetInnerHTML={{ 
-                            __html: personalizeContent(email.email_sequence.body, email.contact).replace(/\n/g, '<br>') 
-                          }}
-                        />
-                      </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-                      {email.error_message && (
-                        <div className="border-t pt-4">
-                          <strong className="text-sm text-destructive">Error:</strong>
-                          <p className="mt-1 text-sm text-destructive">{email.error_message}</p>
-                        </div>
-                      )}
+          <TabsContent value="contacts" className="space-y-4">
+            {contactGroups.map((group) => (
+              <Card key={group.contactEmail} className="shadow-md">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <User className="w-6 h-6 text-primary" />
+                      <div>
+                        <CardTitle className="text-lg">
+                          {group.contactName}
+                        </CardTitle>
+                        <CardDescription>
+                          {group.contactEmail}
+                        </CardDescription>
+                      </div>
                     </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <InboxIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No emails sent yet</h3>
-              <p className="text-muted-foreground">
-                Launch your first campaign to see sent emails here
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                    <div className="flex items-center gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">{group.totalSent}</div>
+                        <div className="text-xs text-muted-foreground">Sent</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-success">{group.totalOpened}</div>
+                        <div className="text-xs text-muted-foreground">Opened</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-destructive">{group.totalFailed}</div>
+                        <div className="text-xs text-muted-foreground">Failed</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Mail className="w-3 h-3" />
+                      Campaigns: {group.campaigns.join(', ')}
+                    </span>
+                    {group.latestSent && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        Last sent: {new Date(group.latestSent).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                      <Send className="w-4 h-4" />
+                      Email History ({group.emails.length})
+                    </h4>
+                    {group.emails.map((email) => (
+                      <Collapsible
+                        key={email.id}
+                        open={expandedEmails.has(email.id)}
+                        onOpenChange={() => toggleEmailExpansion(email.id)}
+                      >
+                        <CollapsibleTrigger asChild>
+                          <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-background hover:bg-accent/50 cursor-pointer transition-colors">
+                            <div className="flex items-center gap-3 flex-1">
+                              {getStatusIcon(email.status, email.sent_at, email.opened_at)}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h5 className="font-medium text-foreground truncate">
+                                    {personalizeContent(email.email_sequence.subject, email.contact)}
+                                  </h5>
+                                  {getStatusBadge(email.status, email.sent_at, email.opened_at)}
+                                </div>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                  <span className="flex items-center gap-1">
+                                    <Mail className="w-3 h-3" />
+                                    {email.campaign.name} - Step {email.email_sequence.step_number}
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <Calendar className="w-3 h-3" />
+                                    {email.sent_at 
+                                      ? new Date(email.sent_at).toLocaleDateString()
+                                      : new Date(email.created_at).toLocaleDateString()
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {expandedEmails.has(email.id) ? (
+                                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="px-3 pb-3">
+                          <div className="mt-3 space-y-3 bg-background/50 rounded-lg p-4 border">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <strong>From:</strong> {email.sender_account.email}
+                              </div>
+                              <div>
+                                <strong>Campaign:</strong> {email.campaign.name}
+                              </div>
+                              {email.opened_at && (
+                                <div>
+                                  <strong>Opened:</strong> {new Date(email.opened_at).toLocaleString()}
+                                  <Badge className="ml-2 bg-success text-success-foreground text-xs">
+                                    <Eye className="w-3 h-3 mr-1" />
+                                    Opened!
+                                  </Badge>
+                                </div>
+                              )}
+                              {email.clicked_at && (
+                                <div>
+                                  <strong>Clicked:</strong> {new Date(email.clicked_at).toLocaleString()}
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="border-t pt-3">
+                              <strong className="text-sm">Subject:</strong>
+                              <p className="mt-1 font-medium">{personalizeContent(email.email_sequence.subject, email.contact)}</p>
+                            </div>
+                            
+                            <div className="border-t pt-3">
+                              <strong className="text-sm">Message:</strong>
+                              <div 
+                                className="mt-2 prose prose-sm max-w-none text-foreground"
+                                dangerouslySetInnerHTML={{ 
+                                  __html: personalizeContent(email.email_sequence.body, email.contact).replace(/\n/g, '<br>') 
+                                }}
+                              />
+                            </div>
+
+                            {email.error_message && (
+                              <div className="border-t pt-3">
+                                <strong className="text-sm text-destructive">Error:</strong>
+                                <p className="mt-1 text-sm text-destructive">{email.error_message}</p>
+                              </div>
+                            )}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+        </Tabs>
+      ) : (
+        <Card>
+          <CardContent className="text-center py-8">
+            <InboxIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No emails sent yet</h3>
+            <p className="text-muted-foreground">
+              Launch your first campaign to see sent emails here
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
