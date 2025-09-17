@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>("");
   const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     onUpdate({ contacts });
@@ -349,32 +350,23 @@ mike@test.org,Mike,Johnson,Test LLC`;
               )}
               
               <div className="flex flex-col items-center gap-4">
-                <Label htmlFor="csv-upload" className="cursor-pointer">
-                  <Button 
-                    disabled={isUploading}
-                    className="bg-gradient-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                  >
-                    {isUploading ? (
-                      <>
-                        <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"></div>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Choose CSV File
-                      </>
-                    )}
-                  </Button>
-                </Label>
-                <Input
-                  id="csv-upload"
-                  type="file"
-                  accept=".csv"
-                  onChange={handleFileUpload}
+                <Button 
                   disabled={isUploading}
-                  className="hidden"
-                />
+                  onClick={() => fileInputRef.current?.click()}
+                  className="bg-gradient-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"></div>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="w-4 h-4 mr-2" />
+                      Choose CSV File
+                    </>
+                  )}
+                </Button>
                 
                 <div className="text-sm text-muted-foreground">
                   <p>Supported format: CSV with headers</p>
@@ -482,7 +474,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
                 variant="outline" 
                 size="sm"
                 onClick={() => {
-                  document.getElementById('csv-upload')?.click();
+                  fileInputRef.current?.click();
                 }}
               >
                 <Upload className="w-4 h-4 mr-2" />
@@ -536,9 +528,11 @@ mike@test.org,Mike,Johnson,Test LLC`;
 
       <Input
         id="csv-upload"
+        ref={fileInputRef}
         type="file"
-        accept=".csv"
+        accept=".csv,text/csv"
         onChange={handleFileUpload}
+        disabled={isUploading}
         className="hidden"
       />
     </div>
