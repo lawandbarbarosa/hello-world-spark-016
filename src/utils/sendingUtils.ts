@@ -41,16 +41,26 @@ export const checkSendingPermissions = async (
       };
     }
 
-    // Check daily limit
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // Check total daily limit across all sender accounts for this user
+    const { data: allSenderAccounts, error: senderError } = await supabase
+      .from('sender_accounts')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (senderError || !allSenderAccounts) {
+      return { canSend: false, reason: 'Unable to load sender accounts' };
+    }
+
+    const todayStart = new Date(zonedTime.getFullYear(), zonedTime.getMonth(), zonedTime.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
     const { count, error: countError } = await supabase
       .from('email_sends')
       .select('*', { count: 'exact', head: true })
-      .eq('sender_account_id', senderAccountId)
+      .in('sender_account_id', allSenderAccounts.map(s => s.id))
       .gte('created_at', todayStart.toISOString())
-      .lt('created_at', todayEnd.toISOString());
+      .lt('created_at', todayEnd.toISOString())
+      .in('status', ['sent', 'pending']);
 
     if (countError) {
       return { canSend: false, reason: 'Unable to check daily send count' };
@@ -60,7 +70,7 @@ export const checkSendingPermissions = async (
     if ((count || 0) >= dailyLimit) {
       return { 
         canSend: false, 
-        reason: `Daily send limit of ${dailyLimit} emails reached for this sender` 
+        reason: `Daily send limit of ${dailyLimit} emails reached across all campaigns. Total sent: ${count || 0}` 
       };
     }
 

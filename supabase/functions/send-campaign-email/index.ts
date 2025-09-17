@@ -146,50 +146,38 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Check daily limits for all sender accounts and sort by remaining capacity
-    const senderStatusPromises = senderAccounts.map(async (sender) => {
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    // Check total daily limit across all sender accounts for this user
+    const todayStart = new Date(zonedTime.getFullYear(), zonedTime.getMonth(), zonedTime.getDate());
+    const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
+    
+    const { count: totalDailyCount, error: totalCountError } = await supabase
+      .from('email_sends')
+      .select('sender_account_id', { count: 'exact', head: true })
+      .in('sender_account_id', senderAccounts.map(s => s.id))
+      .gte('created_at', todayStart.toISOString())
+      .lt('created_at', todayEnd.toISOString())
+      .in('status', ['sent', 'pending']);
 
-      const { count: dailyCount, error: countError } = await supabase
-        .from('email_sends')
-        .select('*', { count: 'exact', head: true })
-        .eq('sender_account_id', sender.id)
-        .gte('created_at', todayStart.toISOString())
-        .lt('created_at', todayEnd.toISOString())
-        .in('status', ['sent', 'pending']);
+    const dailyLimit = userSettings?.daily_send_limit || 50;
+    const totalSentToday = totalCountError ? 0 : (totalDailyCount || 0);
+    const remainingLimit = Math.max(0, dailyLimit - totalSentToday);
 
-      const dailyLimit = userSettings?.daily_send_limit || 50;
-      const sentToday = countError ? 0 : (dailyCount || 0);
-      const remaining = Math.max(0, dailyLimit - sentToday);
-
-      return {
-        ...sender,
-        sentToday,
-        remaining,
-        canSend: remaining > 0
-      };
-    });
-
-    const senderStatuses = await Promise.all(senderStatusPromises);
-    const availableSenders = senderStatuses
-      .filter(s => s.canSend)
-      .sort((a, b) => b.remaining - a.remaining); // Sort by most remaining capacity first
-
-    if (availableSenders.length === 0) {
-      console.log("All sender accounts have reached their daily limit");
+    if (remainingLimit === 0) {
+      console.log(`Daily limit reached: ${totalSentToday}/${dailyLimit} emails sent today`);
       return new Response(JSON.stringify({ 
-        error: "All sender accounts have reached their daily sending limit. Try again tomorrow or increase your daily limit in settings.",
-        details: senderStatuses.map(s => ({ 
-          email: s.email, 
-          sent: s.sentToday, 
-          limit: userSettings?.daily_send_limit || 50 
-        }))
+        error: `Daily sending limit of ${dailyLimit} emails reached. Total sent today: ${totalSentToday}. Try again tomorrow or increase your daily limit in settings.`
       }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Limit contacts to remaining daily capacity
+    const contactsToProcess = contacts.slice(0, remainingLimit);
+    console.log(`Processing ${contactsToProcess.length} contacts (${remainingLimit} remaining in daily limit)`);
+
+    // All sender accounts are available since we're using total daily limit
+    const availableSenders = senderAccounts;
 
     // Process the first email sequence (step 1)
     const firstSequence = sequences.find(seq => seq.step_number === 1);
@@ -204,50 +192,11 @@ const handler = async (req: Request): Promise<Response> => {
     let emailsError = 0;
     let senderIndex = 0;
 
-    // Send emails to all contacts using round-robin with available senders
-    for (const contact of contacts) {
-      // Find next available sender with capacity
-      let currentSender = null;
-      let attempts = 0;
-      
-      while (!currentSender && attempts < availableSenders.length) {
-        const potentialSender = availableSenders[senderIndex % availableSenders.length];
-        
-        // Double-check this sender still has capacity
-        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-
-        const { count: currentCount } = await supabase
-          .from('email_sends')
-          .select('*', { count: 'exact', head: true })
-          .eq('sender_account_id', potentialSender.id)
-          .gte('created_at', todayStart.toISOString())
-          .lt('created_at', todayEnd.toISOString())
-          .in('status', ['sent', 'pending']);
-
-        const dailyLimit = userSettings?.daily_send_limit || 50;
-        const remaining = Math.max(0, dailyLimit - (currentCount || 0));
-
-        if (remaining > 0) {
-          currentSender = potentialSender;
-        } else {
-          // Remove this sender from available list
-          availableSenders.splice(senderIndex % availableSenders.length, 1);
-          if (availableSenders.length === 0) {
-            console.log("All senders reached their limit during campaign execution");
-            break;
-          }
-        }
-        
-        attempts++;
-        senderIndex = (senderIndex + 1) % Math.max(1, availableSenders.length);
-      }
-
-      if (!currentSender) {
-        console.log(`No available sender for contact ${contact.email} - all limits reached`);
-        emailsError++;
-        continue;
-      }
+     // Send emails to contacts using round-robin across senders, respecting total daily limit
+    for (const contact of contactsToProcess) {
+      // Use round-robin to distribute across available senders
+      const currentSender = availableSenders[senderIndex % availableSenders.length];
+      senderIndex++;
 
       try {
         // Get fallback merge tags from user settings

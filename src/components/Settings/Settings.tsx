@@ -301,7 +301,7 @@ const Settings = () => {
                       />
                     </FormControl>
                     <FormDescription>
-                      Maximum emails per day per sender account (1-10,000)
+                      Maximum total emails per day across all campaigns (1-10,000)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
