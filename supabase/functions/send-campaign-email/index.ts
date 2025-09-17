@@ -263,12 +263,7 @@ const handler = async (req: Request): Promise<Response> => {
           finalBody += '\n\n' + userSettings.default_signature;
         }
 
-        // Add unsubscribe link if enabled
-        if (userSettings?.unsubscribe_link_enabled !== false) {
-          const unsubscribeUrl = `${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}&action=unsubscribe`;
-          finalBody += '\n\n---\n';
-          finalBody += `If you no longer wish to receive these emails, you can [unsubscribe here](${unsubscribeUrl}).`;
-        }
+        // Unsubscribe link removed per user request
 
         // Add legal disclaimer if provided
         if (userSettings?.legal_disclaimer && userSettings.legal_disclaimer.trim()) {
