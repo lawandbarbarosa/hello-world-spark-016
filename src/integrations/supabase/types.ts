@@ -265,6 +265,63 @@ export type Database = {
           },
         ]
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          csv_mapping_defaults: Json | null
+          daily_send_limit: number | null
+          default_signature: string | null
+          fallback_merge_tags: Json | null
+          from_name_format: string | null
+          id: string
+          legal_disclaimer: string | null
+          reply_handling_enabled: boolean | null
+          send_time_end: string | null
+          send_time_start: string | null
+          theme_mode: string | null
+          timezone: string | null
+          unsubscribe_link_enabled: boolean | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          csv_mapping_defaults?: Json | null
+          daily_send_limit?: number | null
+          default_signature?: string | null
+          fallback_merge_tags?: Json | null
+          from_name_format?: string | null
+          id?: string
+          legal_disclaimer?: string | null
+          reply_handling_enabled?: boolean | null
+          send_time_end?: string | null
+          send_time_start?: string | null
+          theme_mode?: string | null
+          timezone?: string | null
+          unsubscribe_link_enabled?: boolean | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          csv_mapping_defaults?: Json | null
+          daily_send_limit?: number | null
+          default_signature?: string | null
+          fallback_merge_tags?: Json | null
+          from_name_format?: string | null
+          id?: string
+          legal_disclaimer?: string | null
+          reply_handling_enabled?: boolean | null
+          send_time_end?: string | null
+          send_time_start?: string | null
+          theme_mode?: string | null
+          timezone?: string | null
+          unsubscribe_link_enabled?: boolean | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

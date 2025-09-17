@@ -5,6 +5,7 @@ import CampaignList from '@/components/Campaigns/CampaignList';
 import CampaignWizard from '@/components/Campaigns/CampaignWizard';
 import Inbox from '@/components/Inbox/Inbox';
 import SenderAccounts from '@/components/Senders/SenderAccounts';
+import Settings from '@/components/Settings/Settings';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -29,12 +30,7 @@ const Index = () => {
       case 'senders':
         return <SenderAccounts />;
       case 'settings':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Settings</h2>
-            <p className="text-muted-foreground">Configure your account and preferences...</p>
-          </div>
-        );
+        return <Settings />;
       default:
         return <Dashboard onNavigate={setActiveTab} />;
     }
