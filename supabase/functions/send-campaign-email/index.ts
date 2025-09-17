@@ -65,16 +65,39 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get contacts for the campaign
+    // Get contacts for the campaign with detailed logging
+    console.log("Fetching contacts for campaign:", campaignId);
     const { data: contacts, error: contactsError } = await supabase
       .from("contacts")
       .select("*")
       .eq("campaign_id", campaignId)
       .eq("status", "active");
 
-    if (contactsError || !contacts || contacts.length === 0) {
-      console.error("No contacts found:", contactsError);
-      return new Response(JSON.stringify({ error: "No contacts found" }), {
+    console.log("Contacts query result:", { contacts, error: contactsError, count: contacts?.length });
+
+    if (contactsError) {
+      console.error("Error fetching contacts:", contactsError);
+      return new Response(JSON.stringify({ error: `Error fetching contacts: ${contactsError.message}` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!contacts || contacts.length === 0) {
+      console.log("No contacts found for campaign - checking all contacts in database");
+      
+      // Debug: Check if contacts exist at all for this campaign
+      const { data: allContacts, error: allContactsError } = await supabase
+        .from("contacts")
+        .select("*")
+        .eq("campaign_id", campaignId);
+      
+      console.log("All contacts for campaign (any status):", { allContacts, error: allContactsError, count: allContacts?.length });
+      
+      return new Response(JSON.stringify({ 
+        error: `No active contacts found for campaign. Total contacts in campaign: ${allContacts?.length || 0}`,
+        debug: { campaignId, allContacts: allContacts?.slice(0, 3) } // Show first 3 for debugging
+      }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

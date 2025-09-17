@@ -79,7 +79,13 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
 
   const handleLaunch = async () => {
     try {
-      console.log("Launching campaign with data:", campaignData);
+      console.log("=== CAMPAIGN LAUNCH DEBUG ===");
+      console.log("Full campaign data:", JSON.stringify(campaignData, null, 2));
+      console.log("Contacts count:", campaignData.contacts?.length || 0);
+      console.log("First 3 contacts:", campaignData.contacts?.slice(0, 3) || "No contacts");
+      console.log("Sender accounts count:", campaignData.senderAccounts?.length || 0);
+      console.log("Email sequence count:", campaignData.sequence?.length || 0);
+      console.log("=== END DEBUG ===");
       
       if (!campaignData.name || campaignData.senderAccounts.length === 0 || campaignData.sequence.length === 0) {
         toast.error("Please complete all required fields before launching the campaign.");
@@ -150,8 +156,10 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         return;
       }
 
-      // Create contacts
+      // Create contacts with detailed logging
       if (campaignData.contacts && campaignData.contacts.length > 0) {
+        console.log("Creating contacts for campaign:", campaign.id, "Contacts data:", campaignData.contacts);
+        
         const contactsData = campaignData.contacts.map(contact => ({
           campaign_id: campaign.id,
           email: contact.email,
@@ -161,15 +169,24 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
           user_id: user.id
         }));
 
-        const { error: contactsError } = await supabase
+        console.log("Contacts data to insert:", contactsData);
+
+        const { data: insertedContacts, error: contactsError } = await supabase
           .from('contacts')
-          .insert(contactsData);
+          .insert(contactsData)
+          .select();
 
         if (contactsError) {
           console.error('Error creating contacts:', contactsError);
           toast.error('Failed to create contacts. Please try again.');
           return;
         }
+
+        console.log("Successfully inserted contacts:", insertedContacts);
+      } else {
+        console.log("No contacts to create - contacts array is empty or undefined");
+        toast.error('No contacts found. Please upload contacts before launching the campaign.');
+        return;
       }
 
       // Launch the campaign
