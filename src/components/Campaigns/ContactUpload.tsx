@@ -156,10 +156,12 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
           const jsonData: string[][] = XLSX.utils.sheet_to_json(worksheet, { 
             header: 1,
             raw: false,
-            defval: ''
+            defval: '',
+            blankrows: false  // Skip blank rows
           }) as string[][];
           
           console.log('Excel data parsed, rows:', jsonData.length);
+          console.log('Raw Excel data:', jsonData);
           
           if (jsonData.length === 0) {
             throw new Error("Excel file is empty");
@@ -169,14 +171,36 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
             throw new Error("Excel file must contain at least one row of data besides headers");
           }
           
-          const headers = jsonData[0];
-          let excelData = jsonData.slice(1);
+          const headers = jsonData[0].filter(h => h && h.toString().trim()); // Remove empty headers
+          console.log('Filtered headers:', headers);
+          
+          if (headers.length === 0) {
+            throw new Error("No valid headers found in Excel file");
+          }
+          
+          let excelData = jsonData.slice(1)
+            .map(row => {
+              // Pad or trim row to match header count
+              const paddedRow = Array(headers.length).fill('');
+              for (let i = 0; i < Math.min(row.length, headers.length); i++) {
+                paddedRow[i] = row[i] ? row[i].toString().trim() : '';
+              }
+              return paddedRow;
+            })
+            .filter(row => row.some(cell => cell && cell.trim())); // Remove completely empty rows
+          
+          console.log('Processed Excel data rows:', excelData.length);
+          console.log('Sample processed row:', excelData[0]);
           
           // Limit data processing to prevent memory issues
           const maxRows = 10000;
           if (excelData.length > maxRows) {
             excelData = excelData.slice(0, maxRows);
             console.warn(`Excel data truncated to ${maxRows} rows for performance`);
+          }
+          
+          if (excelData.length === 0) {
+            throw new Error("No data rows found in Excel file");
           }
           
           console.log('Headers:', headers);
