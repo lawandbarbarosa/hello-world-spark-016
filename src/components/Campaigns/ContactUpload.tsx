@@ -91,22 +91,18 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     setIsUploading(true);
     console.log('Starting file read...');
 
-    // Determine if it's Excel or CSV
-    const fileName = file.name.toLowerCase();
-    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-    
     // Common data processing function
-    const processData = (headers: string[], dataRows: string[][]) => {
+    const processData = (headers: string[], data: string[][]) => {
       // Validate that all rows have the same number of columns
       const expectedColumns = headers.length;
-      const invalidRows = dataRows.filter(row => row.length !== expectedColumns);
+      const invalidRows = data.filter(row => row.length !== expectedColumns);
       
       if (invalidRows.length > 0) {
         console.warn(`Found ${invalidRows.length} rows with mismatched columns`);
       }
       
       // Filter out rows with mismatched columns
-      const validData = dataRows.filter(row => row.length === expectedColumns);
+      const validData = data.filter(row => row.length === expectedColumns);
       
       if (validData.length === 0) {
         throw new Error("No valid data rows found");
@@ -142,7 +138,8 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     };
-    
+
+    // Determine if it's Excel or CSV
     if (isExcel) {
       // Handle Excel files
       const reader = new FileReader();
@@ -289,51 +286,6 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       
       reader.readAsText(file);
     }
-      // Validate that all rows have the same number of columns
-      const expectedColumns = headers.length;
-      const invalidRows = data.filter(row => row.length !== expectedColumns);
-      
-      if (invalidRows.length > 0) {
-        console.warn(`Found ${invalidRows.length} rows with mismatched columns`);
-      }
-      
-      // Filter out rows with mismatched columns
-      const validData = data.filter(row => row.length === expectedColumns);
-      
-      if (validData.length === 0) {
-        throw new Error("No valid data rows found");
-      }
-      
-      setCsvHeaders(headers);
-      setCsvData(validData);
-      setShowPreview(true);
-      
-      // Auto-map common fields
-      const mapping: Record<string, string> = {};
-      headers.forEach((header, index) => {
-        const lowerHeader = header.toLowerCase().replace(/[^a-z]/g, '');
-        if (lowerHeader.includes('email') || lowerHeader === 'email') {
-          mapping[index.toString()] = 'email';
-        } else if (lowerHeader.includes('first') || lowerHeader === 'firstname' || lowerHeader === 'fname') {
-          mapping[index.toString()] = 'firstName';
-        } else if (lowerHeader.includes('last') || lowerHeader === 'lastname' || lowerHeader === 'lname') {
-          mapping[index.toString()] = 'lastName';
-        } else if (lowerHeader.includes('company') || lowerHeader === 'company' || lowerHeader === 'organization') {
-          mapping[index.toString()] = 'company';
-        }
-      });
-      setFieldMapping(mapping);
-      
-      console.log('Auto-mapping:', mapping);
-      
-      toast({
-        title: "File uploaded successfully",
-        description: `Found ${validData.length} contacts`,
-      });
-      
-      setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    };
   }, [toast]);
 
   const handleImportContacts = () => {
