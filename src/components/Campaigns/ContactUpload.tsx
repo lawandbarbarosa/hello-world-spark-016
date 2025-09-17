@@ -592,7 +592,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
         id="csv-upload"
         ref={fileInputRef}
         type="file"
-        accept=".csv,text/csv,application/vnd.ms-excel"
+        accept=".csv,.xlsx,.xls,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         onChange={handleFileUpload}
         disabled={isUploading}
         multiple={false}
