@@ -70,7 +70,6 @@ const Inbox = () => {
   const { user } = useAuth();
   const [sentEmails, setSentEmails] = useState<SentEmail[]>([]);
   const [contactGroups, setContactGroups] = useState<ContactGroup[]>([]);
-  const [activeTab, setActiveTab] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
 
@@ -285,64 +284,90 @@ const Inbox = () => {
           </CardContent>
         </Card>
       ) : sentEmails.length > 0 ? (
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <TabsList className="grid w-full grid-cols-2 sm:w-auto">
-              <TabsTrigger value="all" className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4" />
-                All Emails ({sentEmails.length})
-              </TabsTrigger>
-              <TabsTrigger value="contacts" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                By Contact ({contactGroups.length})
-              </TabsTrigger>
-            </TabsList>
+        <div className="space-y-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-foreground">
+              Contacts ({contactGroups.length})
+            </h2>
           </div>
-
-          <TabsContent value="all" className="space-y-4">
-            <Card>
+          
+          {contactGroups.map((group) => (
+            <Card key={group.contactEmail} className="shadow-md">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <InboxIcon className="w-5 h-5 text-primary" />
-                  All Sent Emails ({sentEmails.length})
-                </CardTitle>
-                <CardDescription>
-                  Chronological view of all emails sent from your campaigns
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <User className="w-6 h-6 text-primary" />
+                    <div>
+                      <CardTitle className="text-lg">
+                        {group.contactName}
+                      </CardTitle>
+                      <CardDescription>
+                        {group.contactEmail}
+                      </CardDescription>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary">{group.totalSent}</div>
+                      <div className="text-xs text-muted-foreground">Sent</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-success">{group.totalOpened}</div>
+                      <div className="text-xs text-muted-foreground">Opened</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-destructive">{group.totalFailed}</div>
+                      <div className="text-xs text-muted-foreground">Failed</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Mail className="w-3 h-3" />
+                    Campaigns: {group.campaigns.join(', ')}
+                  </span>
+                  {group.latestSent && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Last sent: {new Date(group.latestSent).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {sentEmails.map((email) => (
+                  <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                    <Send className="w-4 h-4" />
+                    Email History ({group.emails.length})
+                  </h4>
+                  {group.emails.map((email) => (
                     <Collapsible
                       key={email.id}
                       open={expandedEmails.has(email.id)}
                       onOpenChange={() => toggleEmailExpansion(email.id)}
                     >
                       <CollapsibleTrigger asChild>
-                        <div className="flex items-center justify-between p-4 border border-border rounded-lg bg-gradient-card hover:bg-accent/50 cursor-pointer transition-colors">
+                        <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-background hover:bg-accent/50 cursor-pointer transition-colors">
                           <div className="flex items-center gap-3 flex-1">
                             {getStatusIcon(email.status, email.sent_at, email.opened_at)}
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-medium text-foreground truncate">
+                                <h5 className="font-medium text-foreground truncate">
                                   {personalizeContent(email.email_sequence.subject, email.contact)}
-                                </h4>
+                                </h5>
                                 {getStatusBadge(email.status, email.sent_at, email.opened_at)}
                               </div>
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <span className="flex items-center gap-1">
-                                  <User className="w-3 h-3" />
-                                  {email.contact.email}
-                                </span>
-                                <span className="flex items-center gap-1">
                                   <Mail className="w-3 h-3" />
-                                  {email.campaign.name}
+                                  {email.campaign.name} - Step {email.email_sequence.step_number}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Calendar className="w-3 h-3" />
                                   {email.sent_at 
-                                    ? new Date(email.sent_at).toLocaleString()
-                                    : new Date(email.created_at).toLocaleString()
+                                    ? new Date(email.sent_at).toLocaleDateString()
+                                    : new Date(email.created_at).toLocaleDateString()
                                   }
                                 </span>
                               </div>
@@ -357,27 +382,21 @@ const Inbox = () => {
                           </div>
                         </div>
                       </CollapsibleTrigger>
-                      <CollapsibleContent className="px-4 pb-4">
-                        <div className="mt-4 space-y-4 bg-background/50 rounded-lg p-4 border">
+                      <CollapsibleContent className="px-3 pb-3">
+                        <div className="mt-3 space-y-3 bg-background/50 rounded-lg p-4 border">
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <strong>From:</strong> {email.sender_account.email}
                             </div>
                             <div>
-                              <strong>To:</strong> {email.contact.email}
-                            </div>
-                            <div>
                               <strong>Campaign:</strong> {email.campaign.name}
-                            </div>
-                            <div>
-                              <strong>Step:</strong> {email.email_sequence.step_number}
                             </div>
                             {email.opened_at && (
                               <div>
                                 <strong>Opened:</strong> {new Date(email.opened_at).toLocaleString()}
                                 <Badge className="ml-2 bg-success text-success-foreground text-xs">
                                   <Eye className="w-3 h-3 mr-1" />
-                                  Email Opened!
+                                  Opened!
                                 </Badge>
                               </div>
                             )}
@@ -388,12 +407,12 @@ const Inbox = () => {
                             )}
                           </div>
                           
-                          <div className="border-t pt-4">
+                          <div className="border-t pt-3">
                             <strong className="text-sm">Subject:</strong>
                             <p className="mt-1 font-medium">{personalizeContent(email.email_sequence.subject, email.contact)}</p>
                           </div>
                           
-                          <div className="border-t pt-4">
+                          <div className="border-t pt-3">
                             <strong className="text-sm">Message:</strong>
                             <div 
                               className="mt-2 prose prose-sm max-w-none text-foreground"
@@ -404,7 +423,7 @@ const Inbox = () => {
                           </div>
 
                           {email.error_message && (
-                            <div className="border-t pt-4">
+                            <div className="border-t pt-3">
                               <strong className="text-sm text-destructive">Error:</strong>
                               <p className="mt-1 text-sm text-destructive">{email.error_message}</p>
                             </div>
@@ -416,155 +435,8 @@ const Inbox = () => {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="contacts" className="space-y-4">
-            {contactGroups.map((group) => (
-              <Card key={group.contactEmail} className="shadow-md">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <User className="w-6 h-6 text-primary" />
-                      <div>
-                        <CardTitle className="text-lg">
-                          {group.contactName}
-                        </CardTitle>
-                        <CardDescription>
-                          {group.contactEmail}
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">{group.totalSent}</div>
-                        <div className="text-xs text-muted-foreground">Sent</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-success">{group.totalOpened}</div>
-                        <div className="text-xs text-muted-foreground">Opened</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-destructive">{group.totalFailed}</div>
-                        <div className="text-xs text-muted-foreground">Failed</div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Mail className="w-3 h-3" />
-                      Campaigns: {group.campaigns.join(', ')}
-                    </span>
-                    {group.latestSent && (
-                      <span className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        Last sent: {new Date(group.latestSent).toLocaleDateString()}
-                      </span>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
-                      <Send className="w-4 h-4" />
-                      Email History ({group.emails.length})
-                    </h4>
-                    {group.emails.map((email) => (
-                      <Collapsible
-                        key={email.id}
-                        open={expandedEmails.has(email.id)}
-                        onOpenChange={() => toggleEmailExpansion(email.id)}
-                      >
-                        <CollapsibleTrigger asChild>
-                          <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-background hover:bg-accent/50 cursor-pointer transition-colors">
-                            <div className="flex items-center gap-3 flex-1">
-                              {getStatusIcon(email.status, email.sent_at, email.opened_at)}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h5 className="font-medium text-foreground truncate">
-                                    {personalizeContent(email.email_sequence.subject, email.contact)}
-                                  </h5>
-                                  {getStatusBadge(email.status, email.sent_at, email.opened_at)}
-                                </div>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                                  <span className="flex items-center gap-1">
-                                    <Mail className="w-3 h-3" />
-                                    {email.campaign.name} - Step {email.email_sequence.step_number}
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <Calendar className="w-3 h-3" />
-                                    {email.sent_at 
-                                      ? new Date(email.sent_at).toLocaleDateString()
-                                      : new Date(email.created_at).toLocaleDateString()
-                                    }
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {expandedEmails.has(email.id) ? (
-                                  <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                                ) : (
-                                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="px-3 pb-3">
-                          <div className="mt-3 space-y-3 bg-background/50 rounded-lg p-4 border">
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <strong>From:</strong> {email.sender_account.email}
-                              </div>
-                              <div>
-                                <strong>Campaign:</strong> {email.campaign.name}
-                              </div>
-                              {email.opened_at && (
-                                <div>
-                                  <strong>Opened:</strong> {new Date(email.opened_at).toLocaleString()}
-                                  <Badge className="ml-2 bg-success text-success-foreground text-xs">
-                                    <Eye className="w-3 h-3 mr-1" />
-                                    Opened!
-                                  </Badge>
-                                </div>
-                              )}
-                              {email.clicked_at && (
-                                <div>
-                                  <strong>Clicked:</strong> {new Date(email.clicked_at).toLocaleString()}
-                                </div>
-                              )}
-                            </div>
-                            
-                            <div className="border-t pt-3">
-                              <strong className="text-sm">Subject:</strong>
-                              <p className="mt-1 font-medium">{personalizeContent(email.email_sequence.subject, email.contact)}</p>
-                            </div>
-                            
-                            <div className="border-t pt-3">
-                              <strong className="text-sm">Message:</strong>
-                              <div 
-                                className="mt-2 prose prose-sm max-w-none text-foreground"
-                                dangerouslySetInnerHTML={{ 
-                                  __html: personalizeContent(email.email_sequence.body, email.contact).replace(/\n/g, '<br>') 
-                                }}
-                              />
-                            </div>
-
-                            {email.error_message && (
-                              <div className="border-t pt-3">
-                                <strong className="text-sm text-destructive">Error:</strong>
-                                <p className="mt-1 text-sm text-destructive">{email.error_message}</p>
-                              </div>
-                            )}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
-        </Tabs>
+          ))}
+        </div>
       ) : (
         <Card>
           <CardContent className="text-center py-8">
