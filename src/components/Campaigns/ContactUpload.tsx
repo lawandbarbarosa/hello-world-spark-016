@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Upload, FileText, Users, X, Download, Eye, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
 
 interface Contact {
   email: string;
@@ -58,13 +59,17 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     setFieldMapping({});
     
     // Validate file type
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      const error = "Please select a CSV file";
+    const fileName = file.name.toLowerCase();
+    const isCSV = fileName.endsWith('.csv');
+    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+    
+    if (!isCSV && !isExcel) {
+      const error = "Please select a CSV or Excel file";
       console.error('File type validation failed:', file.name);
       setUploadError(error);
       toast({
         title: "Invalid file type",
-        description: "Please upload a CSV file",
+        description: "Please upload a CSV or Excel file (.csv, .xlsx, .xls)",
         variant: "destructive",
       });
       return;
@@ -86,119 +91,249 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     setIsUploading(true);
     console.log('Starting file read...');
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        // Normalize text: strip BOM and normalize newlines
-        const raw = (e.target?.result as string) ?? "";
-        let text = raw.replace(/^\uFEFF/, "");
-        text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-        console.log('File content loaded, length:', text.length);
-        
-        // Simple and safe CSV parsing - split by lines first
-        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-        
-        console.log('Parsed lines:', lines.length);
-        
-        
-        if (lines.length === 0) {
-          throw new Error("CSV file is empty");
-        }
-        
-        if (lines.length === 1) {
-          throw new Error("CSV file must contain at least one row of data besides headers");
-        }
-
-        // Simple CSV parsing - split by comma and handle basic quotes
-        const parseCSVLine = (line: string): string[] => {
-          // Simple split by comma, removing quotes
-          return line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
-        };
-
-        const headers = parseCSVLine(lines[0]);
-        const data = lines.slice(1).map(parseCSVLine);
-        
-        // Limit data processing to prevent memory issues
-        const maxRows = 10000;
-        if (data.length > maxRows) {
-          data.splice(maxRows);
-          console.warn(`CSV truncated to ${maxRows} rows for performance`);
-        }
-        
-        console.log('Headers:', headers);
-        console.log('Data rows:', data.length);
-        
-        // Validate that all rows have the same number of columns
-        const expectedColumns = headers.length;
-        const invalidRows = data.filter(row => row.length !== expectedColumns);
-        
-        if (invalidRows.length > 0) {
-          console.warn(`Found ${invalidRows.length} rows with mismatched columns`);
-        }
-        
-        // Filter out rows with mismatched columns
-        const validData = data.filter(row => row.length === expectedColumns);
-        
-        if (validData.length === 0) {
-          throw new Error("No valid data rows found in CSV");
-        }
-        
-        setCsvHeaders(headers);
-        setCsvData(validData);
-        setShowPreview(true);
-        
-        // Auto-map common fields
-        const mapping: Record<string, string> = {};
-        headers.forEach((header, index) => {
-          const lowerHeader = header.toLowerCase().replace(/[^a-z]/g, '');
-          if (lowerHeader.includes('email') || lowerHeader === 'email') {
-            mapping[index.toString()] = 'email';
-          } else if (lowerHeader.includes('first') || lowerHeader === 'firstname' || lowerHeader === 'fname') {
-            mapping[index.toString()] = 'firstName';
-          } else if (lowerHeader.includes('last') || lowerHeader === 'lastname' || lowerHeader === 'lname') {
-            mapping[index.toString()] = 'lastName';
-          } else if (lowerHeader.includes('company') || lowerHeader === 'company' || lowerHeader === 'organization') {
-            mapping[index.toString()] = 'company';
-          }
-        });
-        setFieldMapping(mapping);
-        
-        console.log('Auto-mapping:', mapping);
-        
-        toast({
-          title: "CSV uploaded successfully",
-          description: `Found ${validData.length} contacts`,
-        });
-        
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : "Failed to parse CSV file";
-        console.error('CSV parsing error:', error);
-        setUploadError(errorMessage);
-        toast({
-          title: "Upload failed",
-          description: errorMessage,
-          variant: "destructive",
-        });
-      } finally {
-        setIsUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
-      }
-    };
+    // Determine if it's Excel or CSV
+    const fileName = file.name.toLowerCase();
+    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
     
-    reader.onerror = () => {
-      const error = "Failed to read file";
-      console.error('FileReader error');
-      setUploadError(error);
+    // Common data processing function
+    const processData = (headers: string[], dataRows: string[][]) => {
+      // Validate that all rows have the same number of columns
+      const expectedColumns = headers.length;
+      const invalidRows = dataRows.filter(row => row.length !== expectedColumns);
+      
+      if (invalidRows.length > 0) {
+        console.warn(`Found ${invalidRows.length} rows with mismatched columns`);
+      }
+      
+      // Filter out rows with mismatched columns
+      const validData = dataRows.filter(row => row.length === expectedColumns);
+      
+      if (validData.length === 0) {
+        throw new Error("No valid data rows found");
+      }
+      
+      setCsvHeaders(headers);
+      setCsvData(validData);
+      setShowPreview(true);
+      
+      // Auto-map common fields
+      const mapping: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        const lowerHeader = header.toLowerCase().replace(/[^a-z]/g, '');
+        if (lowerHeader.includes('email') || lowerHeader === 'email') {
+          mapping[index.toString()] = 'email';
+        } else if (lowerHeader.includes('first') || lowerHeader === 'firstname' || lowerHeader === 'fname') {
+          mapping[index.toString()] = 'firstName';
+        } else if (lowerHeader.includes('last') || lowerHeader === 'lastname' || lowerHeader === 'lname') {
+          mapping[index.toString()] = 'lastName';
+        } else if (lowerHeader.includes('company') || lowerHeader === 'company' || lowerHeader === 'organization') {
+          mapping[index.toString()] = 'company';
+        }
+      });
+      setFieldMapping(mapping);
+      
+      console.log('Auto-mapping:', mapping);
+      
+      toast({
+        title: "File uploaded successfully",
+        description: `Found ${validData.length} contacts`,
+      });
+      
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      toast({
-        title: "Upload failed",
-        description: "Failed to read the file",
-        variant: "destructive",
-      });
     };
     
-    reader.readAsText(file);
+    if (isExcel) {
+      // Handle Excel files
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const arrayBuffer = new Uint8Array(e.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          
+          // Get the first worksheet
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          
+          // Convert to JSON with headers
+          const jsonData: string[][] = XLSX.utils.sheet_to_json(worksheet, { 
+            header: 1,
+            raw: false,
+            defval: ''
+          }) as string[][];
+          
+          console.log('Excel data parsed, rows:', jsonData.length);
+          
+          if (jsonData.length === 0) {
+            throw new Error("Excel file is empty");
+          }
+          
+          if (jsonData.length === 1) {
+            throw new Error("Excel file must contain at least one row of data besides headers");
+          }
+          
+          const headers = jsonData[0];
+          let excelData = jsonData.slice(1);
+          
+          // Limit data processing to prevent memory issues
+          const maxRows = 10000;
+          if (excelData.length > maxRows) {
+            excelData = excelData.slice(0, maxRows);
+            console.warn(`Excel data truncated to ${maxRows} rows for performance`);
+          }
+          
+          console.log('Headers:', headers);
+          console.log('Data rows:', excelData.length);
+          
+          processData(headers, excelData);
+          
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Failed to parse Excel file";
+          console.error('Excel parsing error:', error);
+          setUploadError(errorMessage);
+          toast({
+            title: "Upload failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          setIsUploading(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      };
+      
+      reader.onerror = () => {
+        const error = "Failed to read Excel file";
+        console.error('FileReader error');
+        setUploadError(error);
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({
+          title: "Upload failed",
+          description: "Failed to read the Excel file",
+          variant: "destructive",
+        });
+      };
+      
+      reader.readAsArrayBuffer(file);
+    } else {
+      // Handle CSV files
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          // Normalize text: strip BOM and normalize newlines
+          const raw = (e.target?.result as string) ?? "";
+          let text = raw.replace(/^\uFEFF/, "");
+          text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+          console.log('File content loaded, length:', text.length);
+          
+          // Simple and safe CSV parsing - split by lines first
+          const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+          
+          console.log('Parsed lines:', lines.length);
+          
+          if (lines.length === 0) {
+            throw new Error("CSV file is empty");
+          }
+          
+          if (lines.length === 1) {
+            throw new Error("CSV file must contain at least one row of data besides headers");
+          }
+
+          // Simple CSV parsing - split by comma and handle basic quotes
+          const parseCSVLine = (line: string): string[] => {
+            // Simple split by comma, removing quotes
+            return line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
+          };
+
+          const headers = parseCSVLine(lines[0]);
+          let csvData = lines.slice(1).map(parseCSVLine);
+          
+          // Limit data processing to prevent memory issues
+          const maxRows = 10000;
+          if (csvData.length > maxRows) {
+            csvData = csvData.slice(0, maxRows);
+            console.warn(`CSV truncated to ${maxRows} rows for performance`);
+          }
+          
+          console.log('Headers:', headers);
+          console.log('Data rows:', csvData.length);
+          
+          processData(headers, csvData);
+          
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : "Failed to parse CSV file";
+          console.error('CSV parsing error:', error);
+          setUploadError(errorMessage);
+          toast({
+            title: "Upload failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+          setIsUploading(false);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+      };
+      
+      reader.onerror = () => {
+        const error = "Failed to read file";
+        console.error('FileReader error');
+        setUploadError(error);
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({
+          title: "Upload failed",
+          description: "Failed to read the file",
+          variant: "destructive",
+        });
+      };
+      
+      reader.readAsText(file);
+    }
+      // Validate that all rows have the same number of columns
+      const expectedColumns = headers.length;
+      const invalidRows = data.filter(row => row.length !== expectedColumns);
+      
+      if (invalidRows.length > 0) {
+        console.warn(`Found ${invalidRows.length} rows with mismatched columns`);
+      }
+      
+      // Filter out rows with mismatched columns
+      const validData = data.filter(row => row.length === expectedColumns);
+      
+      if (validData.length === 0) {
+        throw new Error("No valid data rows found");
+      }
+      
+      setCsvHeaders(headers);
+      setCsvData(validData);
+      setShowPreview(true);
+      
+      // Auto-map common fields
+      const mapping: Record<string, string> = {};
+      headers.forEach((header, index) => {
+        const lowerHeader = header.toLowerCase().replace(/[^a-z]/g, '');
+        if (lowerHeader.includes('email') || lowerHeader === 'email') {
+          mapping[index.toString()] = 'email';
+        } else if (lowerHeader.includes('first') || lowerHeader === 'firstname' || lowerHeader === 'fname') {
+          mapping[index.toString()] = 'firstName';
+        } else if (lowerHeader.includes('last') || lowerHeader === 'lastname' || lowerHeader === 'lname') {
+          mapping[index.toString()] = 'lastName';
+        } else if (lowerHeader.includes('company') || lowerHeader === 'company' || lowerHeader === 'organization') {
+          mapping[index.toString()] = 'company';
+        }
+      });
+      setFieldMapping(mapping);
+      
+      console.log('Auto-mapping:', mapping);
+      
+      toast({
+        title: "File uploaded successfully",
+        description: `Found ${validData.length} contacts`,
+      });
+      
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    };
   }, [toast]);
 
   const handleImportContacts = () => {
@@ -312,7 +447,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
               </div>
               <h3 className="text-lg font-semibold text-foreground mb-2">Upload Your Contact List</h3>
               <p className="text-muted-foreground mb-6">
-                Choose a CSV file containing your email contacts
+                Choose a CSV or Excel file containing your email contacts
               </p>
               
               {uploadError && (
@@ -338,13 +473,13 @@ mike@test.org,Mike,Johnson,Test LLC`;
                   ) : (
                     <>
                       <FileText className="w-4 h-4 mr-2" />
-                      Choose CSV File
+                      Choose File
                     </>
                   )}
                 </Button>
                 
                 <div className="text-sm text-muted-foreground">
-                  <p>Supported format: CSV with headers</p>
+                  <p>Supported formats: CSV, Excel (.xlsx, .xls)</p>
                   <p>Required field: email</p>
                   <p>Optional fields: firstName, lastName, company</p>
                   <p>Maximum file size: 5MB</p>
@@ -360,7 +495,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
         <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle className="text-base text-foreground flex items-center justify-between">
-              <span>CSV Preview & Field Mapping</span>
+              <span>File Preview & Field Mapping</span>
               <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
                 <X className="w-4 h-4" />
               </Button>
@@ -445,7 +580,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
                 <Users className="w-5 h-5" />
                 Imported Contacts ({contacts.length})
               </div>
-              <Button 
+                <Button 
                 variant="outline" 
                 size="sm"
                 onClick={() => {
@@ -453,7 +588,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
                 }}
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Upload New CSV
+                Upload New File
               </Button>
             </CardTitle>
           </CardHeader>
