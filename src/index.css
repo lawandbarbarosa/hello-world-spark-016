@@ -111,12 +111,29 @@
   }
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+  @layer base {
+    * {
+      @apply border-border;
+    }
 
-  body {
-    @apply bg-background text-foreground;
+    body {
+      @apply bg-background text-foreground;
+      font-family: system-ui, -apple-system, sans-serif;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    
+    /* Ensure theme transitions are smooth */
+    html {
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Force re-render of components when theme changes */
+    html.dark,
+    html.light {
+      color-scheme: light;
+    }
+    
+    html.dark {
+      color-scheme: dark;
+    }
   }
-}

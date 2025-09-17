@@ -118,6 +118,13 @@ const Settings = () => {
     }
   }, [settings, form]);
 
+  // Also update form when theme changes externally
+  useEffect(() => {
+    if (settings && theme !== form.getValues('theme_mode')) {
+      form.setValue('theme_mode', theme);
+    }
+  }, [theme, form, settings]);
+
   const onSubmit = async (data: SettingsFormData) => {
     setSaving(true);
     try {
@@ -221,14 +228,15 @@ const Settings = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Theme Mode</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        // Apply theme immediately for preview
-                        setTheme(value as 'light' | 'dark' | 'auto');
-                      }} 
-                      defaultValue={field.value}
-                    >
+    <Select 
+      onValueChange={(value) => {
+        field.onChange(value);
+        // Apply theme immediately for preview
+        console.log(`Theme changed to: ${value}`);
+        setTheme(value as 'light' | 'dark' | 'auto');
+      }} 
+      value={field.value}
+    >
                       <FormControl>
                         <SelectTrigger>
                           <div className="flex items-center gap-2">
