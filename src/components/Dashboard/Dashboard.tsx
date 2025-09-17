@@ -14,8 +14,15 @@ import {
   XCircle,
   Eye,
   Plus,
-  Activity
+  Activity,
+  Pause,
+  Play,
+  Trash2
 } from "lucide-react";
+
+interface DashboardProps {
+  onNavigate?: (tab: string) => void;
+}
 
 interface Campaign {
   id: string;
@@ -34,7 +41,7 @@ interface DashboardStats {
   responseRate: number;
 }
 
-const Dashboard = () => {
+const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
@@ -112,6 +119,90 @@ const Dashboard = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateCampaignStatus = async (campaignId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('campaigns')
+        .update({ status: newStatus })
+        .eq('id', campaignId)
+        .eq('user_id', user?.id);
+
+      if (error) {
+        console.error('Error updating campaign status:', error);
+        toast({
+          title: "Error",
+          description: "Failed to update campaign status",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setCampaigns(campaigns.map(campaign => 
+        campaign.id === campaignId 
+          ? { ...campaign, status: newStatus, updated_at: new Date().toISOString() }
+          : campaign
+      ));
+
+      toast({
+        title: "Success",
+        description: `Campaign ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`,
+      });
+
+      // Refresh stats after status change
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error updating campaign status:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update campaign status",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteCampaign = async (campaignId: string) => {
+    if (!confirm('Are you sure you want to delete this campaign? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('campaigns')
+        .delete()
+        .eq('id', campaignId)
+        .eq('user_id', user?.id);
+
+      if (error) {
+        console.error('Error deleting campaign:', error);
+        toast({
+          title: "Error",
+          description: "Failed to delete campaign",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Update local state
+      setCampaigns(campaigns.filter(campaign => campaign.id !== campaignId));
+
+      toast({
+        title: "Success",
+        description: "Campaign deleted successfully",
+      });
+
+      // Refresh stats after deletion
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Error deleting campaign:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete campaign",
+        variant: "destructive",
+      });
     }
   };
 
@@ -255,6 +346,35 @@ const Dashboard = () => {
                       >
                         {statusInfo.label}
                       </Badge>
+                      <div className="flex gap-2">
+                        {campaign.status === 'active' ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateCampaignStatus(campaign.id, 'paused')}
+                            className="text-warning hover:text-warning-foreground hover:bg-warning"
+                          >
+                            Pause
+                          </Button>
+                        ) : campaign.status === 'paused' || campaign.status === 'draft' ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateCampaignStatus(campaign.id, 'active')}
+                            className="text-success hover:text-success-foreground hover:bg-success"
+                          >
+                            Activate
+                          </Button>
+                        ) : null}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => deleteCampaign(campaign.id)}
+                          className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                        >
+                          Delete
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -267,7 +387,11 @@ const Dashboard = () => {
               <p className="text-muted-foreground mb-4">
                 Create your first campaign to see it here
               </p>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => onNavigate?.('create-campaign')}
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Create Campaign
               </Button>

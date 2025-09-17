@@ -10,7 +10,7 @@ const Index = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActiveTab} />;
       case 'campaigns':
         return <CampaignList onCreateNew={() => setActiveTab('create-campaign')} />;
       case 'create-campaign':
@@ -44,7 +44,7 @@ const Index = () => {
           </div>
         );
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActiveTab} />;
     }
   };
 
