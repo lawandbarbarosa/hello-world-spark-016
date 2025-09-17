@@ -534,14 +534,14 @@ mike@test.org,Mike,Johnson,Test LLC`;
                     {header}
                   </Label>
                   <Select 
-                    value={fieldMapping[index.toString()] || ""} 
-                    onValueChange={(value) => setFieldMapping({...fieldMapping, [index.toString()]: value})}
+                    value={fieldMapping[index.toString()] || "skip"} 
+                    onValueChange={(value) => setFieldMapping({...fieldMapping, [index.toString()]: value === "skip" ? "" : value})}
                   >
                     <SelectTrigger className="bg-background border-border text-foreground">
                       <SelectValue placeholder="Skip field" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Skip field</SelectItem>
+                      <SelectItem value="skip">Skip field</SelectItem>
                       <SelectItem value="email">Email *</SelectItem>
                       <SelectItem value="firstName">First Name</SelectItem>
                       <SelectItem value="lastName">Last Name</SelectItem>
