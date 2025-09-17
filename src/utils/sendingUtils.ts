@@ -94,11 +94,6 @@ export const formatEmailWithSignature = (
     formattedBody += '\n\n' + signature;
   }
 
-  // Add unsubscribe link if provided
-  if (unsubscribeLink) {
-    formattedBody += '\n\n---\n';
-    formattedBody += `If you no longer wish to receive these emails, you can [unsubscribe here](${unsubscribeLink}).`;
-  }
 
   // Add legal disclaimer if provided
   if (legalDisclaimer && legalDisclaimer.trim()) {
