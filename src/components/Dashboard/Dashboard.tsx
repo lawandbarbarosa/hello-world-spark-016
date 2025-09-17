@@ -223,32 +223,52 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
 
   const dashboardStats = [
     {
-      title: "Total Campaigns",
-      value: stats.totalCampaigns.toString(),
-      change: stats.totalCampaigns > 0 ? `${stats.totalCampaigns} campaigns created` : "Create your first campaign",
-      icon: Mail,
+      title: "Campaign Overview",
+      metrics: [
+        {
+          label: "Total Campaigns",
+          value: stats.totalCampaigns.toString(),
+          change: stats.totalCampaigns > 0 ? `${stats.totalCampaigns} campaigns created` : "Create your first campaign",
+          icon: Mail,
+          color: "text-primary"
+        },
+        {
+          label: "Emails Sent",
+          value: stats.emailsSent.toString(),
+          change: stats.emailsSent > 0 ? `${stats.emailsSent} emails delivered` : "No campaigns sent yet",
+          icon: CheckCircle,
+          color: "text-success"
+        }
+      ]
+    },
+    {
+      title: "Contact Management",
+      metrics: [
+        {
+          label: "Active Contacts",
+          value: stats.activeContacts.toString(),
+          change: stats.activeContacts > 0 ? `${stats.activeContacts} contacts ready` : "Upload contact lists",
+          icon: Users,
+          color: "text-success"
+        }
+      ]
+    }
+  ];
+
+  const performanceStats = [
+    {
+      title: "Open Rate",
+      value: stats.emailsSent > 0 ? `${Math.round((stats.emailsOpened / stats.emailsSent) * 100)}%` : "0%",
+      change: stats.emailsOpened > 0 ? `${stats.emailsOpened} emails opened` : "No opens yet",
+      icon: Eye,
       color: "text-primary"
     },
     {
-      title: "Active Contacts",
-      value: stats.activeContacts.toString(),
-      change: stats.activeContacts > 0 ? `${stats.activeContacts} contacts ready` : "Upload contact lists",
-      icon: Users,
-      color: "text-success"
-    },
-    {
-      title: "Response Rate",
+      title: "Reply Rate",
       value: `${stats.responseRate}%`,
-      change: stats.emailsSent > 0 ? `${stats.emailsOpened} of ${stats.emailsSent} opened` : "Start sending campaigns",
+      change: stats.emailsSent > 0 ? `Response rate tracking` : "Start sending campaigns",
       icon: TrendingUp,
       color: "text-warning"
-    },
-    {
-      title: "Emails Sent",
-      value: stats.emailsSent.toString(),
-      change: stats.emailsSent > 0 ? `${stats.emailsSent} emails delivered` : "No campaigns sent yet",
-      icon: CheckCircle,
-      color: "text-success"
     }
   ];
 
@@ -272,27 +292,73 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {dashboardStats.map((stat, index) => {
-          const Icon = stat.icon;
-          return (
-            <Card key={index} className="bg-gradient-card border-border shadow-md">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {stat.title}
+      {/* Stats Cards - Grouped Layout */}
+      <div className="space-y-6">
+        {/* Campaign & Contact Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {dashboardStats.map((statGroup, groupIndex) => (
+            <Card key={groupIndex} className="bg-gradient-card border-border shadow-md">
+              <CardHeader>
+                <CardTitle className="text-lg font-semibold text-foreground">
+                  {statGroup.title}
                 </CardTitle>
-                <Icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {stat.change}
-                </p>
+                <div className="space-y-4">
+                  {statGroup.metrics.map((metric, metricIndex) => {
+                    const Icon = metric.icon;
+                    return (
+                      <div key={metricIndex} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg bg-muted`}>
+                            <Icon className={`h-4 w-4 ${metric.color}`} />
+                          </div>
+                          <div>
+                            <div className="text-sm font-medium text-muted-foreground">
+                              {metric.label}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {metric.change}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-foreground">
+                          {metric.value}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
-          );
-        })}
+          ))}
+        </div>
+
+        {/* Performance Stats - Separated with Distance */}
+        <div className="mt-8">
+          <h2 className="text-xl font-semibold text-foreground mb-4">Email Performance</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {performanceStats.map((stat, index) => {
+              const Icon = stat.icon;
+              return (
+                <Card key={index} className="bg-gradient-card border-border shadow-md">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      {stat.title}
+                    </CardTitle>
+                    <Icon className={`h-4 w-4 ${stat.color}`} />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-3xl font-bold text-foreground">{stat.value}</div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {stat.change}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Recent Campaigns */}
