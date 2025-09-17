@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User } from "lucide-react";
 
 interface EmailStep {
   id: string;
@@ -31,6 +32,8 @@ interface EmailSequenceProps {
 
 const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   const [sequence, setSequence] = useState<EmailStep[]>(data.sequence || []);
+  const [previewMode, setPreviewMode] = useState<boolean>(false);
+  const [selectedContactIndex, setSelectedContactIndex] = useState<number>(0);
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
@@ -48,7 +51,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   };
   
   const availableMergeTags = getAvailableMergeTags();
-  const previewContact = data.contacts?.[0] || {
+  const previewContact = data.contacts?.[selectedContactIndex] || {
     firstName: 'John',
     lastName: 'Doe', 
     company: 'Example Corp',
@@ -108,14 +111,107 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
             Create a series of emails that will be sent automatically with delays
           </p>
         </div>
-        <Button 
-          onClick={addEmailStep}
-          className="bg-gradient-primary text-primary-foreground hover:opacity-90"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Email Step
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="preview-mode" className="text-sm font-medium text-foreground">
+              Preview Mode
+            </Label>
+            <Switch
+              id="preview-mode"
+              checked={previewMode}
+              onCheckedChange={setPreviewMode}
+            />
+          </div>
+          <Button 
+            onClick={addEmailStep}
+            className="bg-gradient-primary text-primary-foreground hover:opacity-90"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Email Step
+          </Button>
+        </div>
       </div>
+
+      {/* Preview Controls */}
+      {previewMode && data.contacts && data.contacts.length > 0 && (
+        <Card className="bg-muted/30 border-primary/20">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" />
+                <Label className="text-sm font-medium text-foreground">Preview for contact:</Label>
+              </div>
+              <Select 
+                value={selectedContactIndex.toString()} 
+                onValueChange={(value) => setSelectedContactIndex(parseInt(value))}
+              >
+                <SelectTrigger className="w-64 bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {data.contacts.slice(0, 10).map((contact, index) => (
+                    <SelectItem key={index} value={index.toString()}>
+                      {contact.email} {contact.firstName ? `(${contact.firstName})` : ''}
+                    </SelectItem>
+                  ))}
+                  {data.contacts.length > 10 && (
+                    <SelectItem value="more" disabled>
+                      ... and {data.contacts.length - 10} more contacts
+                    </SelectItem>
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {previewMode && sequence.length > 0 && (
+        <Card className="bg-gradient-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-primary" />
+              Email Preview - Full Sequence
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {sequence.map((step, index) => (
+                <div key={step.id} className="border border-border rounded-lg p-4 bg-background">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 bg-primary text-primary-foreground rounded-full flex items-center justify-center text-sm font-medium">
+                      {index + 1}
+                    </div>
+                    <span className="font-medium text-foreground">Step {index + 1}</span>
+                    {index > 0 && (
+                      <Badge variant="outline" className="text-xs">
+                        {step.delay} {step.delayUnit} after previous email
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 font-sans">
+                    <div className="border-b border-gray-200 dark:border-gray-700 pb-3 mb-4">
+                      <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Subject:</div>
+                      <div className="font-semibold text-gray-900 dark:text-gray-100">
+                        {replaceVariables(step.subject) || 'No subject'}
+                      </div>
+                    </div>
+                    
+                    <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                      To: {previewContact.email}
+                    </div>
+                    
+                    <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">
+                      {replaceVariables(step.body) || 'No content'}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {sequence.length === 0 ? (
         <Card className="bg-gradient-card border-border border-dashed">
@@ -262,11 +358,11 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                   </div>
 
                   {/* Preview */}
-                  {(step.subject || step.body) && (
+                  {!previewMode && (step.subject || step.body) && (
                     <div className="bg-muted p-4 rounded-lg">
                       <div className="flex items-center gap-2 mb-2">
                         <Eye className="w-4 h-4 text-foreground" />
-                        <span className="text-sm font-medium text-foreground">Preview</span>
+                        <span className="text-sm font-medium text-foreground">Quick Preview</span>
                       </div>
                       <div className="space-y-2">
                         <div className="text-sm">
