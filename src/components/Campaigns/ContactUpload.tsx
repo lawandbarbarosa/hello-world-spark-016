@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Upload, FileText, Users, X, Download, Eye } from "lucide-react";
+import { Upload, FileText, Users, X, Download, Eye, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 interface Contact {
   email: string;
@@ -34,6 +35,9 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [fieldMapping, setFieldMapping] = useState<Record<string, string>>({});
   const [showPreview, setShowPreview] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string>("");
+  const { toast } = useToast();
 
   useEffect(() => {
     onUpdate({ contacts });
@@ -43,56 +47,228 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Reset previous state
+    setUploadError("");
+    setCsvData([]);
+    setCsvHeaders([]);
+    setFieldMapping({});
+    
+    // Validate file type
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setUploadError("Please select a CSV file");
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a CSV file",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("File too large. Maximum size is 5MB");
+      toast({
+        title: "File too large",
+        description: "Please select a file smaller than 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const lines = text.split('\n').filter(line => line.trim());
-      
-      if (lines.length > 0) {
-        const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-        const data = lines.slice(1).map(line => 
-          line.split(',').map(cell => cell.trim().replace(/"/g, ''))
-        );
+      try {
+        const text = e.target?.result as string;
+        
+        // Better CSV parsing to handle quoted fields and commas within quotes
+        const lines = [];
+        let currentLine = "";
+        let inQuotes = false;
+        
+        for (let i = 0; i < text.length; i++) {
+          const char = text[i];
+          
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === '\n' && !inQuotes) {
+            if (currentLine.trim()) {
+              lines.push(currentLine.trim());
+            }
+            currentLine = "";
+          } else {
+            currentLine += char;
+          }
+        }
+        
+        // Add the last line if it exists
+        if (currentLine.trim()) {
+          lines.push(currentLine.trim());
+        }
+        
+        if (lines.length === 0) {
+          throw new Error("CSV file is empty");
+        }
+        
+        if (lines.length === 1) {
+          throw new Error("CSV file must contain at least one row of data besides headers");
+        }
+
+        // Parse CSV data
+        const parseCSVLine = (line: string): string[] => {
+          const result = [];
+          let current = "";
+          let inQuotes = false;
+          
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(current.trim());
+              current = "";
+            } else {
+              current += char;
+            }
+          }
+          
+          result.push(current.trim());
+          return result;
+        };
+
+        const headers = parseCSVLine(lines[0]);
+        const data = lines.slice(1).map(parseCSVLine);
+        
+        // Validate that all rows have the same number of columns
+        const expectedColumns = headers.length;
+        const invalidRows = data.filter(row => row.length !== expectedColumns);
+        
+        if (invalidRows.length > 0) {
+          console.warn(`Found ${invalidRows.length} rows with mismatched columns`);
+        }
+        
+        // Filter out rows with mismatched columns
+        const validData = data.filter(row => row.length === expectedColumns);
+        
+        if (validData.length === 0) {
+          throw new Error("No valid data rows found in CSV");
+        }
         
         setCsvHeaders(headers);
-        setCsvData(data);
+        setCsvData(validData);
         setShowPreview(true);
         
         // Auto-map common fields
         const mapping: Record<string, string> = {};
         headers.forEach((header, index) => {
-          const lowerHeader = header.toLowerCase();
+          const lowerHeader = header.toLowerCase().replace(/[^a-z]/g, '');
           if (lowerHeader.includes('email') || lowerHeader === 'email') {
             mapping[index.toString()] = 'email';
-          } else if (lowerHeader.includes('first') || lowerHeader === 'firstname') {
+          } else if (lowerHeader.includes('first') || lowerHeader === 'firstname' || lowerHeader === 'fname') {
             mapping[index.toString()] = 'firstName';
-          } else if (lowerHeader.includes('last') || lowerHeader === 'lastname') {
+          } else if (lowerHeader.includes('last') || lowerHeader === 'lastname' || lowerHeader === 'lname') {
             mapping[index.toString()] = 'lastName';
-          } else if (lowerHeader.includes('company') || lowerHeader === 'company') {
+          } else if (lowerHeader.includes('company') || lowerHeader === 'company' || lowerHeader === 'organization') {
             mapping[index.toString()] = 'company';
           }
         });
         setFieldMapping(mapping);
+        
+        toast({
+          title: "CSV uploaded successfully",
+          description: `Found ${validData.length} contacts`,
+        });
+        
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : "Failed to parse CSV file";
+        setUploadError(errorMessage);
+        toast({
+          title: "Upload failed",
+          description: errorMessage,
+          variant: "destructive",
+        });
+      } finally {
+        setIsUploading(false);
       }
     };
+    
+    reader.onerror = () => {
+      setUploadError("Failed to read file");
+      setIsUploading(false);
+      toast({
+        title: "Upload failed",
+        description: "Failed to read the file",
+        variant: "destructive",
+      });
+    };
+    
     reader.readAsText(file);
-  }, []);
+  }, [toast]);
 
   const handleImportContacts = () => {
-    const importedContacts: Contact[] = csvData.map(row => {
-      const contact: Contact = { email: '' };
+    try {
+      const emailIndex = Object.entries(fieldMapping).find(([_, field]) => field === 'email')?.[0];
       
-      Object.entries(fieldMapping).forEach(([csvIndex, field]) => {
-        if (field && row[parseInt(csvIndex)]) {
-          contact[field] = row[parseInt(csvIndex)];
-        }
+      if (!emailIndex) {
+        toast({
+          title: "Email field required",
+          description: "Please map at least one field to 'Email'",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const importedContacts: Contact[] = csvData.map(row => {
+        const contact: Contact = { email: '' };
+        
+        Object.entries(fieldMapping).forEach(([csvIndex, field]) => {
+          if (field && row[parseInt(csvIndex)]) {
+            contact[field] = row[parseInt(csvIndex)].trim();
+          }
+        });
+        
+        return contact;
+      }).filter(contact => {
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return contact.email && emailRegex.test(contact.email);
+      });
+
+      // Remove duplicates based on email
+      const uniqueContacts = importedContacts.filter((contact, index, self) =>
+        index === self.findIndex(c => c.email.toLowerCase() === contact.email.toLowerCase())
+      );
+
+      if (uniqueContacts.length === 0) {
+        toast({
+          title: "No valid contacts found",
+          description: "Please check that your CSV contains valid email addresses",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setContacts(uniqueContacts);
+      setShowPreview(false);
+      
+      toast({
+        title: "Contacts imported successfully",
+        description: `Imported ${uniqueContacts.length} valid contacts${
+          importedContacts.length !== uniqueContacts.length 
+            ? ` (${importedContacts.length - uniqueContacts.length} duplicates removed)` 
+            : ''
+        }`,
       });
       
-      return contact;
-    }).filter(contact => contact.email && contact.email.includes('@'));
-
-    setContacts(importedContacts);
-    setShowPreview(false);
+    } catch (error) {
+      toast({
+        title: "Import failed",
+        description: "Failed to import contacts. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRemoveContact = (index: number) => {
@@ -145,11 +321,32 @@ mike@test.org,Mike,Johnson,Test LLC`;
                 Choose a CSV file containing your email contacts
               </p>
               
+              {uploadError && (
+                <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                  <div className="flex items-center gap-2 text-destructive">
+                    <AlertCircle className="w-4 h-4" />
+                    <span className="text-sm font-medium">{uploadError}</span>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex flex-col items-center gap-4">
                 <Label htmlFor="csv-upload" className="cursor-pointer">
-                  <Button className="bg-gradient-primary text-primary-foreground hover:opacity-90">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Choose CSV File
+                  <Button 
+                    disabled={isUploading}
+                    className="bg-gradient-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  >
+                    {isUploading ? (
+                      <>
+                        <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"></div>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="w-4 h-4 mr-2" />
+                        Choose CSV File
+                      </>
+                    )}
                   </Button>
                 </Label>
                 <Input
@@ -157,6 +354,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
                   type="file"
                   accept=".csv"
                   onChange={handleFileUpload}
+                  disabled={isUploading}
                   className="hidden"
                 />
                 
@@ -164,6 +362,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
                   <p>Supported format: CSV with headers</p>
                   <p>Required field: email</p>
                   <p>Optional fields: firstName, lastName, company</p>
+                  <p>Maximum file size: 5MB</p>
                 </div>
               </div>
             </div>
@@ -242,8 +441,9 @@ mike@test.org,Mike,Johnson,Test LLC`;
               <Button 
                 onClick={handleImportContacts}
                 disabled={!Object.values(fieldMapping).includes('email')}
-                className="bg-gradient-primary text-primary-foreground hover:opacity-90"
+                className="bg-gradient-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
+                <CheckCircle2 className="w-4 h-4 mr-2" />
                 Import {csvData.length} Contacts
               </Button>
             </div>
