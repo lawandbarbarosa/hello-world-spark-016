@@ -47,7 +47,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
           <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
             <Mail className="w-4 h-4 text-primary-foreground" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">ColdMail Pro</h1>
+          <h1 className="text-xl font-bold text-foreground">Sentiq</h1>
         </div>
       </div>
 
