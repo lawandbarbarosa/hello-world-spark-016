@@ -41,8 +41,12 @@ interface SenderStats {
   totalSent: number;
   totalFailed: number;
   totalOpened: number;
+  totalClicked: number;
   successRate: number;
   openRate: number;
+  clickRate: number;
+  lastSentAt: string | null;
+  todaySent: number;
 }
 
 interface SentEmail {
@@ -147,15 +151,33 @@ const SenderAccounts = () => {
         const totalSent = emailSends.filter(e => e.status === 'sent').length;
         const totalFailed = emailSends.filter(e => e.status === 'failed').length;
         const totalOpened = emailSends.filter(e => e.opened_at).length;
+        const totalClicked = emailSends.filter(e => e.clicked_at).length;
         const successRate = emailSends.length > 0 ? Math.round((totalSent / emailSends.length) * 100) : 0;
         const openRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
+        const clickRate = totalOpened > 0 ? Math.round((totalClicked / totalOpened) * 100) : 0;
+        
+        // Get last sent email date
+        const sentEmails = emailSends.filter(e => e.status === 'sent' && e.sent_at);
+        const lastSentAt = sentEmails.length > 0 ? sentEmails[0].sent_at : null;
+        
+        // Count today's emails
+        const today = new Date().toISOString().split('T')[0];
+        const todaySent = emailSends.filter(e => 
+          e.status === 'sent' && 
+          e.sent_at && 
+          e.sent_at.startsWith(today)
+        ).length;
 
         stats[account.id] = {
           totalSent,
           totalFailed,
           totalOpened,
+          totalClicked,
           successRate,
-          openRate
+          openRate,
+          clickRate,
+          lastSentAt,
+          todaySent
         };
 
         // Transform emails data
@@ -486,133 +508,228 @@ const SenderAccounts = () => {
               <p className="text-muted-foreground mt-2">Loading sender accounts...</p>
             </div>
           ) : senderAccounts.length > 0 ? (
-            <div className="space-y-4">
-              {senderAccounts.map((sender) => {
-                const stats = senderStats[sender.id] || { totalSent: 0, totalFailed: 0, totalOpened: 0, successRate: 0, openRate: 0 };
-                const emails = senderEmails[sender.id] || [];
-                const isExpanded = expandedSenders.has(sender.id);
+            <div className="space-y-6">
+              {/* Active Senders (accounts that have sent emails) */}
+              {senderAccounts.filter(sender => {
+                const stats = senderStats[sender.id];
+                return stats && stats.totalSent > 0;
+              }).length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-success" />
+                    Active Senders ({senderAccounts.filter(sender => {
+                      const stats = senderStats[sender.id];
+                      return stats && stats.totalSent > 0;
+                    }).length})
+                  </h3>
+                  {senderAccounts
+                    .filter(sender => {
+                      const stats = senderStats[sender.id];
+                      return stats && stats.totalSent > 0;
+                    })
+                    .map((sender) => {
+                      const stats = senderStats[sender.id] || { 
+                        totalSent: 0, totalFailed: 0, totalOpened: 0, totalClicked: 0,
+                        successRate: 0, openRate: 0, clickRate: 0, lastSentAt: null, todaySent: 0 
+                      };
+                      const emails = senderEmails[sender.id] || [];
+                      const isExpanded = expandedSenders.has(sender.id);
 
-                return (
-                  <div key={sender.id} className="border border-border rounded-lg bg-gradient-card">
-                    <div className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <User className="w-5 h-5 text-primary" />
-                            <h3 className="font-semibold text-foreground">{sender.email}</h3>
-                            <Badge variant="outline" className="capitalize">
-                              {sender.provider}
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                            <div>
-                              <span className="text-muted-foreground">Sent:</span>
-                              <div className="font-medium text-success">{stats.totalSent}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Failed:</span>
-                              <div className="font-medium text-destructive">{stats.totalFailed}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Opened:</span>
-                              <div className="font-medium text-primary">{stats.totalOpened}</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Success Rate:</span>
-                              <div className="font-medium">{stats.successRate}%</div>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Open Rate:</span>
-                              <div className="font-medium flex items-center gap-1">
-                                {stats.openRate}%
-                                {stats.openRate > 0 && <Eye className="w-3 h-3 text-success" />}
+                      return (
+                        <div key={sender.id} className="border border-border rounded-lg bg-gradient-card">
+                          <div className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-3">
+                                  <User className="w-5 h-5 text-primary" />
+                                  <h4 className="font-semibold text-foreground text-lg">{sender.email}</h4>
+                                  <Badge variant="outline" className="capitalize">
+                                    {sender.provider}
+                                  </Badge>
+                                  {stats.todaySent > 0 && (
+                                    <Badge variant="default" className="bg-success text-success-foreground">
+                                      {stats.todaySent} sent today
+                                    </Badge>
+                                  )}
+                                </div>
+                                
+                                {/* Enhanced Stats Grid */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-3">
+                                  <div className="text-center p-3 bg-background/50 rounded-lg">
+                                    <div className="text-2xl font-bold text-success">{stats.totalSent}</div>
+                                    <div className="text-xs text-muted-foreground">Total Sent</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-background/50 rounded-lg">
+                                    <div className="text-2xl font-bold text-primary">{stats.totalOpened}</div>
+                                    <div className="text-xs text-muted-foreground">Opened</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-background/50 rounded-lg">
+                                    <div className="text-2xl font-bold text-warning">{stats.totalClicked}</div>
+                                    <div className="text-xs text-muted-foreground">Clicked</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-background/50 rounded-lg">
+                                    <div className="text-2xl font-bold text-destructive">{stats.totalFailed}</div>
+                                    <div className="text-xs text-muted-foreground">Failed</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-background/50 rounded-lg">
+                                    <div className="text-2xl font-bold">{stats.openRate}%</div>
+                                    <div className="text-xs text-muted-foreground">Open Rate</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-background/50 rounded-lg">
+                                    <div className="text-2xl font-bold">{stats.clickRate}%</div>
+                                    <div className="text-xs text-muted-foreground">Click Rate</div>
+                                  </div>
+                                </div>
+                                
+                                <div className="flex items-center gap-6 text-sm text-muted-foreground">
+                                  <span>Daily Limit: {sender.daily_limit}</span>
+                                  {stats.lastSentAt && (
+                                    <span>Last Sent: {new Date(stats.lastSentAt).toLocaleDateString()}</span>
+                                  )}
+                                  <span>Added: {new Date(sender.created_at).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openEditDialog(sender)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteSender(sender.id)}
+                                  className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => toggleSenderExpansion(sender.id)}
+                                >
+                                  {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                </Button>
                               </div>
                             </div>
                           </div>
-                          
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>Daily Limit: {sender.daily_limit}</span>
-                            <span>Added: {new Date(sender.created_at).toLocaleDateString()}</span>
-                          </div>
+
+                          <Collapsible
+                            open={isExpanded}
+                            onOpenChange={() => toggleSenderExpansion(sender.id)}
+                          >
+                            <CollapsibleContent>
+                              <div className="px-4 pb-4 border-t bg-background/50">
+                                <div className="pt-4">
+                                  <h4 className="font-medium mb-3 flex items-center gap-2">
+                                    <Send className="w-4 h-4" />
+                                    Email History ({emails.length})
+                                  </h4>
+                                  
+                                  {emails.length > 0 ? (
+                                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                                      {emails.map((email) => (
+                                        <div key={email.id} className="flex items-center justify-between p-3 border rounded-lg bg-background">
+                                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            {getStatusIcon(email.status, email.opened_at)}
+                                            <div className="flex-1 min-w-0">
+                                              <div className="font-medium truncate">
+                                                {personalizeContent(email.email_sequence.subject, email.contact)}
+                                              </div>
+                                              <div className="text-sm text-muted-foreground">
+                                                To: {email.contact.email} • {email.campaign.name}
+                                              </div>
+                                            </div>
+                                          </div>
+                                          <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                            <Calendar className="w-3 h-3" />
+                                            {email.sent_at 
+                                              ? new Date(email.sent_at).toLocaleDateString()
+                                              : new Date(email.created_at).toLocaleDateString()
+                                            }
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-muted-foreground text-center py-4">
+                                      No emails sent from this account yet
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEditDialog(sender)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteSender(sender.id)}
-                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => toggleSenderExpansion(sender.id)}
-                          >
-                            {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                          </Button>
+                      );
+                    })}
+                </div>
+              )}
+
+              {/* Unused Senders (accounts that haven't sent emails yet) */}
+              {senderAccounts.filter(sender => {
+                const stats = senderStats[sender.id];
+                return !stats || stats.totalSent === 0;
+              }).length > 0 && (
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
+                    <Settings className="w-5 h-5" />
+                    Unused Senders ({senderAccounts.filter(sender => {
+                      const stats = senderStats[sender.id];
+                      return !stats || stats.totalSent === 0;
+                    }).length})
+                  </h3>
+                  {senderAccounts
+                    .filter(sender => {
+                      const stats = senderStats[sender.id];
+                      return !stats || stats.totalSent === 0;
+                    })
+                    .map((sender) => (
+                      <div key={sender.id} className="border border-border rounded-lg bg-muted/30">
+                        <div className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <User className="w-5 h-5 text-muted-foreground" />
+                                <h4 className="font-semibold text-foreground">{sender.email}</h4>
+                                <Badge variant="outline" className="capitalize">
+                                  {sender.provider}
+                                </Badge>
+                                <Badge variant="secondary">No activity</Badge>
+                              </div>
+                              
+                              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                <span>Daily Limit: {sender.daily_limit}</span>
+                                <span>Added: {new Date(sender.created_at).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditDialog(sender)}
+                              >
+                                <Edit className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleDeleteSender(sender.id)}
+                                className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-
-                    <Collapsible
-                      open={isExpanded}
-                      onOpenChange={() => toggleSenderExpansion(sender.id)}
-                    >
-                      <CollapsibleContent>
-                        <div className="px-4 pb-4 border-t bg-background/50">
-                          <div className="pt-4">
-                            <h4 className="font-medium mb-3 flex items-center gap-2">
-                              <Send className="w-4 h-4" />
-                              Emails Sent ({emails.length})
-                            </h4>
-                            
-                            {emails.length > 0 ? (
-                              <div className="space-y-2 max-h-96 overflow-y-auto">
-                                {emails.map((email) => (
-                                  <div key={email.id} className="flex items-center justify-between p-3 border rounded-lg bg-background">
-                                    <div className="flex items-center gap-3 flex-1 min-w-0">
-                                      {getStatusIcon(email.status, email.opened_at)}
-                                      <div className="flex-1 min-w-0">
-                                        <div className="font-medium truncate">
-                                          {personalizeContent(email.email_sequence.subject, email.contact)}
-                                        </div>
-                                        <div className="text-sm text-muted-foreground">
-                                          To: {email.contact.email} • {email.campaign.name}
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="text-sm text-muted-foreground flex items-center gap-1">
-                                      <Calendar className="w-3 h-3" />
-                                      {email.sent_at 
-                                        ? new Date(email.sent_at).toLocaleDateString()
-                                        : new Date(email.created_at).toLocaleDateString()
-                                      }
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-muted-foreground text-center py-4">
-                                No emails sent from this account yet
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </div>
-                );
-              })}
+                    ))}
+                </div>
+              )}
             </div>
           ) : (
             <div className="text-center py-8">
