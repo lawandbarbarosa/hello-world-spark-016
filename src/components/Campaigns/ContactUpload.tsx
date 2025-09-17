@@ -41,11 +41,13 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
 
   useEffect(() => {
     onUpdate({ contacts });
-  }, [contacts, onUpdate]);
+  }, [contacts]); // Removed onUpdate from dependencies to prevent infinite loop
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
+
+    console.log('File selected:', file.name, 'Size:', file.size);
 
     // Reset previous state
     setUploadError("");
@@ -55,7 +57,9 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     
     // Validate file type
     if (!file.name.toLowerCase().endsWith('.csv')) {
-      setUploadError("Please select a CSV file");
+      const error = "Please select a CSV file";
+      console.error('File type validation failed:', file.name);
+      setUploadError(error);
       toast({
         title: "Invalid file type",
         description: "Please upload a CSV file",
@@ -66,7 +70,9 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setUploadError("File too large. Maximum size is 5MB");
+      const error = "File too large. Maximum size is 5MB";
+      console.error('File size validation failed:', file.size);
+      setUploadError(error);
       toast({
         title: "File too large",
         description: "Please select a file smaller than 5MB",
@@ -76,11 +82,13 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     }
 
     setIsUploading(true);
+    console.log('Starting file read...');
 
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const text = e.target?.result as string;
+        console.log('File content loaded, length:', text.length);
         
         // Better CSV parsing to handle quoted fields and commas within quotes
         const lines = [];
@@ -106,6 +114,8 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         if (currentLine.trim()) {
           lines.push(currentLine.trim());
         }
+        
+        console.log('Parsed lines:', lines.length);
         
         if (lines.length === 0) {
           throw new Error("CSV file is empty");
@@ -140,6 +150,9 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
 
         const headers = parseCSVLine(lines[0]);
         const data = lines.slice(1).map(parseCSVLine);
+        
+        console.log('Headers:', headers);
+        console.log('Data rows:', data.length);
         
         // Validate that all rows have the same number of columns
         const expectedColumns = headers.length;
@@ -176,6 +189,8 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         });
         setFieldMapping(mapping);
         
+        console.log('Auto-mapping:', mapping);
+        
         toast({
           title: "CSV uploaded successfully",
           description: `Found ${validData.length} contacts`,
@@ -183,6 +198,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : "Failed to parse CSV file";
+        console.error('CSV parsing error:', error);
         setUploadError(errorMessage);
         toast({
           title: "Upload failed",
@@ -195,7 +211,9 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     };
     
     reader.onerror = () => {
-      setUploadError("Failed to read file");
+      const error = "Failed to read file";
+      console.error('FileReader error');
+      setUploadError(error);
       setIsUploading(false);
       toast({
         title: "Upload failed",

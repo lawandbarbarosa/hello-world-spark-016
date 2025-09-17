@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -71,9 +71,9 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
     }
   };
 
-  const handleDataUpdate = (stepData: Partial<CampaignData>) => {
+  const handleDataUpdate = useCallback((stepData: Partial<CampaignData>) => {
     setCampaignData(prev => ({ ...prev, ...stepData }));
-  };
+  }, []);
 
   const handleLaunch = () => {
     // TODO: Implement campaign launch logic
