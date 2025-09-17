@@ -42,48 +42,8 @@ interface CampaignListProps {
 const CampaignList = ({ onCreateNew }: CampaignListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Mock data
-  const campaigns: Campaign[] = [
-    {
-      id: "1",
-      name: "Product Launch Outreach",
-      description: "Introducing our new AI-powered features to potential customers",
-      status: "Active",
-      contacts: 500,
-      sent: 245,
-      opened: 89,
-      replied: 12,
-      steps: 3,
-      created: "2024-01-15",
-      lastActivity: "2 hours ago"
-    },
-    {
-      id: "2", 
-      name: "Follow-up Sequence",
-      description: "Re-engaging leads who showed interest but didn't convert",
-      status: "Paused",
-      contacts: 320,
-      sent: 156,
-      opened: 45,
-      replied: 8,
-      steps: 5,
-      created: "2024-01-12",
-      lastActivity: "1 day ago"
-    },
-    {
-      id: "3",
-      name: "Partnership Proposal",
-      description: "Reaching out to potential integration partners",
-      status: "Draft",
-      contacts: 150,
-      sent: 0,
-      opened: 0,
-      replied: 0,
-      steps: 2,
-      created: "2024-01-10",
-      lastActivity: "3 days ago"
-    }
-  ];
+  // Empty campaigns array - users start fresh
+  const campaigns: Campaign[] = [];
 
   const getStatusColor = (status: Campaign['status']) => {
     switch (status) {
