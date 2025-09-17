@@ -88,7 +88,10 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const text = e.target?.result as string;
+        // Normalize text: strip BOM and normalize newlines
+        const raw = (e.target?.result as string) ?? "";
+        let text = raw.replace(/^\uFEFF/, "");
+        text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
         console.log('File content loaded, length:', text.length);
         
         // Better CSV parsing to handle quoted fields and commas within quotes
@@ -208,6 +211,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         });
       } finally {
         setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
     };
     
@@ -216,6 +220,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       console.error('FileReader error');
       setUploadError(error);
       setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
       toast({
         title: "Upload failed",
         description: "Failed to read the file",
@@ -530,7 +535,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
         id="csv-upload"
         ref={fileInputRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,text/csv,application/vnd.ms-excel"
         onChange={handleFileUpload}
         disabled={isUploading}
         className="hidden"
