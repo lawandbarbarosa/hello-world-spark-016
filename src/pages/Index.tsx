@@ -3,6 +3,7 @@ import Sidebar from '@/components/Layout/Sidebar';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import CampaignList from '@/components/Campaigns/CampaignList';
 import CampaignWizard from '@/components/Campaigns/CampaignWizard';
+import Inbox from '@/components/Inbox/Inbox';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -16,12 +17,7 @@ const Index = () => {
       case 'create-campaign':
         return <CampaignWizard onBack={() => setActiveTab('campaigns')} />;
       case 'inbox':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Gmail-style Inbox</h2>
-            <p className="text-muted-foreground">View and manage email replies...</p>
-          </div>
-        );
+        return <Inbox />;
       case 'contacts':
         return (
           <div className="text-center py-12">
