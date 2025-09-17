@@ -45,7 +45,8 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
   }, [contacts]); // Removed onUpdate from dependencies to prevent infinite loop
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+    const input = event.currentTarget;
+    const file = input?.files?.[0] ?? null;
     if (!file) return;
 
     console.log('File selected:', file.name, 'Size:', file.size);
@@ -538,7 +539,8 @@ mike@test.org,Mike,Johnson,Test LLC`;
         accept=".csv,text/csv,application/vnd.ms-excel"
         onChange={handleFileUpload}
         disabled={isUploading}
-        className="hidden"
+        multiple={false}
+        className="sr-only"
       />
     </div>
   );
