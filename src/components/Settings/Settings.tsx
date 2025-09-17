@@ -46,10 +46,6 @@ const settingsSchema = z.object({
   send_time_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
   reply_handling_enabled: z.boolean(),
   
-  // Contact & Personalization Settings
-  fallback_first_name: z.string().default('there'),
-  fallback_company: z.string().default('your company'),
-  
   // Email Composition Settings
   default_signature: z.string(),
   from_name_format: z.enum(['first_last', 'company_team']),
@@ -89,8 +85,6 @@ const Settings = () => {
       send_time_start: '08:00',
       send_time_end: '18:00',
       reply_handling_enabled: true,
-      fallback_first_name: 'there',
-      fallback_company: 'your company',
       default_signature: '',
       from_name_format: 'first_last',
       unsubscribe_link_enabled: true,
@@ -108,8 +102,6 @@ const Settings = () => {
         send_time_start: settings.send_time_start,
         send_time_end: settings.send_time_end,
         reply_handling_enabled: settings.reply_handling_enabled,
-        fallback_first_name: settings.fallback_merge_tags.first_name,
-        fallback_company: settings.fallback_merge_tags.company,
         default_signature: settings.default_signature,
         from_name_format: settings.from_name_format,
         unsubscribe_link_enabled: settings.unsubscribe_link_enabled,
@@ -136,8 +128,8 @@ const Settings = () => {
         send_time_end: data.send_time_end,
         reply_handling_enabled: data.reply_handling_enabled,
         fallback_merge_tags: {
-          first_name: data.fallback_first_name,
-          company: data.fallback_company,
+          first_name: 'there',
+          company: 'your company',
         },
         default_signature: data.default_signature,
         from_name_format: data.from_name_format,
@@ -364,53 +356,6 @@ const Settings = () => {
                   </FormItem>
                 )}
               />
-            </CardContent>
-          </Card>
-
-          {/* Contact & Personalization Settings */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Contact & Personalization Settings</CardTitle>
-              <CardDescription>
-                Configure default values for email personalization
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="fallback_first_name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fallback First Name</FormLabel>
-                      <FormControl>
-                        <Input placeholder="there" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Used when first_name merge tag is empty
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="fallback_company"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Fallback Company</FormLabel>
-                      <FormControl>
-                        <Input placeholder="your company" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Used when company merge tag is empty
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
             </CardContent>
           </Card>
 
