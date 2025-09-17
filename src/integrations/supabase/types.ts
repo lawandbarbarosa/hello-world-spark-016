@@ -281,6 +281,7 @@ export type Database = {
           reply_handling_enabled: boolean | null
           send_time_end: string | null
           send_time_start: string | null
+          sending_days: string[] | null
           theme_mode: string | null
           timezone: string | null
           unsubscribe_link_enabled: boolean | null
@@ -299,6 +300,7 @@ export type Database = {
           reply_handling_enabled?: boolean | null
           send_time_end?: string | null
           send_time_start?: string | null
+          sending_days?: string[] | null
           theme_mode?: string | null
           timezone?: string | null
           unsubscribe_link_enabled?: boolean | null
@@ -317,6 +319,7 @@ export type Database = {
           reply_handling_enabled?: boolean | null
           send_time_end?: string | null
           send_time_start?: string | null
+          sending_days?: string[] | null
           theme_mode?: string | null
           timezone?: string | null
           unsubscribe_link_enabled?: boolean | null

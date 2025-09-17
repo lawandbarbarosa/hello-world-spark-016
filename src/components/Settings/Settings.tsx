@@ -140,6 +140,7 @@ const Settings = () => {
         daily_send_limit: data.daily_send_limit,
         send_time_start: data.send_time_start,
         send_time_end: data.send_time_end,
+        sending_days: data.sending_days,
         reply_handling_enabled: data.reply_handling_enabled,
         fallback_merge_tags: {
           first_name: 'there',
@@ -367,6 +368,43 @@ const Settings = () => {
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sending_days"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sending Days</FormLabel>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {daysOfWeek.map((day) => (
+                        <FormItem key={day.value} className="flex flex-row items-start space-x-3 space-y-0">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(day.value)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  field.onChange([...field.value, day.value]);
+                                } else {
+                                  field.onChange(
+                                    field.value?.filter((value: string) => value !== day.value)
+                                  );
+                                }
+                              }}
+                            />
+                          </FormControl>
+                          <FormLabel className="text-sm font-normal cursor-pointer">
+                            {day.label}
+                          </FormLabel>
+                        </FormItem>
+                      ))}
+                    </div>
+                    <FormDescription>
+                      Select which days of the week emails should be sent
+                    </FormDescription>
+                    <FormMessage />
                   </FormItem>
                 )}
               />
