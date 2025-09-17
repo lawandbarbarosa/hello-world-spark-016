@@ -43,12 +43,15 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   return (
     <div className="w-64 bg-card border-r border-border h-full flex flex-col">
       <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-2">
+        <button 
+          onClick={() => onTabChange('dashboard')}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+        >
           <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
             <Mail className="w-4 h-4 text-primary-foreground" />
           </div>
           <h1 className="text-xl font-bold text-foreground">Sentiq</h1>
-        </div>
+        </button>
       </div>
 
       <div className="p-4">
