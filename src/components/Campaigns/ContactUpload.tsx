@@ -95,32 +95,11 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
         console.log('File content loaded, length:', text.length);
         
-        // Better CSV parsing to handle quoted fields and commas within quotes
-        const lines = [];
-        let currentLine = "";
-        let inQuotes = false;
-        
-        for (let i = 0; i < text.length; i++) {
-          const char = text[i];
-          
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === '\n' && !inQuotes) {
-            if (currentLine.trim()) {
-              lines.push(currentLine.trim());
-            }
-            currentLine = "";
-          } else {
-            currentLine += char;
-          }
-        }
-        
-        // Add the last line if it exists
-        if (currentLine.trim()) {
-          lines.push(currentLine.trim());
-        }
+        // Simple and safe CSV parsing - split by lines first
+        const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         
         console.log('Parsed lines:', lines.length);
+        
         
         if (lines.length === 0) {
           throw new Error("CSV file is empty");
@@ -130,31 +109,21 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
           throw new Error("CSV file must contain at least one row of data besides headers");
         }
 
-        // Parse CSV data
+        // Simple CSV parsing - split by comma and handle basic quotes
         const parseCSVLine = (line: string): string[] => {
-          const result = [];
-          let current = "";
-          let inQuotes = false;
-          
-          for (let i = 0; i < line.length; i++) {
-            const char = line[i];
-            
-            if (char === '"') {
-              inQuotes = !inQuotes;
-            } else if (char === ',' && !inQuotes) {
-              result.push(current.trim());
-              current = "";
-            } else {
-              current += char;
-            }
-          }
-          
-          result.push(current.trim());
-          return result;
+          // Simple split by comma, removing quotes
+          return line.split(',').map(cell => cell.trim().replace(/^"|"$/g, ''));
         };
 
         const headers = parseCSVLine(lines[0]);
         const data = lines.slice(1).map(parseCSVLine);
+        
+        // Limit data processing to prevent memory issues
+        const maxRows = 10000;
+        if (data.length > maxRows) {
+          data.splice(maxRows);
+          console.warn(`CSV truncated to ${maxRows} rows for performance`);
+        }
         
         console.log('Headers:', headers);
         console.log('Data rows:', data.length);
