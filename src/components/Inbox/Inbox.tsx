@@ -165,11 +165,20 @@ const Inbox = () => {
     }
     if (status === 'sent') {
       if (openedAt) {
-        return <Badge className="bg-success text-success-foreground">Opened</Badge>;
+        return <Badge className="bg-success text-success-foreground">
+          <Eye className="w-3 h-3 mr-1" />
+          Opened
+        </Badge>;
       }
-      return <Badge className="bg-primary text-primary-foreground">Sent</Badge>;
+      return <Badge className="bg-primary text-primary-foreground">
+        <CheckCircle className="w-3 h-3 mr-1" />
+        Sent
+      </Badge>;
     }
-    return <Badge variant="secondary">Pending</Badge>;
+    return <Badge variant="secondary">
+      <Clock className="w-3 h-3 mr-1" />
+      Pending
+    </Badge>;
   };
 
   const personalizeContent = (content: string, contact: SentEmail['contact']) => {
@@ -280,6 +289,10 @@ const Inbox = () => {
                         {email.opened_at && (
                           <div>
                             <strong>Opened:</strong> {new Date(email.opened_at).toLocaleString()}
+                            <Badge className="ml-2 bg-success text-success-foreground text-xs">
+                              <Eye className="w-3 h-3 mr-1" />
+                              Email Opened!
+                            </Badge>
                           </div>
                         )}
                         {email.clicked_at && (

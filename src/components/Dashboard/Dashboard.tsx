@@ -337,6 +337,10 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
                             Updated {new Date(campaign.updated_at).toLocaleDateString()}
                           </span>
                         )}
+                        <span className="flex items-center gap-1">
+                          <Eye className="w-3 h-3" />
+                          Opens tracked automatically
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

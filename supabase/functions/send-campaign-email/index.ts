@@ -146,14 +146,37 @@ const handler = async (req: Request): Promise<Response> => {
           .replace(/\{\{lastName\}\}/g, contact.last_name || "")
           .replace(/\{\{email\}\}/g, contact.email);
 
-        // Send email using Resend with sandbox sender
+        // First create the email send record to get the ID for tracking
+        const { data: insertedEmailSend, error: insertError } = await supabase
+          .from("email_sends")
+          .insert({
+            campaign_id: campaignId,
+            contact_id: contact.id,
+            sequence_id: firstSequence.id,
+            sender_account_id: senderAccount.id,
+            status: "pending",
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error("Error creating email send record:", insertError);
+          emailsError++;
+          continue;
+        }
+
+        // Add tracking pixel to email body with the email send ID
+        const trackingPixel = `<img src="https://ogzdqhvpsobpwxteqpnx.supabase.co/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
+        const emailBodyWithTracking = personalizedBody.replace(/\n/g, '<br>') + trackingPixel;
+
+        // Send email using Resend with tracking pixel
         console.log(`Attempting to send email to ${contact.email} with subject: "${personalizedSubject}"`);
         
         const emailResponse = await resend.emails.send({
           from: `${senderAccount.email}`, // Use the actual sender account email
           to: [contact.email],
           subject: personalizedSubject,
-          html: personalizedBody.replace(/\n/g, '<br>'),
+          html: emailBodyWithTracking,
         });
 
         console.log("Resend API response:", emailResponse);
@@ -162,28 +185,26 @@ const handler = async (req: Request): Promise<Response> => {
           console.error("Email send error for", contact.email, ":", emailResponse.error);
           emailsError++;
           
-          // Record failed email send with detailed error
-          await supabase.from("email_sends").insert({
-            campaign_id: campaignId,
-            contact_id: contact.id,
-            sequence_id: firstSequence.id,
-            sender_account_id: senderAccount.id,
-            status: "failed",
-            error_message: JSON.stringify(emailResponse.error),
-          });
+          // Update the email send record with failed status
+          await supabase
+            .from("email_sends")
+            .update({
+              status: "failed",
+              error_message: JSON.stringify(emailResponse.error),
+            })
+            .eq("id", insertedEmailSend.id);
         } else {
           console.log("Email sent successfully to", contact.email, "with ID:", emailResponse.data?.id);
           emailsSent++;
           
-          // Record successful email send
-          await supabase.from("email_sends").insert({
-            campaign_id: campaignId,
-            contact_id: contact.id,
-            sequence_id: firstSequence.id,
-            sender_account_id: senderAccount.id,
-            status: "sent",
-            sent_at: new Date().toISOString(),
-          });
+          // Update the email send record with sent status
+          await supabase
+            .from("email_sends")
+            .update({
+              status: "sent",
+              sent_at: new Date().toISOString(),
+            })
+            .eq("id", insertedEmailSend.id);
         }
       } catch (error) {
         console.error("Error sending email to contact:", contact.email, error);

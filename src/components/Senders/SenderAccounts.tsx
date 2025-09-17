@@ -524,7 +524,10 @@ const SenderAccounts = () => {
                             </div>
                             <div>
                               <span className="text-muted-foreground">Open Rate:</span>
-                              <div className="font-medium">{stats.openRate}%</div>
+                              <div className="font-medium flex items-center gap-1">
+                                {stats.openRate}%
+                                {stats.openRate > 0 && <Eye className="w-3 h-3 text-success" />}
+                              </div>
                             </div>
                           </div>
                           

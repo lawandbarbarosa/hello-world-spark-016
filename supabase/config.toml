@@ -2,3 +2,6 @@ project_id = "ogzdqhvpsobpwxteqpnx"
 
 [functions.send-campaign-email]
 verify_jwt = true
+
+[functions.track-email-open]
+verify_jwt = false
