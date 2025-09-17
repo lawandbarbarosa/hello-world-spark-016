@@ -150,7 +150,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`Attempting to send email to ${contact.email} with subject: "${personalizedSubject}"`);
         
         const emailResponse = await resend.emails.send({
-          from: "Campaign <onboarding@resend.dev>", // Use Resend's sandbox sender
+          from: "Campaign <noreply@condra.site>", // Use verified domain
           to: [contact.email],
           subject: personalizedSubject,
           html: personalizedBody.replace(/\n/g, '<br>'),
