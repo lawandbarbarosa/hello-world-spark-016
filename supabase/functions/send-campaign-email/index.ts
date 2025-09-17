@@ -150,11 +150,10 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`Attempting to send email to ${contact.email} with subject: "${personalizedSubject}"`);
         
         const emailResponse = await resend.emails.send({
-          from: "Campaign <noreply@condra.site>", // Use verified domain
+          from: `${senderAccount.email}`, // Use the actual sender account email
           to: [contact.email],
           subject: personalizedSubject,
           html: personalizedBody.replace(/\n/g, '<br>'),
-          reply_to: senderAccount.email, // Set original sender as reply-to
         });
 
         console.log("Resend API response:", emailResponse);
