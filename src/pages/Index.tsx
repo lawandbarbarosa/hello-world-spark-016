@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Sidebar from '@/components/Layout/Sidebar';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import CampaignList from '@/components/Campaigns/CampaignList';
+import CampaignWizard from '@/components/Campaigns/CampaignWizard';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -13,12 +14,7 @@ const Index = () => {
       case 'campaigns':
         return <CampaignList onCreateNew={() => setActiveTab('create-campaign')} />;
       case 'create-campaign':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Campaign Creation Wizard</h2>
-            <p className="text-muted-foreground">This will be the campaign creation flow...</p>
-          </div>
-        );
+        return <CampaignWizard onBack={() => setActiveTab('campaigns')} />;
       case 'inbox':
         return (
           <div className="text-center py-12">
