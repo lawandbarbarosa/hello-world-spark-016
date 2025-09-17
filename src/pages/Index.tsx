@@ -6,6 +6,7 @@ import CampaignWizard from '@/components/Campaigns/CampaignWizard';
 import Inbox from '@/components/Inbox/Inbox';
 import SenderAccounts from '@/components/Senders/SenderAccounts';
 import Settings from '@/components/Settings/Settings';
+import ContactsList from '@/components/Contacts/ContactsList';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -21,12 +22,7 @@ const Index = () => {
       case 'inbox':
         return <Inbox />;
       case 'contacts':
-        return (
-          <div className="text-center py-12">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Contact Management</h2>
-            <p className="text-muted-foreground">Upload and manage contact lists...</p>
-          </div>
-        );
+        return <ContactsList />;
       case 'senders':
         return <SenderAccounts />;
       case 'settings':
