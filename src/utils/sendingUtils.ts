@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { toZonedTime, format } from 'date-fns-tz';
 
 export interface SendingPermissionCheck {
   canSend: boolean;
@@ -21,19 +22,22 @@ export const checkSendingPermissions = async (
       return { canSend: false, reason: 'Unable to load user settings' };
     }
 
+    // Convert current time to user's timezone
+    const userTimezone = settings.timezone || 'UTC';
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+    const zonedTime = toZonedTime(now, userTimezone);
+    const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
 
     // Check time window
     const startTime = settings.send_time_start || '08:00';
     const endTime = settings.send_time_end || '18:00';
 
+    console.log(`Time check - Current: ${currentTime}, Window: ${startTime} - ${endTime}, Timezone: ${userTimezone}`);
+
     if (currentTime < startTime || currentTime > endTime) {
       return { 
         canSend: false, 
-        reason: `Sending is only allowed between ${startTime} and ${endTime}` 
+        reason: `Sending is only allowed between ${startTime} and ${endTime} in ${userTimezone} timezone. Current time: ${currentTime}` 
       };
     }
 

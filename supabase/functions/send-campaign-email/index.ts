@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { Resend } from "npm:resend@2.0.0";
+import { toZonedTime, format } from "npm:date-fns-tz@3.0.0";
 
 // Security enhancement: Validate required environment variables
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -57,19 +58,21 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", campaign.user_id)
       .single();
 
-    // Check time window (use settings or defaults)
+    // Check time window with proper timezone handling
+    const userTimezone = userSettings?.timezone || 'UTC';
     const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+    const zonedTime = toZonedTime(now, userTimezone);
+    const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
     
     const startTime = userSettings?.send_time_start || '08:00';
     const endTime = userSettings?.send_time_end || '18:00';
 
+    console.log(`Time check - Current: ${currentTime}, Window: ${startTime} - ${endTime}, Timezone: ${userTimezone}`);
+
     if (currentTime < startTime || currentTime > endTime) {
-      console.log(`Send blocked: Current time ${currentTime} outside allowed window ${startTime}-${endTime}`);
+      console.log(`Send blocked: Current time ${currentTime} outside allowed window ${startTime}-${endTime} in ${userTimezone}`);
       return new Response(JSON.stringify({ 
-        error: `Sending is only allowed between ${startTime} and ${endTime}. Current time: ${currentTime}` 
+        error: `Sending is only allowed between ${startTime} and ${endTime} in ${userTimezone} timezone. Current time: ${currentTime}` 
       }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
