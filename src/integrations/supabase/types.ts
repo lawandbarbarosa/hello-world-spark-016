@@ -52,6 +52,7 @@ export type Database = {
           first_name: string | null
           id: string
           last_name: string | null
+          replied_at: string | null
           status: string | null
           user_id: string
         }
@@ -62,6 +63,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          replied_at?: string | null
           status?: string | null
           user_id: string
         }
@@ -72,6 +74,7 @@ export type Database = {
           first_name?: string | null
           id?: string
           last_name?: string | null
+          replied_at?: string | null
           status?: string | null
           user_id?: string
         }
@@ -330,6 +333,10 @@ export type Database = {
       is_valid_email: {
         Args: { email: string }
         Returns: boolean
+      }
+      mark_contact_replied: {
+        Args: { campaign_id_param: string; contact_email: string }
+        Returns: undefined
       }
     }
     Enums: {

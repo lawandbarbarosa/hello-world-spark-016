@@ -94,13 +94,14 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Get contacts for the campaign with detailed logging
+    // Get contacts for the campaign with detailed logging (exclude replied contacts)
     console.log("Fetching contacts for campaign:", campaignId);
     const { data: contacts, error: contactsError } = await supabase
       .from("contacts")
       .select("*")
       .eq("campaign_id", campaignId)
-      .eq("status", "active");
+      .eq("status", "active")
+      .is("replied_at", null);
 
     console.log("Contacts query result:", { contacts, error: contactsError, count: contacts?.length });
 
@@ -346,9 +347,7 @@ const handler = async (req: Request): Promise<Response> => {
       .update({ status: "active" })
       .eq("id", campaignId);
 
-    const message = availableSenders.length < senderStatuses.length 
-      ? `Campaign launched with ${emailsSent} emails sent. ${senderStatuses.length - availableSenders.length} sender(s) reached daily limit.`
-      : `Campaign launched successfully. Sent ${emailsSent} emails across ${availableSenders.length} sender account(s).`;
+    const message = `Campaign launched successfully. Sent ${emailsSent} emails to contacts who haven't replied yet. ${emailsError} failed.`;
 
     console.log(`Campaign ${campaignId} processed: ${emailsSent} sent, ${emailsError} failed`);
 
@@ -357,10 +356,8 @@ const handler = async (req: Request): Promise<Response> => {
       emailsSent, 
       emailsError,
       message,
-      senderStats: senderStatuses.map(s => ({
+      senderStats: availableSenders.map(s => ({
         email: s.email,
-        sentToday: s.sentToday,
-        remaining: s.remaining,
         limit: userSettings?.daily_send_limit || 50
       }))
     }), {
