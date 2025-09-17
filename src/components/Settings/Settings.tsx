@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
+import { useSettings } from '@/hooks/useSettings';
 import { toast } from 'sonner';
 import {
   Card,
@@ -33,7 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Save, Settings as SettingsIcon } from 'lucide-react';
+import { Loader2, Save, Settings as SettingsIcon, Sun, Moon, Monitor } from 'lucide-react';
 
 const settingsSchema = z.object({
   // General Settings
@@ -76,8 +76,8 @@ const timezones = [
 ];
 
 const Settings = () => {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
+  const { theme, setTheme } = useTheme();
+  const { settings, loading, updateSettings } = useSettings();
   const [saving, setSaving] = useState(false);
 
   const form = useForm<SettingsFormData>({
@@ -98,69 +98,30 @@ const Settings = () => {
     },
   });
 
-  // Load user settings
+  // Update form when settings load
   useEffect(() => {
-    const loadSettings = async () => {
-      if (!user) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('user_settings')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) {
-          if (error.code === 'PGRST116') {
-            // No settings found, create default settings
-            const { error: insertError } = await supabase
-              .from('user_settings')
-              .insert([{ user_id: user.id }]);
-            
-            if (insertError) {
-              toast.error('Failed to initialize settings');
-              console.error('Error creating default settings:', insertError);
-            }
-          } else {
-            toast.error('Failed to load settings');
-            console.error('Error loading settings:', error);
-          }
-        } else if (data) {
-          // Parse fallback merge tags from JSONB
-          const fallbackTags = (data.fallback_merge_tags as any) || {};
-          
-          form.reset({
-            timezone: data.timezone || 'UTC',
-            theme_mode: (data.theme_mode as 'light' | 'dark' | 'auto') || 'light',
-            daily_send_limit: data.daily_send_limit || 50,
-            send_time_start: data.send_time_start || '08:00',
-            send_time_end: data.send_time_end || '18:00',
-            reply_handling_enabled: data.reply_handling_enabled ?? true,
-            fallback_first_name: fallbackTags.first_name || 'there',
-            fallback_company: fallbackTags.company || 'your company',
-            default_signature: data.default_signature || '',
-            from_name_format: (data.from_name_format as 'first_last' | 'company_team') || 'first_last',
-            unsubscribe_link_enabled: data.unsubscribe_link_enabled ?? true,
-            legal_disclaimer: data.legal_disclaimer || '',
-          });
-        }
-      } catch (error) {
-        toast.error('Failed to load settings');
-        console.error('Error loading settings:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSettings();
-  }, [user, form]);
+    if (settings) {
+      form.reset({
+        timezone: settings.timezone,
+        theme_mode: settings.theme_mode,
+        daily_send_limit: settings.daily_send_limit,
+        send_time_start: settings.send_time_start,
+        send_time_end: settings.send_time_end,
+        reply_handling_enabled: settings.reply_handling_enabled,
+        fallback_first_name: settings.fallback_merge_tags.first_name,
+        fallback_company: settings.fallback_merge_tags.company,
+        default_signature: settings.default_signature,
+        from_name_format: settings.from_name_format,
+        unsubscribe_link_enabled: settings.unsubscribe_link_enabled,
+        legal_disclaimer: settings.legal_disclaimer,
+      });
+    }
+  }, [settings, form]);
 
   const onSubmit = async (data: SettingsFormData) => {
-    if (!user) return;
-
     setSaving(true);
     try {
-      const updateData = {
+      await updateSettings({
         timezone: data.timezone,
         theme_mode: data.theme_mode,
         daily_send_limit: data.daily_send_limit,
@@ -175,25 +136,28 @@ const Settings = () => {
         from_name_format: data.from_name_format,
         unsubscribe_link_enabled: data.unsubscribe_link_enabled,
         legal_disclaimer: data.legal_disclaimer,
-      };
+      });
 
-      const { error } = await supabase
-        .from('user_settings')
-        .upsert([{ user_id: user.id, ...updateData }], {
-          onConflict: 'user_id'
-        });
-
-      if (error) {
-        toast.error('Failed to save settings');
-        console.error('Error saving settings:', error);
-      } else {
-        toast.success('Settings saved successfully');
+      // Update theme immediately
+      if (data.theme_mode !== theme) {
+        setTheme(data.theme_mode);
       }
+
+      toast.success('Settings saved successfully');
     } catch (error) {
       toast.error('Failed to save settings');
       console.error('Error saving settings:', error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const getThemeIcon = (themeMode: string) => {
+    switch (themeMode) {
+      case 'light': return <Sun className="h-4 w-4" />;
+      case 'dark': return <Moon className="h-4 w-4" />;
+      case 'auto': return <Monitor className="h-4 w-4" />;
+      default: return <Sun className="h-4 w-4" />;
     }
   };
 
@@ -257,20 +221,45 @@ const Settings = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Theme Mode</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Apply theme immediately for preview
+                        setTheme(value as 'light' | 'dark' | 'auto');
+                      }} 
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select theme" />
+                          <div className="flex items-center gap-2">
+                            {getThemeIcon(field.value)}
+                            <SelectValue placeholder="Select theme" />
+                          </div>
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="light">Light</SelectItem>
-                        <SelectItem value="dark">Dark</SelectItem>
-                        <SelectItem value="auto">Auto</SelectItem>
+                        <SelectItem value="light">
+                          <div className="flex items-center gap-2">
+                            <Sun className="h-4 w-4" />
+                            Light
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="dark">
+                          <div className="flex items-center gap-2">
+                            <Moon className="h-4 w-4" />
+                            Dark
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="auto">
+                          <div className="flex items-center gap-2">
+                            <Monitor className="h-4 w-4" />
+                            Auto (System)
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Choose your preferred theme mode
+                      Choose your preferred theme mode. Auto follows your system preference.
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

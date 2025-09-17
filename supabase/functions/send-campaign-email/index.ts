@@ -50,6 +50,32 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // Get user settings for sending permissions and formatting
+    const { data: userSettings, error: settingsError } = await supabase
+      .from("user_settings")
+      .select("*")
+      .eq("user_id", campaign.user_id)
+      .single();
+
+    // Check time window (use settings or defaults)
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+    
+    const startTime = userSettings?.send_time_start || '08:00';
+    const endTime = userSettings?.send_time_end || '18:00';
+
+    if (currentTime < startTime || currentTime > endTime) {
+      console.log(`Send blocked: Current time ${currentTime} outside allowed window ${startTime}-${endTime}`);
+      return new Response(JSON.stringify({ 
+        error: `Sending is only allowed between ${startTime} and ${endTime}. Current time: ${currentTime}` 
+      }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Get email sequences for the campaign
     const { data: sequences, error: sequenceError } = await supabase
       .from("email_sequences")
@@ -135,16 +161,59 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         const senderAccount = senderAccounts[senderIndex % senderAccounts.length];
         
-        // Replace variables in email content
-        const personalizedSubject = firstSequence.subject
-          .replace(/\{\{firstName\}\}/g, contact.first_name || "")
-          .replace(/\{\{lastName\}\}/g, contact.last_name || "")
-          .replace(/\{\{email\}\}/g, contact.email);
+        // Check daily limit for this sender account
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
 
-        const personalizedBody = firstSequence.body
-          .replace(/\{\{firstName\}\}/g, contact.first_name || "")
-          .replace(/\{\{lastName\}\}/g, contact.last_name || "")
-          .replace(/\{\{email\}\}/g, contact.email);
+        const { count: dailyCount, error: countError } = await supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .eq('sender_account_id', senderAccount.id)
+          .gte('created_at', todayStart.toISOString())
+          .lt('created_at', todayEnd.toISOString());
+
+        const dailyLimit = userSettings?.daily_send_limit || 50;
+        if ((dailyCount || 0) >= dailyLimit) {
+          console.log(`Daily limit reached for sender ${senderAccount.email}: ${dailyCount}/${dailyLimit}`);
+          emailsError++;
+          continue;
+        }
+
+        // Get fallback merge tags from user settings
+        const fallbackTags = userSettings?.fallback_merge_tags || { first_name: 'there', company: 'your company' };
+        
+        // Replace merge tags with fallback support
+        let personalizedSubject = firstSequence.subject;
+        let personalizedBody = firstSequence.body;
+
+        // Replace with fallback support {{field|fallback}}
+        personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match, field, fallback) => {
+          return contact[field] || fallback;
+        });
+        personalizedBody = personalizedBody.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match, field, fallback) => {
+          return contact[field] || fallback;
+        });
+
+        // Replace simple merge tags with fallback from settings
+        personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\}\}/g, (match, field) => {
+          if (field === 'first_name' || field === 'firstName') {
+            return contact.first_name || fallbackTags.first_name;
+          }
+          if (field === 'company') {
+            return contact.company || fallbackTags.company;
+          }
+          return contact[field] || contact[field.toLowerCase()] || match;
+        });
+
+        personalizedBody = personalizedBody.replace(/\{\{(\w+)\}\}/g, (match, field) => {
+          if (field === 'first_name' || field === 'firstName') {
+            return contact.first_name || fallbackTags.first_name;
+          }
+          if (field === 'company') {
+            return contact.company || fallbackTags.company;
+          }
+          return contact[field] || contact[field.toLowerCase()] || match;
+        });
 
         // First create the email send record to get the ID for tracking
         const { data: insertedEmailSend, error: insertError } = await supabase
@@ -165,9 +234,29 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
+        // Format email body with user settings
+        let finalBody = personalizedBody;
+
+        // Add signature if provided
+        if (userSettings?.default_signature && userSettings.default_signature.trim()) {
+          finalBody += '\n\n' + userSettings.default_signature;
+        }
+
+        // Add unsubscribe link if enabled
+        if (userSettings?.unsubscribe_link_enabled !== false) {
+          const unsubscribeUrl = `${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}&action=unsubscribe`;
+          finalBody += '\n\n---\n';
+          finalBody += `If you no longer wish to receive these emails, you can [unsubscribe here](${unsubscribeUrl}).`;
+        }
+
+        // Add legal disclaimer if provided
+        if (userSettings?.legal_disclaimer && userSettings.legal_disclaimer.trim()) {
+          finalBody += '\n\n' + userSettings.legal_disclaimer;
+        }
+
         // Add tracking pixel to email body with the email send ID
-        const trackingPixel = `<img src="https://ogzdqhvpsobpwxteqpnx.supabase.co/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
-        const emailBodyWithTracking = personalizedBody.replace(/\n/g, '<br>') + trackingPixel;
+        const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
+        const emailBodyWithTracking = finalBody.replace(/\n/g, '<br>') + trackingPixel;
 
         // Send email using Resend with tracking pixel
         console.log(`Attempting to send email to ${contact.email} with subject: "${personalizedSubject}"`);
