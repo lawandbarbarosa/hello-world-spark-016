@@ -46,8 +46,8 @@ const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => 
 
   return (
     <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
-      <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xl border border-slate-700/50">
-        <div className="flex items-center gap-6">
+      <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl px-2 py-1.5 shadow-xl border border-slate-700/50">
+        <div className="flex items-center gap-3">
           {/* Main navigation items */}
           {mainNavItems.map((item) => {
             const Icon = item.icon;
