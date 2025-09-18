@@ -3,6 +3,7 @@ import Sidebar from '@/components/Layout/Sidebar';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import CampaignList from '@/components/Campaigns/CampaignList';
 import CampaignWizard from '@/components/Campaigns/CampaignWizard';
+import EditCampaign from '@/components/Campaigns/EditCampaign';
 import Delivery from '@/components/Delivery/Delivery';
 import Inbox from '@/components/Inbox/Inbox';
 import Spam from '@/components/Spam/Spam';
@@ -13,15 +14,32 @@ import ReplyTracker from '@/components/Replies/ReplyTracker';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string | null>(null);
+
+  const handleNavigation = (tab: string, campaignId?: string) => {
+    setActiveTab(tab);
+    if (campaignId) {
+      setSelectedCampaignId(campaignId);
+    }
+  };
 
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard':
-        return <Dashboard onNavigate={setActiveTab} />;
+        return <Dashboard onNavigate={handleNavigation} />;
       case 'campaigns':
         return <CampaignList onCreateNew={() => setActiveTab('create-campaign')} />;
       case 'create-campaign':
         return <CampaignWizard onBack={() => setActiveTab('campaigns')} />;
+      case 'edit-campaign':
+        return selectedCampaignId ? (
+          <EditCampaign 
+            campaignId={selectedCampaignId} 
+            onBack={() => setActiveTab('campaigns')} 
+          />
+        ) : (
+          <Dashboard onNavigate={handleNavigation} />
+        );
       case 'delivery':
         return <Delivery />;
       case 'inbox':
@@ -37,7 +55,7 @@ const Index = () => {
       case 'settings':
         return <Settings />;
       default:
-        return <Dashboard onNavigate={setActiveTab} />;
+        return <Dashboard onNavigate={handleNavigation} />;
     }
   };
 

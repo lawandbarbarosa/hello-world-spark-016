@@ -17,11 +17,12 @@ import {
   Activity,
   Pause,
   Play,
-  Trash2
+  Trash2,
+  Edit
 } from "lucide-react";
 
 interface DashboardProps {
-  onNavigate?: (tab: string) => void;
+  onNavigate?: (tab: string, campaignId?: string) => void;
 }
 
 interface Campaign {
@@ -424,6 +425,15 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
                         {statusInfo.label}
                       </Badge>
                       <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onNavigate?.('edit-campaign', campaign.id)}
+                          className="text-primary hover:text-primary-foreground hover:bg-primary"
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
                         {campaign.status === 'active' ? (
                           <Button
                             variant="outline"
