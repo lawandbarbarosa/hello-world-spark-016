@@ -45,9 +45,9 @@ const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => 
   ];
 
   return (
-    <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center">
-      <div className="bg-slate-800 backdrop-blur-sm rounded-2xl px-4 py-2.5 shadow-lg">
-        <div className="flex items-center justify-center gap-4">
+    <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+      <div className="bg-slate-900/90 backdrop-blur-md rounded-2xl px-3 py-2 shadow-xl border border-slate-700/50">
+        <div className="flex items-center gap-6">
           {/* Main navigation items */}
           {mainNavItems.map((item) => {
             const Icon = item.icon;
@@ -56,10 +56,10 @@ const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => 
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
                 className={cn(
-                  "p-2 rounded-lg transition-colors",
+                  "p-2 rounded-xl transition-all duration-200",
                   activeTab === item.id
-                    ? "text-white"
-                    : "text-slate-400 hover:text-slate-200"
+                    ? "text-white bg-white/10 scale-110"
+                    : "text-slate-400 hover:text-white hover:scale-105"
                 )}
               >
                 <Icon className="w-5 h-5" />
@@ -70,7 +70,12 @@ const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => 
           {/* New Campaign Button */}
           <button
             onClick={() => onTabChange('create-campaign')}
-            className="p-2 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
+            className={cn(
+              "p-2 rounded-xl transition-all duration-200",
+              activeTab === 'create-campaign'
+                ? "text-white bg-white/10 scale-110"
+                : "text-slate-400 hover:text-white hover:scale-105"
+            )}
           >
             <Plus className="w-5 h-5" />
           </button>
