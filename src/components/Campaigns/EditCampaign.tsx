@@ -39,6 +39,7 @@ const EditCampaign = ({ campaignId, onBack }: EditCampaignProps) => {
   const [campaignData, setCampaignData] = useState<CampaignData | null>(null);
   const [activeTab, setActiveTab] = useState("details");
   const [showAddContacts, setShowAddContacts] = useState(false);
+  const [contactSearchTerm, setContactSearchTerm] = useState("");
 
   useEffect(() => {
     if (campaignId && user) {
@@ -345,65 +346,92 @@ const EditCampaign = ({ campaignId, onBack }: EditCampaignProps) => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {campaignData.contacts.length > 0 ? (
-                  <div className="space-y-2">
-                    {campaignData.contacts.map((contact) => (
-                      <div
-                        key={contact.id}
-                        className="flex items-center justify-between p-3 border border-border rounded-lg bg-background"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div>
-                            <div className="font-medium text-foreground">
-                              {contact.first_name} {contact.last_name}
-                            </div>
-                            <div className="text-sm text-muted-foreground">
-                              {contact.email}
-                            </div>
-                            {contact.company && (
-                              <div className="text-xs text-muted-foreground">
-                                {contact.company}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={contact.status === 'active' ? 'default' : 'secondary'}>
-                            {contact.status}
-                          </Badge>
-                          {contact.replied_at && (
-                            <Badge variant="outline" className="text-green-600">
-                              Replied
-                            </Badge>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteContact(contact.id)}
-                            className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Search contacts..."
+                      value={contactSearchTerm}
+                      onChange={(e) => setContactSearchTerm(e.target.value)}
+                      className="flex-1"
+                    />
+                  </div>
+                  {(() => {
+                    const filteredContacts = campaignData.contacts.filter((contact) =>
+                      contactSearchTerm === "" || 
+                      `${contact.first_name} ${contact.last_name}`.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
+                      contact.email.toLowerCase().includes(contactSearchTerm.toLowerCase()) ||
+                      (contact.company && contact.company.toLowerCase().includes(contactSearchTerm.toLowerCase()))
+                    );
+
+                    return filteredContacts.length > 0 ? (
+                      <div className="space-y-2">
+                        {filteredContacts.map((contact) => (
+                          <div
+                            key={contact.id}
+                            className="flex items-center justify-between p-3 border border-border rounded-lg bg-background"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
+                            <div className="flex items-center gap-3">
+                              <div>
+                                <div className="font-medium text-foreground">
+                                  {contact.first_name} {contact.last_name}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {contact.email}
+                                </div>
+                                {contact.company && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {contact.company}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={contact.status === 'active' ? 'default' : 'secondary'}>
+                                {contact.status}
+                              </Badge>
+                              {contact.replied_at && (
+                                <Badge variant="outline" className="text-green-600">
+                                  Replied
+                                </Badge>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteContact(contact.id)}
+                                className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">No contacts yet</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Add contacts to start your campaign
-                    </p>
-                    <Button 
-                      variant="outline"
-                      onClick={() => setShowAddContacts(true)}
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Contacts
-                    </Button>
-                  </div>
-                )}
+                    ) : campaignData.contacts.length > 0 ? (
+                      <div className="text-center py-8">
+                        <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-foreground mb-2">No contacts found</h3>
+                        <p className="text-muted-foreground mb-4">
+                          No contacts match your search criteria
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-foreground mb-2">No contacts yet</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Add contacts to start your campaign
+                        </p>
+                        <Button 
+                          variant="outline"
+                          onClick={() => setShowAddContacts(true)}
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Contacts
+                        </Button>
+                      </div>
+                    );
+                  })()}
+                </div>
               </CardContent>
             </Card>
           )}
