@@ -38,26 +38,18 @@ const Spam = () => {
   const fetchSpamEmails = async () => {
     try {
       setLoading(true);
-      // For now, we'll simulate spam emails since we don't have a spam table yet
-      // In a real implementation, you would query a spam_emails table
-      const mockSpamEmails: SpamEmail[] = [
-        {
-          id: '1',
-          subject: 'URGENT: Claim your prize now!',
-          sender_email: 'noreply@suspicious-site.com',
-          content: 'You have won $1,000,000! Click here to claim...',
-          received_at: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          subject: 'Your account has been compromised',
-          sender_email: 'security@fake-bank.com',
-          content: 'Please verify your account immediately...',
-          received_at: new Date(Date.now() - 86400000).toISOString(),
-        }
-      ];
-      
-      setSpamEmails(mockSpamEmails);
+      const { data, error } = await supabase
+        .from('spam_emails')
+        .select('*')
+        .order('received_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching spam emails:', error);
+        toast.error('Failed to fetch spam emails');
+        return;
+      }
+
+      setSpamEmails(data || []);
     } catch (error) {
       console.error('Error fetching spam emails:', error);
       toast.error('Failed to fetch spam emails');
@@ -68,7 +60,17 @@ const Spam = () => {
 
   const handleDeleteSpam = async (emailId: string) => {
     try {
-      // Remove from local state
+      const { error } = await supabase
+        .from('spam_emails')
+        .delete()
+        .eq('id', emailId);
+
+      if (error) {
+        console.error('Error deleting spam:', error);
+        toast.error('Failed to delete spam email');
+        return;
+      }
+
       setSpamEmails(prev => prev.filter(email => email.id !== emailId));
       toast.success('Spam email deleted permanently');
     } catch (error) {
@@ -79,7 +81,19 @@ const Spam = () => {
 
   const handleRestoreEmail = async (emailId: string) => {
     try {
-      // Move email back to inbox
+      // In a real implementation, this would move the email back to the main inbox
+      // For now, we'll just delete it from spam
+      const { error } = await supabase
+        .from('spam_emails')
+        .delete()
+        .eq('id', emailId);
+
+      if (error) {
+        console.error('Error restoring email:', error);
+        toast.error('Failed to restore email');
+        return;
+      }
+
       setSpamEmails(prev => prev.filter(email => email.id !== emailId));
       toast.success('Email restored to inbox');
     } catch (error) {
@@ -90,6 +104,17 @@ const Spam = () => {
 
   const handleClearAllSpam = async () => {
     try {
+      const { error } = await supabase
+        .from('spam_emails')
+        .delete()
+        .eq('user_id', user?.id);
+
+      if (error) {
+        console.error('Error clearing spam:', error);
+        toast.error('Failed to clear spam emails');
+        return;
+      }
+
       setSpamEmails([]);
       toast.success('All spam emails cleared');
     } catch (error) {
@@ -124,16 +149,36 @@ const Spam = () => {
           </Badge>
         </div>
         
-        {spamEmails.length > 0 && (
+        <div className="flex gap-2">
+          {spamEmails.length > 0 && (
+            <Button 
+              variant="destructive" 
+              size="sm"
+              onClick={handleClearAllSpam}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear All Spam
+            </Button>
+          )}
           <Button 
-            variant="destructive" 
+            variant="outline" 
             size="sm"
-            onClick={handleClearAllSpam}
+            onClick={async () => {
+              try {
+                const { createSampleSpamEmails } = await import('@/utils/spamUtils');
+                await createSampleSpamEmails();
+                await fetchSpamEmails();
+                toast.success('Sample spam emails added');
+              } catch (error) {
+                console.error('Error adding sample emails:', error);
+                toast.error('Failed to add sample emails');
+              }
+            }}
           >
-            <Trash2 className="w-4 h-4 mr-2" />
-            Clear All Spam
+            <Mail className="w-4 h-4 mr-2" />
+            Add Sample Emails
           </Button>
-        )}
+        </div>
       </div>
 
       {spamEmails.length === 0 ? (

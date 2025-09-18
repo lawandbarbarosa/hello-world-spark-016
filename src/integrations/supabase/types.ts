@@ -268,6 +268,53 @@ export type Database = {
           },
         ]
       }
+      spam_emails: {
+        Row: {
+          campaign_id: string | null
+          content: string | null
+          created_at: string
+          id: string
+          original_message_id: string | null
+          received_at: string
+          sender_email: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          original_message_id?: string | null
+          received_at?: string
+          sender_email: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          original_message_id?: string | null
+          received_at?: string
+          sender_email?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_spam_emails_campaign_id"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_settings: {
         Row: {
           created_at: string
