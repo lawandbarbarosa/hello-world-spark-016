@@ -45,9 +45,9 @@ const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => 
   ];
 
   return (
-    <div className="fixed bottom-6 left-6 right-6 z-50 flex justify-center">
-      <div className="bg-slate-800 backdrop-blur-sm rounded-2xl px-6 py-3 shadow-lg">
-        <div className="flex items-center justify-center gap-8">
+    <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center">
+      <div className="bg-slate-800 backdrop-blur-sm rounded-2xl px-4 py-2.5 shadow-lg">
+        <div className="flex items-center justify-center gap-4">
           {/* Main navigation items */}
           {mainNavItems.map((item) => {
             const Icon = item.icon;
@@ -62,7 +62,7 @@ const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => 
                     : "text-slate-400 hover:text-slate-200"
                 )}
               >
-                <Icon className="w-6 h-6" />
+                <Icon className="w-5 h-5" />
               </button>
             );
           })}
@@ -72,7 +72,7 @@ const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => 
             onClick={() => onTabChange('create-campaign')}
             className="p-2 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
           >
-            <Plus className="w-6 h-6" />
+            <Plus className="w-5 h-5" />
           </button>
         </div>
       </div>
