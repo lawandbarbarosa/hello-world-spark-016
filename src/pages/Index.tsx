@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import BottomNavigation from '@/components/Layout/BottomNavigation';
+import Sidebar from '@/components/Layout/Sidebar';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import CampaignList from '@/components/Campaigns/CampaignList';
 import CampaignWizard from '@/components/Campaigns/CampaignWizard';
@@ -39,11 +39,11 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <main className="p-6 overflow-auto">
+    <div className="min-h-screen bg-background flex">
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <main className="flex-1 p-6 overflow-auto">
         {renderContent()}
       </main>
-      <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };
