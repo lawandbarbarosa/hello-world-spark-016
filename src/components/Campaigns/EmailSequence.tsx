@@ -14,7 +14,7 @@ interface EmailStep {
   subject: string;
   body: string;
   delay: number;
-  delayUnit: 'hours' | 'days';
+  delayUnit: 'minutes' | 'hours' | 'days';
 }
 
 interface CampaignData {
@@ -281,12 +281,13 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                         <Label className="text-sm font-medium text-foreground">Delay Unit</Label>
                         <Select 
                           value={step.delayUnit} 
-                          onValueChange={(value: 'hours' | 'days') => updateStep(step.id, { delayUnit: value })}
+                          onValueChange={(value: 'minutes' | 'hours' | 'days') => updateStep(step.id, { delayUnit: value })}
                         >
                           <SelectTrigger className="bg-background border-border text-foreground">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="minutes">Minutes</SelectItem>
                             <SelectItem value="hours">Hours</SelectItem>
                             <SelectItem value="days">Days</SelectItem>
                           </SelectContent>
@@ -405,7 +406,10 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                   <span className="ml-2 font-medium text-foreground">
                     {sequence.reduce((total, step, index) => {
                       if (index === 0) return 0;
-                      return total + (step.delayUnit === 'days' ? step.delay : Math.ceil(step.delay / 24));
+                      const delayInDays = step.delayUnit === 'days' ? step.delay : 
+                                         step.delayUnit === 'hours' ? Math.ceil(step.delay / 24) :
+                                         Math.ceil(step.delay / (24 * 60));
+                      return total + delayInDays;
                     }, 0)} days
                   </span>
                 </div>
