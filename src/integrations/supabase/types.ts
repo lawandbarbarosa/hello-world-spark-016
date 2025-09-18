@@ -230,6 +230,48 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_emails: {
+        Row: {
+          attempts: number
+          campaign_id: string
+          contact_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          scheduled_for: string
+          sender_account_id: string
+          sequence_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          campaign_id: string
+          contact_id: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          scheduled_for: string
+          sender_account_id: string
+          sequence_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          campaign_id?: string
+          contact_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          scheduled_for?: string
+          sender_account_id?: string
+          sequence_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sender_accounts: {
         Row: {
           campaign_id: string | null

@@ -21,6 +21,74 @@ interface SendEmailRequest {
   campaignId: string;
 }
 
+// Helper function to schedule follow-up emails
+async function scheduleFollowUpEmails(
+  supabase: any,
+  campaignId: string,
+  contactId: string,
+  senderAccountId: string,
+  sequences: any[],
+  userTimezone: string
+) {
+  try {
+    // Get follow-up sequences (skip step 1 as it's already sent)
+    const followUpSequences = sequences.filter(seq => seq.step_number > 1);
+    
+    if (followUpSequences.length === 0) {
+      console.log("No follow-up sequences to schedule");
+      return;
+    }
+
+    const now = new Date();
+    let previousEmailTime = now;
+
+    for (const sequence of followUpSequences) {
+      // Calculate when this email should be sent based on delay
+      const delayInMinutes = calculateDelayInMinutes(sequence.delay_amount, sequence.delay_unit);
+      const scheduledTime = new Date(previousEmailTime.getTime() + delayInMinutes * 60 * 1000);
+
+      // Create scheduled email record
+      const { error: scheduleError } = await supabase
+        .from("scheduled_emails")
+        .insert({
+          campaign_id: campaignId,
+          contact_id: contactId,
+          sequence_id: sequence.id,
+          sender_account_id: senderAccountId,
+          scheduled_for: scheduledTime.toISOString(),
+          status: "scheduled"
+        });
+
+      if (scheduleError) {
+        console.error("Error scheduling follow-up email:", scheduleError);
+      } else {
+        console.log(`Scheduled follow-up email ${sequence.step_number} for ${scheduledTime.toISOString()}`);
+      }
+
+      // Update previous email time for next iteration
+      previousEmailTime = scheduledTime;
+    }
+  } catch (error) {
+    console.error("Error in scheduleFollowUpEmails:", error);
+  }
+}
+
+// Helper function to convert delay amount and unit to minutes
+function calculateDelayInMinutes(amount: number, unit: string): number {
+  switch (unit.toLowerCase()) {
+    case 'minutes':
+      return amount;
+    case 'hours':
+      return amount * 60;
+    case 'days':
+      return amount * 24 * 60;
+    case 'weeks':
+      return amount * 7 * 24 * 60;
+    default:
+      return amount * 24 * 60; // Default to days
+  }
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -379,6 +447,9 @@ const handler = async (req: Request): Promise<Response> => {
 
           // Update sender's remaining capacity
           currentSender.remainingCapacity--;
+
+          // Schedule follow-up emails for the remaining sequences
+          await scheduleFollowUpEmails(supabase, campaignId, contact.id, currentSender.id, sequences, userTimezone);
         }
 
         // Move to next sender for round-robin distribution
