@@ -200,6 +200,51 @@ export type Database = {
           },
         ]
       }
+      email_verifications: {
+        Row: {
+          created_at: string
+          email: string
+          execution_time_ms: number | null
+          flags: string[] | null
+          id: string
+          is_deliverable: boolean
+          is_valid: boolean
+          suggested_correction: string | null
+          updated_at: string
+          user_id: string
+          verification_result: string
+          verified_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          execution_time_ms?: number | null
+          flags?: string[] | null
+          id?: string
+          is_deliverable?: boolean
+          is_valid?: boolean
+          suggested_correction?: string | null
+          updated_at?: string
+          user_id: string
+          verification_result: string
+          verified_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          execution_time_ms?: number | null
+          flags?: string[] | null
+          id?: string
+          is_deliverable?: boolean
+          is_valid?: boolean
+          suggested_correction?: string | null
+          updated_at?: string
+          user_id?: string
+          verification_result?: string
+          verified_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null

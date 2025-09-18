@@ -1,5 +1,8 @@
 project_id = "ogzdqhvpsobpwxteqpnx"
 
+[functions.verify-email]
+verify_jwt = false
+
 [functions.send-campaign-email]
 verify_jwt = true
 
@@ -7,4 +10,7 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.handle-email-reply]
+verify_jwt = false
+
+[functions.process-scheduled-emails]
 verify_jwt = false
