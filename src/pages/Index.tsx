@@ -28,7 +28,7 @@ const Index = () => {
       case 'dashboard':
         return <Dashboard onNavigate={handleNavigation} />;
       case 'campaigns':
-        return <CampaignList onCreateNew={() => setActiveTab('create-campaign')} />;
+        return <CampaignList onCreateNew={() => setActiveTab('create-campaign')} onEditCampaign={(id) => handleNavigation('edit-campaign', id)} />;
       case 'create-campaign':
         return <CampaignWizard onBack={() => setActiveTab('campaigns')} />;
       case 'edit-campaign':
