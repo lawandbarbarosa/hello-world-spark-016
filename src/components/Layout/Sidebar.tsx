@@ -32,88 +32,49 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
       toast.error('Failed to sign out');
     } else {
       toast.success('Signed out successfully');
-      // Navigate to auth page after successful sign out
       navigate('/auth');
     }
   };
 
-  const navItems = [
+  const mainNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'campaigns', label: 'Campaigns', icon: Mail },
     { id: 'inbox', label: 'Inbox', icon: Inbox },
-    { id: 'replies', label: 'Reply Tracker', icon: Reply },
-    { id: 'spam', label: 'Spam', icon: Shield },
     { id: 'contacts', label: 'Contacts', icon: Users },
-    { id: 'senders', label: 'Senders', icon: Send },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
-    <div className="w-64 bg-card border-r border-border h-full flex flex-col">
-      <div className="p-6 border-b border-border">
-        <button 
-          onClick={() => onTabChange('dashboard')}
-          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-        >
-          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
-            <Mail className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground">Sentiq</h1>
-        </button>
-      </div>
-
-      <div className="p-4">
-        <Button 
-          className="w-full bg-gradient-primary text-primary-foreground hover:opacity-90 shadow-md"
-          onClick={() => onTabChange('create-campaign')}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          New Campaign
-        </Button>
-      </div>
-
-      <nav className="flex-1 px-4 space-y-2">
-        {navItems.map((item) => {
+    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
+      <div className="flex items-center justify-around px-2 py-2 max-w-lg mx-auto">
+        {/* Main navigation items */}
+        {mainNavItems.map((item) => {
           const Icon = item.icon;
           return (
             <button
               key={item.id}
               onClick={() => onTabChange(item.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-0",
                 activeTab === item.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <Icon className="w-4 h-4" />
-              {item.label}
+              <Icon className="w-5 h-5" />
+              <span className="text-xs font-medium truncate">{item.label}</span>
             </button>
           );
         })}
-      </nav>
-
-      {/* User Profile Section */}
-      <div className="p-4 border-t border-border">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">
-            <User className="w-4 h-4 text-secondary-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {user?.email}
-            </p>
-          </div>
-        </div>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          className="w-full"
-          onClick={handleSignOut}
+        
+        {/* New Campaign Button */}
+        <button
+          onClick={() => onTabChange('create-campaign')}
+          className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-primary-foreground bg-gradient-primary hover:opacity-90 transition-opacity"
         >
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
-        </Button>
+          <Plus className="w-5 h-5" />
+          <span className="text-xs font-medium">New</span>
+        </button>
       </div>
     </div>
   );

@@ -39,11 +39,11 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
-      <main className="flex-1 p-6 overflow-auto">
+    <div className="min-h-screen bg-background pb-20">
+      <main className="p-6 overflow-auto">
         {renderContent()}
       </main>
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };
