@@ -35,13 +35,7 @@ const handler = async (req: Request): Promise<Response> => {
     const now = new Date();
     const { data: scheduledEmails, error: scheduledError } = await supabase
       .from("scheduled_emails")
-      .select(`
-        *,
-        campaigns!inner(*),
-        contacts!inner(*),
-        email_sequences!inner(*),
-        sender_accounts!inner(*)
-      `)
+      .select("*")
       .eq("status", "scheduled")
       .lte("scheduled_for", now.toISOString())
       .limit(50); // Process up to 50 emails at a time
@@ -68,9 +62,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const scheduledEmail of scheduledEmails) {
       try {
+        // Fetch related data
+        const [
+          { data: campaign },
+          { data: contact },
+          { data: sequence },
+          { data: senderAccount }
+        ] = await Promise.all([
+          supabase.from("campaigns").select("*").eq("id", scheduledEmail.campaign_id).single(),
+          supabase.from("contacts").select("*").eq("id", scheduledEmail.contact_id).single(),
+          supabase.from("email_sequences").select("*").eq("id", scheduledEmail.sequence_id).single(),
+          supabase.from("sender_accounts").select("*").eq("id", scheduledEmail.sender_account_id).single()
+        ]);
+
+        if (!campaign || !contact || !sequence || !senderAccount) {
+          console.error(`Missing related data for scheduled email ${scheduledEmail.id}`);
+          continue;
+        }
+
         // Check if contact has replied (skip if they have)
-        if (scheduledEmail.contacts.replied_at) {
-          console.log(`Contact ${scheduledEmail.contacts.email} has replied, skipping follow-up`);
+        if (contact.replied_at) {
+          console.log(`Contact ${contact.email} has replied, skipping follow-up`);
           
           // Mark as cancelled instead of failed
           await supabase
@@ -88,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
         const { data: userSettings } = await supabase
           .from("user_settings")
           .select("*")
-          .eq("user_id", scheduledEmail.campaigns.user_id)
+          .eq("user_id", campaign.user_id)
           .single();
 
         // Check time window
@@ -117,10 +129,10 @@ const handler = async (req: Request): Promise<Response> => {
           .in('status', ['sent', 'pending']);
 
         const sentToday = senderSentCount || 0;
-        const remainingCapacity = Math.max(0, scheduledEmail.sender_accounts.daily_limit - sentToday);
+        const remainingCapacity = Math.max(0, senderAccount.daily_limit - sentToday);
 
         if (remainingCapacity <= 0) {
-          console.log(`Sender ${scheduledEmail.sender_accounts.email} has reached daily limit`);
+          console.log(`Sender ${senderAccount.email} has reached daily limit`);
           continue; // Skip this email for now
         }
 
@@ -134,8 +146,6 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("id", scheduledEmail.id);
 
         // Personalize email content
-        const contact = scheduledEmail.contacts;
-        const sequence = scheduledEmail.email_sequences;
         const fallbackTags = userSettings?.fallback_merge_tags || { first_name: 'there', company: 'your company' };
 
         let personalizedSubject = personalizeText(sequence.subject, contact, fallbackTags);
@@ -181,7 +191,7 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`Sending follow-up email step ${sequence.step_number} to ${contact.email}`);
         
         const emailResponse = await resend.emails.send({
-          from: scheduledEmail.sender_accounts.email,
+          from: senderAccount.email,
           to: [contact.email],
           subject: personalizedSubject,
           html: emailBodyWithTracking,
