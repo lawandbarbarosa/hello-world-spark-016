@@ -69,10 +69,8 @@ const Delivery = () => {
         }, ...prev.slice(0, 99)]); // Keep last 100 results
         setSingleEmail('');
         loadData(); // Refresh data
-      } else {
-        // Handle case where verification failed
-        toast.error('Email verification failed. Please check your API configuration.');
       }
+      // If result is null, the error was already handled by the hook
     } catch (error) {
       console.error('Error in handleSingleVerification:', error);
       toast.error('An error occurred during email verification');
@@ -116,9 +114,8 @@ const Delivery = () => {
         setProcessedEmails(prev => [...newProcessedEmails, ...prev].slice(0, 100));
         setCsvEmails([]); // Clear CSV emails after verification
         loadData(); // Refresh data
-      } else {
-        toast.error('No emails were successfully verified. Please check your API configuration.');
       }
+      // If no results, the error was already handled by the hook
     } catch (error) {
       console.error('Error in handleVerifyCsvEmails:', error);
       toast.error('An error occurred during CSV email verification');
@@ -158,9 +155,8 @@ const Delivery = () => {
         setProcessedEmails(prev => [...newProcessedEmails, ...prev].slice(0, 100));
         setBulkEmails('');
         loadData(); // Refresh data
-      } else {
-        toast.error('No emails were successfully verified. Please check your API configuration.');
       }
+      // If no results, the error was already handled by the hook
     } catch (error) {
       console.error('Error in handleBulkVerification:', error);
       toast.error('An error occurred during bulk verification');

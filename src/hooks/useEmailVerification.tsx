@@ -36,6 +36,13 @@ export const useEmailVerification = () => {
         return null;
       }
 
+      // Check if the response contains an error field
+      if (data?.error) {
+        console.error('Verification API error:', data.error);
+        toast.error(data.error);
+        return null;
+      }
+
       return data as VerificationResult;
     } catch (error) {
       console.error('Verification error:', error);

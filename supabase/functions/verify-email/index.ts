@@ -62,18 +62,59 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const verificationResult: NeverBounceResponse = await neverBounceResponse.json();
-    console.log('Verification result:', verificationResult);
+    console.log('Verification result:', JSON.stringify(verificationResult, null, 2));
 
     // Check if NeverBounce returned an error
-    if (verificationResult.status === 'auth_failure' || verificationResult.status === 'general_failure') {
+    if (verificationResult.status === 'auth_failure') {
       console.error('NeverBounce API authentication failed:', verificationResult.message);
-      throw new Error(`NeverBounce API error: ${verificationResult.message || 'Authentication failed'}`);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid NeverBounce API key. Please check your API configuration.',
+          email,
+          result: 'error',
+          isValid: false,
+          isDeliverable: false 
+        }),
+        {
+          status: 200, // Return 200 so the frontend can handle the error message
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    if (verificationResult.status === 'general_failure') {
+      console.error('NeverBounce API general failure:', verificationResult.message);
+      return new Response(
+        JSON.stringify({ 
+          error: `NeverBounce API error: ${verificationResult.message}`,
+          email,
+          result: 'error',
+          isValid: false,
+          isDeliverable: false 
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     }
 
     // Ensure we have a valid result
     if (!verificationResult.result) {
       console.error('NeverBounce API returned invalid response:', verificationResult);
-      throw new Error('Invalid response from email verification service');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Invalid response from email verification service',
+          email,
+          result: 'error',
+          isValid: false,
+          isDeliverable: false 
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
     }
 
     // Determine if email is deliverable
