@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Upload, FileText, Users, X, Download, Eye, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { validateEmailList } from "@/utils/emailValidation";
 import * as XLSX from 'xlsx';
 
 interface Contact {
@@ -374,7 +375,8 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         return;
       }
 
-      const importedContacts: Contact[] = csvData.map(row => {
+      // Extract all contacts from CSV data
+      const potentialContacts: Contact[] = csvData.map(row => {
         const contact: Contact = { email: '' };
         
         Object.entries(fieldMapping).forEach(([csvIndex, field]) => {
@@ -384,39 +386,79 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         });
         
         return contact;
-      }).filter(contact => {
-        // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return contact.email && emailRegex.test(contact.email);
       });
 
-      // Remove duplicates based on email
-      const uniqueContacts = importedContacts.filter((contact, index, self) =>
-        index === self.findIndex(c => c.email.toLowerCase() === contact.email.toLowerCase())
+      // Extract just the emails for validation
+      const emails = potentialContacts.map(contact => contact.email).filter(email => email);
+      
+      // Validate all emails using our comprehensive validation
+      const validationResult = validateEmailList(emails);
+      
+      // Create valid contacts only from emails that passed validation
+      const validEmailSet = new Set(validationResult.validEmails);
+      const validContacts = potentialContacts.filter(contact => 
+        contact.email && validEmailSet.has(contact.email.toLowerCase())
       );
 
-      if (uniqueContacts.length === 0) {
+      if (validContacts.length === 0) {
+        const invalidCount = validationResult.invalidEmails.length;
+        const errorDetails = invalidCount > 0 
+          ? `Found ${invalidCount} invalid email${invalidCount > 1 ? 's' : ''}. Common issues: ${validationResult.invalidEmails.slice(0, 3).map(e => e.error).join(', ')}`
+          : "No valid email addresses found in the uploaded file";
+          
         toast({
           title: "No valid contacts found",
-          description: "Please check that your CSV contains valid email addresses",
+          description: errorDetails,
           variant: "destructive",
         });
         return;
       }
 
-      setContacts(uniqueContacts);
+      setContacts(validContacts);
       setShowPreview(false);
+      
+      // Create detailed success message
+      let description = `Imported ${validContacts.length} valid contact${validContacts.length > 1 ? 's' : ''}`;
+      
+      const issues: string[] = [];
+      if (validationResult.statistics.invalid > 0) {
+        issues.push(`${validationResult.statistics.invalid} invalid email${validationResult.statistics.invalid > 1 ? 's' : ''} rejected`);
+      }
+      if (validationResult.statistics.duplicates > 0) {
+        issues.push(`${validationResult.statistics.duplicates} duplicate${validationResult.statistics.duplicates > 1 ? 's' : ''} removed`);
+      }
+      
+      if (issues.length > 0) {
+        description += ` (${issues.join(', ')})`;
+      }
       
       toast({
         title: "Contacts imported successfully",
-        description: `Imported ${uniqueContacts.length} valid contacts${
-          importedContacts.length !== uniqueContacts.length 
-            ? ` (${importedContacts.length - uniqueContacts.length} duplicates removed)` 
-            : ''
-        }`,
+        description,
+        variant: validationResult.statistics.invalid > 0 ? "default" : "default",
       });
+
+      // Show detailed breakdown if there were issues
+      if (validationResult.statistics.invalid > 0) {
+        console.log('Invalid emails detected:', validationResult.invalidEmails);
+        
+        // Show a follow-up toast with more details about invalid emails
+        setTimeout(() => {
+          const topErrors = validationResult.invalidEmails
+            .slice(0, 5)
+            .map(e => `${e.email}: ${e.error}`)
+            .join('\n');
+            
+          toast({
+            title: `${validationResult.statistics.invalid} emails were rejected`,
+            description: `Common issues:\n${topErrors}${validationResult.invalidEmails.length > 5 ? '\n...' : ''}`,
+            variant: "destructive",
+          });
+        }, 2000);
+      }
       
     } catch (error) {
+      console.error('Import error:', error);
       toast({
         title: "Import failed",
         description: "Failed to import contacts. Please try again.",
