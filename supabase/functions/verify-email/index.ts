@@ -16,6 +16,8 @@ interface NeverBounceResponse {
   flags: string[];
   suggested_correction: string | null;
   execution_time: number;
+  status?: string;
+  message?: string;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -61,6 +63,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     const verificationResult: NeverBounceResponse = await neverBounceResponse.json();
     console.log('Verification result:', verificationResult);
+
+    // Check if NeverBounce returned an error
+    if (verificationResult.status === 'auth_failure' || verificationResult.status === 'general_failure') {
+      console.error('NeverBounce API authentication failed:', verificationResult.message);
+      throw new Error(`NeverBounce API error: ${verificationResult.message || 'Authentication failed'}`);
+    }
+
+    // Ensure we have a valid result
+    if (!verificationResult.result) {
+      console.error('NeverBounce API returned invalid response:', verificationResult);
+      throw new Error('Invalid response from email verification service');
+    }
 
     // Determine if email is deliverable
     const isValid = verificationResult.result === 'valid';
