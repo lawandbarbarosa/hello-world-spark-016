@@ -31,6 +31,20 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("NeverBounce API key not configured");
     }
 
+    // Validate key format early to provide clear guidance
+    const keyPrefix = neverBounceApiKey.split('_')[0];
+    if (keyPrefix !== 'secret') {
+      return new Response(
+        JSON.stringify({
+          error: "NeverBounce Secret Key required. Use the Secret API key (starts with 'secret_') from NeverBounce Apps > Your App > Secret Key. Keys like 'private_' or 'public_' won't work.",
+          result: 'error',
+          isValid: false,
+          isDeliverable: false
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { email, userId }: VerifyEmailRequest = await req.json();
 
     if (!email) {
