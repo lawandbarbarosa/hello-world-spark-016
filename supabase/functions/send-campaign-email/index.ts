@@ -260,6 +260,11 @@ const handler = async (req: Request): Promise<Response> => {
     // Limit contacts to available capacity across all senders
     const contactsToProcess = contacts.slice(0, totalAvailableCapacity);
     console.log(`Processing ${contactsToProcess.length} contacts (${totalAvailableCapacity} total capacity across ${availableSenders.length} senders)`);
+    
+    // Log individual sender capacities
+    availableSenders.forEach(sender => {
+      console.log(`Sender ${sender.email}: ${sender.remainingCapacity}/${sender.daily_limit} capacity remaining`);
+    });
 
     // Process the first email sequence (step 1)
     const firstSequence = sequences.find(seq => seq.step_number === 1);
@@ -278,24 +283,21 @@ const handler = async (req: Request): Promise<Response> => {
     for (const contact of contactsToProcess) {
       // Find sender with remaining capacity
       let currentSender = null;
-      let attempts = 0;
       
-      // Try to find a sender with remaining capacity (round-robin with capacity check)
-      while (attempts < availableSenders.length) {
-        const candidateSender = availableSenders[senderIndex % availableSenders.length];
-        if (candidateSender.remainingCapacity > 0) {
-          currentSender = candidateSender;
-          break;
-        }
-        senderIndex = (senderIndex + 1) % availableSenders.length;
-        attempts++;
-      }
-
-      // If no sender has capacity, break the loop
-      if (!currentSender) {
+      // Filter senders that still have capacity
+      const sendersWithCapacity = availableSenders.filter(sender => sender.remainingCapacity > 0);
+      
+      if (sendersWithCapacity.length === 0) {
         console.log("No more senders with remaining capacity");
         break;
       }
+      
+      // Use round-robin among senders with capacity
+      currentSender = sendersWithCapacity[senderIndex % sendersWithCapacity.length];
+      console.log(`Selected sender ${currentSender.email} with ${currentSender.remainingCapacity} remaining capacity`);
+      
+      // Move to next sender in round-robin
+      senderIndex = (senderIndex + 1) % sendersWithCapacity.length;
 
       try {
         // Get fallback merge tags from user settings
@@ -445,8 +447,12 @@ const handler = async (req: Request): Promise<Response> => {
             })
             .eq("id", insertedEmailSend.id);
 
-          // Update sender's remaining capacity
-          currentSender.remainingCapacity--;
+          // Update sender's remaining capacity in our local array
+          const senderInArray = availableSenders.find(s => s.id === currentSender.id);
+          if (senderInArray) {
+            senderInArray.remainingCapacity--;
+            console.log(`Updated ${currentSender.email} remaining capacity to ${senderInArray.remainingCapacity}`);
+          }
 
           // Schedule follow-up emails for the remaining sequences
           await scheduleFollowUpEmails(supabase, campaignId, contact.id, currentSender.id, sequences, userTimezone);
