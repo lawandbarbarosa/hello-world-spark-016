@@ -10,7 +10,8 @@ import {
   LogOut,
   User,
   Shield,
-  Reply
+  Reply,
+  Truck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +41,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'campaigns', label: 'Campaigns', icon: Mail },
+    { id: 'delivery', label: 'Delivery', icon: Truck },
     { id: 'inbox', label: 'Inbox', icon: Inbox },
     { id: 'replies', label: 'Reply Tracker', icon: Reply },
     { id: 'spam', label: 'Spam', icon: Shield },

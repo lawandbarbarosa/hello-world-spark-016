@@ -3,6 +3,7 @@ import Sidebar from '@/components/Layout/Sidebar';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import CampaignList from '@/components/Campaigns/CampaignList';
 import CampaignWizard from '@/components/Campaigns/CampaignWizard';
+import Delivery from '@/components/Delivery/Delivery';
 import Inbox from '@/components/Inbox/Inbox';
 import Spam from '@/components/Spam/Spam';
 import SenderAccounts from '@/components/Senders/SenderAccounts';
@@ -21,6 +22,8 @@ const Index = () => {
         return <CampaignList onCreateNew={() => setActiveTab('create-campaign')} />;
       case 'create-campaign':
         return <CampaignWizard onBack={() => setActiveTab('campaigns')} />;
+      case 'delivery':
+        return <Delivery />;
       case 'inbox':
         return <Inbox />;
       case 'replies':
