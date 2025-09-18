@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, Users, X, Download, Eye, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
@@ -39,6 +40,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
   const [showPreview, setShowPreview] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string>("");
+  const [invalidEmails, setInvalidEmails] = useState<{email: string; error: string; firstName?: string; lastName?: string; company?: string}[]>([]);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -400,6 +402,24 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         contact.email && validEmailSet.has(contact.email.toLowerCase())
       );
 
+      // Store invalid emails with their contact information for spam folder
+      const invalidContactsWithInfo = potentialContacts.filter(contact => 
+        contact.email && !validEmailSet.has(contact.email.toLowerCase())
+      ).map(contact => {
+        const invalidEmailInfo = validationResult.invalidEmails.find(e => 
+          e.email.toLowerCase() === contact.email.toLowerCase()
+        );
+        return {
+          email: contact.email,
+          error: invalidEmailInfo?.error || 'Invalid email format',
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          company: contact.company
+        };
+      });
+
+      setInvalidEmails(invalidContactsWithInfo);
+
       if (validContacts.length === 0) {
         const invalidCount = validationResult.invalidEmails.length;
         const errorDetails = invalidCount > 0 
@@ -698,6 +718,84 @@ mike@test.org,Mike,Johnson,Test LLC`;
               <p className="text-sm text-muted-foreground mt-2">
                 Showing first 10 contacts of {contacts.length} total
               </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Invalid Emails Section */}
+      {invalidEmails.length > 0 && (
+        <Card className="border-orange-200 dark:border-orange-900">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-orange-500" />
+                <CardTitle className="text-lg text-orange-700 dark:text-orange-400">
+                  Unverified Emails ({invalidEmails.length})
+                </CardTitle>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setInvalidEmails([])}
+                  className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Clear All
+                </Button>
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              These emails failed validation and will not be included in your campaign. 
+              They are automatically categorized for your review.
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {invalidEmails.map((item, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg border border-orange-200 dark:border-orange-900">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-medium text-sm truncate">{item.email}</span>
+                      <Badge variant="outline" className="text-orange-600 border-orange-200 shrink-0">
+                        Invalid
+                      </Badge>
+                    </div>
+                    {(item.firstName || item.lastName || item.company) && (
+                      <div className="text-xs text-muted-foreground">
+                        {[item.firstName, item.lastName].filter(Boolean).join(' ')}
+                        {item.company && ` • ${item.company}`}
+                      </div>
+                    )}
+                    <div className="text-xs text-orange-600 mt-1">
+                      {item.error}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setInvalidEmails(prev => prev.filter((_, i) => i !== index))}
+                    className="text-orange-600 hover:text-orange-700 hover:bg-orange-100 dark:hover:bg-orange-950/40 shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            
+            {invalidEmails.length > 5 && (
+              <div className="mt-3 p-3 bg-muted/50 rounded-lg">
+                <div className="text-sm text-muted-foreground">
+                  <strong>Common validation issues:</strong>
+                  <ul className="mt-1 ml-4 list-disc text-xs space-y-1">
+                    <li>Missing @ symbol or domain extension</li>
+                    <li>Invalid characters or format</li>
+                    <li>Common typos in domain names (e.g., "gmial" instead of "gmail")</li>
+                    <li>Multiple @ symbols or consecutive dots</li>
+                  </ul>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
