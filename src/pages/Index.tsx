@@ -4,6 +4,7 @@ import Dashboard from '@/components/Dashboard/Dashboard';
 import CampaignList from '@/components/Campaigns/CampaignList';
 import CampaignWizard from '@/components/Campaigns/CampaignWizard';
 import Inbox from '@/components/Inbox/Inbox';
+import Spam from '@/components/Spam/Spam';
 import SenderAccounts from '@/components/Senders/SenderAccounts';
 import Settings from '@/components/Settings/Settings';
 import ContactsList from '@/components/Contacts/ContactsList';
@@ -21,6 +22,8 @@ const Index = () => {
         return <CampaignWizard onBack={() => setActiveTab('campaigns')} />;
       case 'inbox':
         return <Inbox />;
+      case 'spam':
+        return <Spam />;
       case 'contacts':
         return <ContactsList />;
       case 'senders':
