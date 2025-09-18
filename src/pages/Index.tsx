@@ -8,6 +8,7 @@ import Spam from '@/components/Spam/Spam';
 import SenderAccounts from '@/components/Senders/SenderAccounts';
 import Settings from '@/components/Settings/Settings';
 import ContactsList from '@/components/Contacts/ContactsList';
+import ReplyTracker from '@/components/Replies/ReplyTracker';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -22,6 +23,8 @@ const Index = () => {
         return <CampaignWizard onBack={() => setActiveTab('campaigns')} />;
       case 'inbox':
         return <Inbox />;
+      case 'replies':
+        return <ReplyTracker />;
       case 'spam':
         return <Spam />;
       case 'contacts':

@@ -18,7 +18,8 @@ import {
   Eye,
   Clock,
   Inbox as InboxIcon,
-  Users
+  Users,
+  Reply
 } from "lucide-react";
 
 interface SentEmail {
@@ -42,6 +43,7 @@ interface SentEmail {
     email: string;
     first_name: string;
     last_name: string;
+    replied_at: string | null;
   };
   email_sequence: {
     subject: string;
@@ -62,6 +64,8 @@ interface ContactGroup {
   totalFailed: number;
   latestSent: string | null;
   campaigns: string[];
+  hasReplied: boolean;
+  repliedAt: string | null;
 }
 
 const Inbox = () => {
@@ -86,7 +90,7 @@ const Inbox = () => {
         .select(`
           *,
           campaigns!inner(name, description, user_id),
-          contacts(email, first_name, last_name),
+          contacts(email, first_name, last_name, replied_at),
           email_sequences(subject, body, step_number),
           sender_accounts(email)
         `)
@@ -124,6 +128,7 @@ const Inbox = () => {
           email: email.contacts?.email || 'Unknown Contact',
           first_name: email.contacts?.first_name || '',
           last_name: email.contacts?.last_name || '',
+          replied_at: email.contacts?.replied_at || null,
         },
         email_sequence: {
           subject: email.email_sequences?.subject || 'No Subject',
@@ -151,7 +156,15 @@ const Inbox = () => {
             totalFailed: 0,
             latestSent: null,
             campaigns: [],
+            hasReplied: !!email.contact.replied_at,
+            repliedAt: email.contact.replied_at,
           };
+        } else {
+          // Update reply status if any email shows a reply
+          if (email.contact.replied_at && !groups[contactEmail].hasReplied) {
+            groups[contactEmail].hasReplied = true;
+            groups[contactEmail].repliedAt = email.contact.replied_at;
+          }
         }
 
         groups[contactEmail].emails.push(email);
@@ -318,6 +331,14 @@ const Inbox = () => {
                       <div className="text-2xl font-bold text-destructive">{group.totalFailed}</div>
                       <div className="text-xs text-muted-foreground">Failed</div>
                     </div>
+                    {group.hasReplied && (
+                      <div className="text-center">
+                        <div className="flex items-center justify-center">
+                          <Reply className="w-6 h-6 text-warning" />
+                        </div>
+                        <div className="text-xs text-warning font-medium">Replied!</div>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -329,6 +350,12 @@ const Inbox = () => {
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       Last sent: {new Date(group.latestSent).toLocaleDateString()}
+                    </span>
+                  )}
+                  {group.hasReplied && group.repliedAt && (
+                    <span className="flex items-center gap-1 text-warning">
+                      <Reply className="w-3 h-3" />
+                      Replied: {new Date(group.repliedAt).toLocaleDateString()}
                     </span>
                   )}
                 </div>
