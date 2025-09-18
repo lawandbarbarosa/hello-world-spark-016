@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Truck, Clock, CheckCircle, AlertCircle, RefreshCw, Mail, Upload, Zap } from "lucide-react";
 import { useEmailVerification } from "@/hooks/useEmailVerification";
+import { useCsvProcessor } from "@/hooks/useCsvProcessor";
 import { toast } from "sonner";
 
 const Delivery = () => {
@@ -24,6 +25,8 @@ const Delivery = () => {
     isVerifying,
     isBulkVerifying 
   } = useEmailVerification();
+
+  const csvProcessor = useCsvProcessor();
 
   useEffect(() => {
     loadData();
@@ -72,6 +75,58 @@ const Delivery = () => {
     await verifyEmails(emails);
     setBulkEmails('');
     loadData(); // Refresh data
+  };
+
+  const handleCsvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ];
+    
+    if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Please upload a valid CSV or Excel file');
+      return;
+    }
+
+    // Validate file size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error('File size must be less than 20MB');
+      return;
+    }
+
+    try {
+      // Process the CSV file to extract emails
+      const result = await csvProcessor.processCsvFile(file);
+      
+      if (result && result.emails.length > 0) {
+        // Show confirmation dialog with file stats
+        const shouldProceed = window.confirm(
+          `Found ${result.emails.length} unique email addresses in ${result.fileName}.\n\n` +
+          `This will use ${result.emails.length} verification credits.\n\n` +
+          `Do you want to proceed with verification?`
+        );
+
+        if (shouldProceed) {
+          // Upload file to storage for record keeping
+          await csvProcessor.uploadCsvFile(file);
+          
+          // Verify all extracted emails
+          await verifyEmails(result.emails);
+          loadData(); // Refresh data
+        }
+      }
+    } catch (error) {
+      console.error('CSV processing error:', error);
+      toast.error('Failed to process CSV file');
+    }
+
+    // Reset file input
+    event.target.value = '';
   };
 
   const getStatusIcon = (status: string) => {
@@ -124,7 +179,7 @@ const Delivery = () => {
       </div>
 
       {/* Email Verification Tools */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Single Email Verification */}
         <Card>
           <CardHeader>
@@ -198,6 +253,49 @@ const Delivery = () => {
                 </>
               )}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* CSV File Upload */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              CSV File Import
+            </CardTitle>
+            <CardDescription>
+              Upload a CSV file to extract and verify emails automatically
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+              <input
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={handleCsvUpload}
+                disabled={csvProcessor.isProcessing || csvProcessor.isUploading}
+                className="hidden"
+                id="csv-upload"
+              />
+              <label
+                htmlFor="csv-upload"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                <Upload className="w-8 h-8 text-muted-foreground" />
+                <span className="text-sm font-medium">
+                  {csvProcessor.isUploading ? 'Uploading...' : 'Upload CSV File'}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Supports CSV, Excel files (max 20MB)
+                </span>
+              </label>
+            </div>
+            {csvProcessor.isProcessing && (
+              <div className="flex items-center justify-center py-2">
+                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                <span className="text-sm">Processing CSV file...</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
