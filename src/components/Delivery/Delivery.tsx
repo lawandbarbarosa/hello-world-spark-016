@@ -54,20 +54,28 @@ const Delivery = () => {
       return;
     }
 
-    const result = await verifyEmail(singleEmail.trim());
-    if (result) {
-      toast.success(`Email verified: ${result.result}`);
-      // Add to processed emails
-      setProcessedEmails(prev => [{
-        email: singleEmail.trim(),
-        verification_result: result.result,
-        is_valid: result.isValid,
-        is_deliverable: result.isDeliverable,
-        verified_at: new Date().toISOString(),
-        source: 'single'
-      }, ...prev.slice(0, 99)]); // Keep last 100 results
-      setSingleEmail('');
-      loadData(); // Refresh data
+    try {
+      const result = await verifyEmail(singleEmail.trim());
+      if (result) {
+        toast.success(`Email verified: ${result.result}`);
+        // Add to processed emails
+        setProcessedEmails(prev => [{
+          email: singleEmail.trim(),
+          verification_result: result.result,
+          is_valid: result.isValid,
+          is_deliverable: result.isDeliverable,
+          verified_at: new Date().toISOString(),
+          source: 'single'
+        }, ...prev.slice(0, 99)]); // Keep last 100 results
+        setSingleEmail('');
+        loadData(); // Refresh data
+      } else {
+        // Handle case where verification failed
+        toast.error('Email verification failed. Please check your API configuration.');
+      }
+    } catch (error) {
+      console.error('Error in handleSingleVerification:', error);
+      toast.error('An error occurred during email verification');
     }
   };
 
@@ -90,22 +98,31 @@ const Delivery = () => {
       return;
     }
 
-    const emails = csvEmails.map(emailData => emailData.email);
-    const results = await verifyEmails(emails);
-    
-    // Add to processed emails
-    const newProcessedEmails = results.map(result => ({
-      email: result.email,
-      verification_result: result.result,
-      is_valid: result.isValid,
-      is_deliverable: result.isDeliverable,
-      verified_at: new Date().toISOString(),
-      source: 'csv'
-    }));
-    
-    setProcessedEmails(prev => [...newProcessedEmails, ...prev].slice(0, 100));
-    setCsvEmails([]); // Clear CSV emails after verification
-    loadData(); // Refresh data
+    try {
+      const emails = csvEmails.map(emailData => emailData.email);
+      const results = await verifyEmails(emails);
+      
+      if (results.length > 0) {
+        // Add to processed emails
+        const newProcessedEmails = results.map(result => ({
+          email: result.email,
+          verification_result: result.result,
+          is_valid: result.isValid,
+          is_deliverable: result.isDeliverable,
+          verified_at: new Date().toISOString(),
+          source: 'csv'
+        }));
+        
+        setProcessedEmails(prev => [...newProcessedEmails, ...prev].slice(0, 100));
+        setCsvEmails([]); // Clear CSV emails after verification
+        loadData(); // Refresh data
+      } else {
+        toast.error('No emails were successfully verified. Please check your API configuration.');
+      }
+    } catch (error) {
+      console.error('Error in handleVerifyCsvEmails:', error);
+      toast.error('An error occurred during CSV email verification');
+    }
   };
 
   const handleBulkVerification = async () => {
@@ -124,21 +141,30 @@ const Delivery = () => {
       return;
     }
 
-    const results = await verifyEmails(emails);
-    
-    // Add to processed emails
-    const newProcessedEmails = results.map(result => ({
-      email: result.email,
-      verification_result: result.result,
-      is_valid: result.isValid,
-      is_deliverable: result.isDeliverable,
-      verified_at: new Date().toISOString(),
-      source: 'bulk'
-    }));
-    
-    setProcessedEmails(prev => [...newProcessedEmails, ...prev].slice(0, 100));
-    setBulkEmails('');
-    loadData(); // Refresh data
+    try {
+      const results = await verifyEmails(emails);
+      
+      if (results.length > 0) {
+        // Add to processed emails
+        const newProcessedEmails = results.map(result => ({
+          email: result.email,
+          verification_result: result.result,
+          is_valid: result.isValid,
+          is_deliverable: result.isDeliverable,
+          verified_at: new Date().toISOString(),
+          source: 'bulk'
+        }));
+        
+        setProcessedEmails(prev => [...newProcessedEmails, ...prev].slice(0, 100));
+        setBulkEmails('');
+        loadData(); // Refresh data
+      } else {
+        toast.error('No emails were successfully verified. Please check your API configuration.');
+      }
+    } catch (error) {
+      console.error('Error in handleBulkVerification:', error);
+      toast.error('An error occurred during bulk verification');
+    }
   };
 
   const getStatusIcon = (status: string) => {
