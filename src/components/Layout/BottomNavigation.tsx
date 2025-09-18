@@ -45,36 +45,36 @@ const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => 
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50">
-      <div className="flex items-center justify-around px-2 py-2 max-w-lg mx-auto">
-        {/* Main navigation items */}
-        {mainNavItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id)}
-              className={cn(
-                "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors min-w-0",
-                activeTab === item.id
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-xs font-medium truncate">{item.label}</span>
-            </button>
-          );
-        })}
-        
-        {/* New Campaign Button */}
-        <button
-          onClick={() => onTabChange('create-campaign')}
-          className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg text-primary-foreground bg-gradient-primary hover:opacity-90 transition-opacity"
-        >
-          <Plus className="w-5 h-5" />
-          <span className="text-xs font-medium">New</span>
-        </button>
+    <div className="fixed bottom-6 left-6 right-6 z-50 flex justify-center">
+      <div className="bg-slate-800 backdrop-blur-sm rounded-2xl px-6 py-3 shadow-lg">
+        <div className="flex items-center justify-center gap-8">
+          {/* Main navigation items */}
+          {mainNavItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id)}
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  activeTab === item.id
+                    ? "text-white"
+                    : "text-slate-400 hover:text-slate-200"
+                )}
+              >
+                <Icon className="w-6 h-6" />
+              </button>
+            );
+          })}
+          
+          {/* New Campaign Button */}
+          <button
+            onClick={() => onTabChange('create-campaign')}
+            className="p-2 rounded-lg text-slate-400 hover:text-slate-200 transition-colors"
+          >
+            <Plus className="w-6 h-6" />
+          </button>
+        </div>
       </div>
     </div>
   );
