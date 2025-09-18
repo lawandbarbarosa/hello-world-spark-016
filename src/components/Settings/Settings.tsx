@@ -201,13 +201,13 @@ const Settings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <FormField
+                <FormField
                 control={form.control}
                 name="timezone"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Timezone</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select timezone" />
@@ -446,7 +446,7 @@ const Settings = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>From Name Format</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select format" />
