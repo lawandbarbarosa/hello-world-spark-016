@@ -89,9 +89,9 @@ const Delivery = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Delivery</h1>
+          <h1 className="text-3xl font-bold text-foreground">Deliverability</h1>
           <p className="text-muted-foreground mt-1">
-            Monitor email delivery status and performance
+            Monitor email deliverability status and performance
           </p>
         </div>
         <Button>
@@ -100,7 +100,7 @@ const Delivery = () => {
         </Button>
       </div>
 
-      {/* Delivery Statistics */}
+      {/* Deliverability Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -161,12 +161,12 @@ const Delivery = () => {
         </Card>
       </div>
 
-      {/* Delivery Rate */}
+      {/* Deliverability Rate */}
       <Card>
         <CardHeader>
-          <CardTitle>Delivery Rate</CardTitle>
+          <CardTitle>Deliverability Rate</CardTitle>
           <CardDescription>
-            Overall email delivery success rate
+            Overall email deliverability success rate
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
