@@ -147,38 +147,51 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Check total daily limit across all sender accounts for this user
+    // Calculate individual sender account capacities
     const todayStart = new Date(zonedTime.getFullYear(), zonedTime.getMonth(), zonedTime.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     
-    const { count: totalDailyCount, error: totalCountError } = await supabase
-      .from('email_sends')
-      .select('sender_account_id', { count: 'exact', head: true })
-      .in('sender_account_id', senderAccounts.map(s => s.id))
-      .gte('created_at', todayStart.toISOString())
-      .lt('created_at', todayEnd.toISOString())
-      .in('status', ['sent', 'pending']);
+    const availableSenders = [];
+    let totalAvailableCapacity = 0;
 
-    const dailyLimit = userSettings?.daily_send_limit || 50;
-    const totalSentToday = totalCountError ? 0 : (totalDailyCount || 0);
-    const remainingLimit = Math.max(0, dailyLimit - totalSentToday);
+    for (const sender of senderAccounts) {
+      // Get sent count for this specific sender today
+      const { count: senderSentCount, error: senderCountError } = await supabase
+        .from('email_sends')
+        .select('*', { count: 'exact', head: true })
+        .eq('sender_account_id', sender.id)
+        .gte('created_at', todayStart.toISOString())
+        .lt('created_at', todayEnd.toISOString())
+        .in('status', ['sent', 'pending']);
 
-    if (remainingLimit === 0) {
-      console.log(`Daily limit reached: ${totalSentToday}/${dailyLimit} emails sent today`);
+      const sentToday = senderCountError ? 0 : (senderSentCount || 0);
+      const remainingCapacity = Math.max(0, sender.daily_limit - sentToday);
+
+      if (remainingCapacity > 0) {
+        availableSenders.push({
+          ...sender,
+          sentToday,
+          remainingCapacity
+        });
+        totalAvailableCapacity += remainingCapacity;
+      }
+
+      console.log(`Sender ${sender.email}: ${sentToday}/${sender.daily_limit} sent today, ${remainingCapacity} remaining`);
+    }
+
+    if (availableSenders.length === 0) {
+      console.log("No sender accounts have remaining capacity");
       return new Response(JSON.stringify({ 
-        error: `Daily sending limit of ${dailyLimit} emails reached. Total sent today: ${totalSentToday}. Try again tomorrow or increase your daily limit in settings.`
+        error: "All sender accounts have reached their daily limits. Try again tomorrow or increase sender daily limits."
       }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Limit contacts to remaining daily capacity
-    const contactsToProcess = contacts.slice(0, remainingLimit);
-    console.log(`Processing ${contactsToProcess.length} contacts (${remainingLimit} remaining in daily limit)`);
-
-    // All sender accounts are available since we're using total daily limit
-    const availableSenders = senderAccounts;
+    // Limit contacts to available capacity across all senders
+    const contactsToProcess = contacts.slice(0, totalAvailableCapacity);
+    console.log(`Processing ${contactsToProcess.length} contacts (${totalAvailableCapacity} total capacity across ${availableSenders.length} senders)`);
 
     // Process the first email sequence (step 1)
     const firstSequence = sequences.find(seq => seq.step_number === 1);
@@ -193,11 +206,28 @@ const handler = async (req: Request): Promise<Response> => {
     let emailsError = 0;
     let senderIndex = 0;
 
-     // Send emails to contacts using round-robin across senders, respecting total daily limit
+     // Send emails to contacts using round-robin across senders, respecting individual limits
     for (const contact of contactsToProcess) {
-      // Use round-robin to distribute across available senders
-      const currentSender = availableSenders[senderIndex % availableSenders.length];
-      senderIndex++;
+      // Find sender with remaining capacity
+      let currentSender = null;
+      let attempts = 0;
+      
+      // Try to find a sender with remaining capacity (round-robin with capacity check)
+      while (attempts < availableSenders.length) {
+        const candidateSender = availableSenders[senderIndex % availableSenders.length];
+        if (candidateSender.remainingCapacity > 0) {
+          currentSender = candidateSender;
+          break;
+        }
+        senderIndex = (senderIndex + 1) % availableSenders.length;
+        attempts++;
+      }
+
+      // If no sender has capacity, break the loop
+      if (!currentSender) {
+        console.log("No more senders with remaining capacity");
+        break;
+      }
 
       try {
         // Get fallback merge tags from user settings
@@ -311,7 +341,7 @@ const handler = async (req: Request): Promise<Response> => {
         const emailBodyWithTracking = finalBody.replace(/\n/g, '<br>') + trackingPixel;
 
         // Send email using Resend with current sender
-        console.log(`Attempting to send email to ${contact.email} from ${currentSender.email} (${currentSender.remaining} remaining capacity)`);
+        console.log(`Attempting to send email to ${contact.email} from ${currentSender.email} (${currentSender.remainingCapacity} remaining capacity)`);
         
         const emailResponse = await resend.emails.send({
           from: `${currentSender.email}`,
@@ -348,7 +378,7 @@ const handler = async (req: Request): Promise<Response> => {
             .eq("id", insertedEmailSend.id);
 
           // Update sender's remaining capacity
-          currentSender.remaining--;
+          currentSender.remainingCapacity--;
         }
 
         // Move to next sender for round-robin distribution
@@ -389,7 +419,9 @@ const handler = async (req: Request): Promise<Response> => {
       message,
       senderStats: availableSenders.map(s => ({
         email: s.email,
-        limit: userSettings?.daily_send_limit || 50
+        dailyLimit: s.daily_limit,
+        sentToday: s.sentToday,
+        remainingCapacity: s.remainingCapacity
       }))
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
