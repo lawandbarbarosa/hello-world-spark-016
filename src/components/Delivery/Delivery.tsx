@@ -5,58 +5,16 @@ import { Progress } from "@/components/ui/progress";
 import { Truck, Clock, CheckCircle, AlertCircle, RefreshCw } from "lucide-react";
 
 const Delivery = () => {
-  // Mock data for delivery statistics
+  // Reset deliverability statistics
   const deliveryStats = {
-    total: 15420,
-    delivered: 14205,
-    pending: 847,
-    failed: 368,
-    deliveryRate: 92.1
+    total: 0,
+    delivered: 0,
+    pending: 0,
+    failed: 0,
+    deliveryRate: 0
   };
 
-  const recentDeliveries = [
-    {
-      id: 1,
-      campaign: "Product Launch Announcement",
-      recipient: "john@example.com",
-      status: "delivered",
-      timestamp: "2024-01-15 14:30",
-      deliveryTime: "2.3s"
-    },
-    {
-      id: 2,
-      campaign: "Weekly Newsletter",
-      recipient: "sarah@company.com",
-      status: "pending",
-      timestamp: "2024-01-15 14:28",
-      deliveryTime: "-"
-    },
-    {
-      id: 3,
-      campaign: "Special Offer",
-      recipient: "mike@business.org",
-      status: "failed",
-      timestamp: "2024-01-15 14:25",
-      deliveryTime: "-",
-      error: "Recipient server unreachable"
-    },
-    {
-      id: 4,
-      campaign: "Event Reminder",
-      recipient: "lisa@startup.io",
-      status: "delivered",
-      timestamp: "2024-01-15 14:22",
-      deliveryTime: "1.8s"
-    },
-    {
-      id: 5,
-      campaign: "Product Launch Announcement",
-      recipient: "david@tech.com",
-      status: "delivered",
-      timestamp: "2024-01-15 14:20",
-      deliveryTime: "3.1s"
-    }
-  ];
+  const recentDeliveries: any[] = [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -190,34 +148,40 @@ const Delivery = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentDeliveries.map((delivery) => (
-              <div 
-                key={delivery.id}
-                className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
-              >
-                <div className="flex items-center space-x-4">
-                  {getStatusIcon(delivery.status)}
-                  <div>
-                    <h4 className="font-medium">{delivery.campaign}</h4>
-                    <p className="text-sm text-muted-foreground">{delivery.recipient}</p>
-                    {delivery.error && (
-                      <p className="text-xs text-red-500 mt-1">{delivery.error}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4 text-right">
-                  <div>
-                    <p className="text-sm">{delivery.timestamp}</p>
-                    {delivery.deliveryTime !== "-" && (
-                      <p className="text-xs text-muted-foreground">
-                        Delivered in {delivery.deliveryTime}
-                      </p>
-                    )}
-                  </div>
-                  {getStatusBadge(delivery.status)}
-                </div>
+            {recentDeliveries.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">No recent deliveries to display</p>
               </div>
-            ))}
+            ) : (
+              recentDeliveries.map((delivery) => (
+                <div 
+                  key={delivery.id}
+                  className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-4">
+                    {getStatusIcon(delivery.status)}
+                    <div>
+                      <h4 className="font-medium">{delivery.campaign}</h4>
+                      <p className="text-sm text-muted-foreground">{delivery.recipient}</p>
+                      {delivery.error && (
+                        <p className="text-xs text-red-500 mt-1">{delivery.error}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4 text-right">
+                    <div>
+                      <p className="text-sm">{delivery.timestamp}</p>
+                      {delivery.deliveryTime !== "-" && (
+                        <p className="text-xs text-muted-foreground">
+                          Delivered in {delivery.deliveryTime}
+                        </p>
+                      )}
+                    </div>
+                    {getStatusBadge(delivery.status)}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
