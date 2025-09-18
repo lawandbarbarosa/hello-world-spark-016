@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Truck, Clock, CheckCircle, AlertCircle, RefreshCw, Mail, Upload, Zap } from "lucide-react";
 import { useEmailVerification } from "@/hooks/useEmailVerification";
-import { useCsvProcessor } from "@/hooks/useCsvProcessor";
+import { useCsvUpload } from "@/hooks/useCsvUpload";
 import { toast } from "sonner";
 
 const Delivery = () => {
@@ -16,6 +16,8 @@ const Delivery = () => {
   const [bulkEmails, setBulkEmails] = useState('');
   const [verificationStats, setVerificationStats] = useState<any>(null);
   const [recentVerifications, setRecentVerifications] = useState<any[]>([]);
+  const [csvEmails, setCsvEmails] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { 
     verifyEmail, 
@@ -26,7 +28,10 @@ const Delivery = () => {
     isBulkVerifying 
   } = useEmailVerification();
 
-  const csvProcessor = useCsvProcessor();
+  const {
+    uploadAndProcessCsv,
+    isProcessing
+  } = useCsvUpload();
 
   useEffect(() => {
     loadData();
@@ -56,6 +61,31 @@ const Delivery = () => {
     }
   };
 
+  const handleCsvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const emailData = await uploadAndProcessCsv(file);
+    setCsvEmails(emailData);
+    
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleVerifyCsvEmails = async () => {
+    if (csvEmails.length === 0) {
+      toast.error('No emails to verify');
+      return;
+    }
+
+    const emails = csvEmails.map(emailData => emailData.email);
+    await verifyEmails(emails);
+    setCsvEmails([]); // Clear CSV emails after verification
+    loadData(); // Refresh data
+  };
+
   const handleBulkVerification = async () => {
     const emails = bulkEmails
       .split('\n')
@@ -75,58 +105,6 @@ const Delivery = () => {
     await verifyEmails(emails);
     setBulkEmails('');
     loadData(); // Refresh data
-  };
-
-  const handleCsvUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    // Validate file type
-    const allowedTypes = [
-      'text/csv',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ];
-    
-    if (!allowedTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
-      toast.error('Please upload a valid CSV or Excel file');
-      return;
-    }
-
-    // Validate file size (20MB limit)
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error('File size must be less than 20MB');
-      return;
-    }
-
-    try {
-      // Process the CSV file to extract emails
-      const result = await csvProcessor.processCsvFile(file);
-      
-      if (result && result.emails.length > 0) {
-        // Show confirmation dialog with file stats
-        const shouldProceed = window.confirm(
-          `Found ${result.emails.length} unique email addresses in ${result.fileName}.\n\n` +
-          `This will use ${result.emails.length} verification credits.\n\n` +
-          `Do you want to proceed with verification?`
-        );
-
-        if (shouldProceed) {
-          // Upload file to storage for record keeping
-          await csvProcessor.uploadCsvFile(file);
-          
-          // Verify all extracted emails
-          await verifyEmails(result.emails);
-          loadData(); // Refresh data
-        }
-      }
-    } catch (error) {
-      console.error('CSV processing error:', error);
-      toast.error('Failed to process CSV file');
-    }
-
-    // Reset file input
-    event.target.value = '';
   };
 
   const getStatusIcon = (status: string) => {
@@ -172,14 +150,14 @@ const Delivery = () => {
             Monitor email deliverability status and verify email addresses
           </p>
         </div>
-        <Button onClick={loadData} disabled={isVerifying || isBulkVerifying}>
+        <Button onClick={loadData} disabled={isVerifying || isBulkVerifying || isProcessing}>
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
       </div>
 
       {/* Email Verification Tools */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Single Email Verification */}
         <Card>
           <CardHeader>
@@ -255,50 +233,106 @@ const Delivery = () => {
             </Button>
           </CardContent>
         </Card>
-
-        {/* CSV File Upload */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              CSV File Import
-            </CardTitle>
-            <CardDescription>
-              Upload a CSV file to extract and verify emails automatically
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                onChange={handleCsvUpload}
-                disabled={csvProcessor.isProcessing || csvProcessor.isUploading}
-                className="hidden"
-                id="csv-upload"
-              />
-              <label
-                htmlFor="csv-upload"
-                className="cursor-pointer flex flex-col items-center gap-2"
-              >
-                <Upload className="w-8 h-8 text-muted-foreground" />
-                <span className="text-sm font-medium">
-                  {csvProcessor.isUploading ? 'Uploading...' : 'Upload CSV File'}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  Supports CSV, Excel files (max 20MB)
-                </span>
-              </label>
-            </div>
-            {csvProcessor.isProcessing && (
-              <div className="flex items-center justify-center py-2">
-                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                <span className="text-sm">Processing CSV file...</span>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
+
+      {/* CSV Import Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="w-4 h-4" />
+            CSV Import & Verification
+          </CardTitle>
+          <CardDescription>
+            Upload a CSV file containing emails to verify them in bulk
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              onChange={handleCsvUpload}
+              className="hidden"
+            />
+            <div className="space-y-2">
+              <Upload className="w-8 h-8 mx-auto text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">
+                  Click to upload CSV file or drag and drop
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  CSV files only, max 10MB. Ensure your CSV has an "email" column.
+                </p>
+              </div>
+              <Button 
+                variant="outline" 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isProcessing}
+              >
+                {isProcessing ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="w-4 h-4 mr-2" />
+                    Choose CSV File
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+          
+          {csvEmails.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-accent rounded-lg">
+                <span className="text-sm font-medium">
+                  {csvEmails.length} emails loaded from CSV
+                </span>
+                <Button 
+                  onClick={handleVerifyCsvEmails}
+                  disabled={isBulkVerifying}
+                  size="sm"
+                >
+                  {isBulkVerifying ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Verifying...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 mr-2" />
+                      Verify All ({csvEmails.length})
+                    </>
+                  )}
+                </Button>
+              </div>
+              
+              {/* Preview of loaded emails */}
+              <div className="max-h-40 overflow-y-auto border border-border rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-2">Preview of loaded emails:</p>
+                {csvEmails.slice(0, 10).map((emailData, index) => (
+                  <div key={index} className="text-xs py-1 flex items-center justify-between">
+                    <span>{emailData.email}</span>
+                    {(emailData.firstName || emailData.lastName) && (
+                      <span className="text-muted-foreground">
+                        {emailData.firstName} {emailData.lastName}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {csvEmails.length > 10 && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    ... and {csvEmails.length - 10} more emails
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Separator />
 
