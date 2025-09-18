@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Sidebar from '@/components/Layout/Sidebar';
+import BottomNavigation from '@/components/Layout/BottomNavigation';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import CampaignList from '@/components/Campaigns/CampaignList';
 import CampaignWizard from '@/components/Campaigns/CampaignWizard';
@@ -43,7 +43,7 @@ const Index = () => {
       <main className="p-6 overflow-auto">
         {renderContent()}
       </main>
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
     </div>
   );
 };

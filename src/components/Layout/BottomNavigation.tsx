@@ -17,12 +17,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 
-interface SidebarProps {
+interface BottomNavigationProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
 }
 
-const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
+const BottomNavigation = ({ activeTab, onTabChange }: BottomNavigationProps) => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   
@@ -80,4 +80,4 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   );
 };
 
-export default Sidebar;
+export default BottomNavigation;
