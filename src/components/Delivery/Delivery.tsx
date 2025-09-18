@@ -17,6 +17,7 @@ const Delivery = () => {
   const [verificationStats, setVerificationStats] = useState<any>(null);
   const [recentVerifications, setRecentVerifications] = useState<any[]>([]);
   const [csvEmails, setCsvEmails] = useState<any[]>([]);
+  const [processedEmails, setProcessedEmails] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const { 
@@ -56,6 +57,15 @@ const Delivery = () => {
     const result = await verifyEmail(singleEmail.trim());
     if (result) {
       toast.success(`Email verified: ${result.result}`);
+      // Add to processed emails
+      setProcessedEmails(prev => [{
+        email: singleEmail.trim(),
+        verification_result: result.result,
+        is_valid: result.isValid,
+        is_deliverable: result.isDeliverable,
+        verified_at: new Date().toISOString(),
+        source: 'single'
+      }, ...prev.slice(0, 99)]); // Keep last 100 results
       setSingleEmail('');
       loadData(); // Refresh data
     }
@@ -81,7 +91,19 @@ const Delivery = () => {
     }
 
     const emails = csvEmails.map(emailData => emailData.email);
-    await verifyEmails(emails);
+    const results = await verifyEmails(emails);
+    
+    // Add to processed emails
+    const newProcessedEmails = results.map(result => ({
+      email: result.email,
+      verification_result: result.result,
+      is_valid: result.isValid,
+      is_deliverable: result.isDeliverable,
+      verified_at: new Date().toISOString(),
+      source: 'csv'
+    }));
+    
+    setProcessedEmails(prev => [...newProcessedEmails, ...prev].slice(0, 100));
     setCsvEmails([]); // Clear CSV emails after verification
     loadData(); // Refresh data
   };
@@ -102,7 +124,19 @@ const Delivery = () => {
       return;
     }
 
-    await verifyEmails(emails);
+    const results = await verifyEmails(emails);
+    
+    // Add to processed emails
+    const newProcessedEmails = results.map(result => ({
+      email: result.email,
+      verification_result: result.result,
+      is_valid: result.isValid,
+      is_deliverable: result.isDeliverable,
+      verified_at: new Date().toISOString(),
+      source: 'bulk'
+    }));
+    
+    setProcessedEmails(prev => [...newProcessedEmails, ...prev].slice(0, 100));
     setBulkEmails('');
     loadData(); // Refresh data
   };
@@ -333,6 +367,58 @@ const Delivery = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Verification Results */}
+      {processedEmails.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Verification Results
+            </CardTitle>
+            <CardDescription>
+              Results from recent email verifications ({processedEmails.length} emails)
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {processedEmails.map((verification, index) => (
+                <div 
+                  key={`${verification.email}-${index}`}
+                  className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    {getStatusIcon(verification.verification_result)}
+                    <div>
+                      <p className="font-medium">{verification.email}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {verification.source === 'single' && 'Single verification'}
+                        {verification.source === 'bulk' && 'Bulk verification'}
+                        {verification.source === 'csv' && 'CSV import'}
+                        {' • '}
+                        {new Date(verification.verified_at).toLocaleTimeString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {verification.is_deliverable && (
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+                        Deliverable
+                      </Badge>
+                    )}
+                    {getStatusBadge(verification.verification_result)}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {processedEmails.length >= 100 && (
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Showing last 100 verification results
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Separator />
 
