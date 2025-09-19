@@ -93,13 +93,38 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     return result;
   };
 
-  const insertMergeTag = (stepId: string, field: 'subject' | 'body', tag: string) => {
+  const insertMergeTag = (stepId: string, field: 'subject' | 'body', tag: string, position?: number) => {
     const step = sequence.find(s => s.id === stepId);
     if (!step) return;
     
     const currentValue = step[field];
-    const newValue = currentValue + `{{${tag}}}`;
-    updateStep(stepId, { [field]: newValue });
+    if (position !== undefined) {
+      // Insert at specific position (for drag and drop)
+      const newValue = currentValue.slice(0, position) + `{{${tag}}}` + currentValue.slice(position);
+      updateStep(stepId, { [field]: newValue });
+    } else {
+      // Append to end (for click)
+      const newValue = currentValue + `{{${tag}}}`;
+      updateStep(stepId, { [field]: newValue });
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, tag: string) => {
+    e.dataTransfer.setData('text/plain', tag);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent, stepId: string, field: 'subject' | 'body') => {
+    e.preventDefault();
+    const tag = e.dataTransfer.getData('text/plain');
+    const target = e.target as HTMLInputElement | HTMLTextAreaElement;
+    const cursorPosition = target.selectionStart || 0;
+    insertMergeTag(stepId, field, tag, cursorPosition);
   };
 
   return (
@@ -298,65 +323,73 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
 
                   {/* Subject Line */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium text-foreground">Subject Line</Label>
-                      <div className="flex items-center gap-1">
-                        <Tag className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Click tags to insert:</span>
-                      </div>
-                    </div>
-                    <Input
-                      placeholder="e.g., Quick question about {{company}}"
-                      value={step.subject}
-                      onChange={(e) => updateStep(step.id, { subject: e.target.value })}
-                      className="bg-background border-border text-foreground"
-                    />
-                    <div className="flex flex-wrap gap-1">
-                      {availableMergeTags.map(tag => (
-                        <Badge 
-                          key={tag}
-                          variant="outline" 
-                          className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                          onClick={() => insertMergeTag(step.id, 'subject', tag)}
-                        >
-                          {`{{${tag}}}`}
-                        </Badge>
-                      ))}
-                    </div>
+                     <div className="flex items-center justify-between">
+                       <Label className="text-sm font-medium text-foreground">Subject Line</Label>
+                       <div className="flex items-center gap-1">
+                         <Tag className="w-3 h-3 text-muted-foreground" />
+                         <span className="text-xs text-muted-foreground">Drag tags or click to insert:</span>
+                       </div>
+                     </div>
+                     <Input
+                       placeholder="e.g., Quick question about {{company}}"
+                       value={step.subject}
+                       onChange={(e) => updateStep(step.id, { subject: e.target.value })}
+                       className="bg-background border-border text-foreground"
+                       onDragOver={handleDragOver}
+                       onDrop={(e) => handleDrop(e, step.id, 'subject')}
+                     />
+                     <div className="flex flex-wrap gap-1">
+                       {availableMergeTags.map(tag => (
+                         <Badge 
+                           key={tag}
+                           variant="outline" 
+                           className="text-xs cursor-move hover:bg-primary hover:text-primary-foreground transition-colors select-none"
+                           onClick={() => insertMergeTag(step.id, 'subject', tag)}
+                           draggable
+                           onDragStart={(e) => handleDragStart(e, tag)}
+                         >
+                           {`{{${tag}}}`}
+                         </Badge>
+                       ))}
+                     </div>
                   </div>
 
-                  {/* Email Body */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium text-foreground">Email Body</Label>
-                      <div className="flex items-center gap-1">
-                        <Tag className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Click tags to insert:</span>
-                      </div>
-                    </div>
-                    <Textarea
-                      placeholder={`Hi {{firstName}},\n\nI hope this email finds you well...\n\nBest regards,\n[Your name]`}
-                      value={step.body}
-                      onChange={(e) => updateStep(step.id, { body: e.target.value })}
-                      rows={8}
-                      className="bg-background border-border text-foreground font-mono text-sm"
-                    />
-                    <div className="flex flex-wrap gap-1">
-                      {availableMergeTags.map(tag => (
-                        <Badge 
-                          key={tag}
-                          variant="outline" 
-                          className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                          onClick={() => insertMergeTag(step.id, 'body', tag)}
-                        >
-                          {`{{${tag}}}`}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Available merge tags from your CSV: {availableMergeTags.join(', ')}
-                    </div>
-                  </div>
+                   {/* Email Body */}
+                   <div className="space-y-2">
+                     <div className="flex items-center justify-between">
+                       <Label className="text-sm font-medium text-foreground">Email Body</Label>
+                       <div className="flex items-center gap-1">
+                         <Tag className="w-3 h-3 text-muted-foreground" />
+                         <span className="text-xs text-muted-foreground">Drag tags or click to insert:</span>
+                       </div>
+                     </div>
+                     <Textarea
+                       placeholder={`Hi {{firstName}},\n\nI hope this email finds you well...\n\nBest regards,\n[Your name]`}
+                       value={step.body}
+                       onChange={(e) => updateStep(step.id, { body: e.target.value })}
+                       rows={8}
+                       className="bg-background border-border text-foreground font-mono text-sm"
+                       onDragOver={handleDragOver}
+                       onDrop={(e) => handleDrop(e, step.id, 'body')}
+                     />
+                     <div className="flex flex-wrap gap-1">
+                       {availableMergeTags.map(tag => (
+                         <Badge 
+                           key={tag}
+                           variant="outline" 
+                           className="text-xs cursor-move hover:bg-primary hover:text-primary-foreground transition-colors select-none"
+                           onClick={() => insertMergeTag(step.id, 'body', tag)}
+                           draggable
+                           onDragStart={(e) => handleDragStart(e, tag)}
+                         >
+                           {`{{${tag}}}`}
+                         </Badge>
+                       ))}
+                     </div>
+                     <div className="text-xs text-muted-foreground">
+                       Available merge tags from your CSV: {availableMergeTags.join(', ')}
+                     </div>
+                   </div>
 
                   {/* Preview */}
                   {!previewMode && (step.subject || step.body) && (
