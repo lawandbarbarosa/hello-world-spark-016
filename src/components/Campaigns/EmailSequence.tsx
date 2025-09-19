@@ -34,6 +34,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   const [sequence, setSequence] = useState<EmailStep[]>(data.sequence || []);
   const [previewMode, setPreviewMode] = useState<boolean>(false);
   const [selectedContactIndex, setSelectedContactIndex] = useState<number>(0);
+  const [cursorPositions, setCursorPositions] = useState<Record<string, { subject: number; body: number }>>({});
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
@@ -93,20 +94,41 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     return result;
   };
 
+  const handleCursorChange = (stepId: string, field: 'subject' | 'body', position: number) => {
+    setCursorPositions(prev => ({
+      ...prev,
+      [stepId]: {
+        ...prev[stepId],
+        [field]: position
+      }
+    }));
+  };
+
   const insertMergeTag = (stepId: string, field: 'subject' | 'body', tag: string, position?: number) => {
     const step = sequence.find(s => s.id === stepId);
     if (!step) return;
     
     const currentValue = step[field];
-    if (position !== undefined) {
-      // Insert at specific position (for drag and drop)
-      const newValue = currentValue.slice(0, position) + `{{${tag}}}` + currentValue.slice(position);
-      updateStep(stepId, { [field]: newValue });
-    } else {
-      // Append to end (for click)
-      const newValue = currentValue + `{{${tag}}}`;
-      updateStep(stepId, { [field]: newValue });
+    let insertPosition = position;
+    
+    // If no position provided, use stored cursor position or end of text
+    if (insertPosition === undefined) {
+      insertPosition = cursorPositions[stepId]?.[field] ?? currentValue.length;
     }
+    
+    // Insert the tag at the specified position
+    const newValue = currentValue.slice(0, insertPosition) + `{{${tag}}}` + currentValue.slice(insertPosition);
+    updateStep(stepId, { [field]: newValue });
+    
+    // Update cursor position to after the inserted tag
+    const newCursorPosition = insertPosition + `{{${tag}}}`.length;
+    setCursorPositions(prev => ({
+      ...prev,
+      [stepId]: {
+        ...prev[stepId],
+        [field]: newCursorPosition
+      }
+    }));
   };
 
   const handleDragStart = (e: React.DragEvent, tag: string) => {
@@ -327,13 +349,16 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                        <Label className="text-sm font-medium text-foreground">Subject Line</Label>
                        <div className="flex items-center gap-1">
                          <Tag className="w-3 h-3 text-muted-foreground" />
-                         <span className="text-xs text-muted-foreground">Drag tags or click to insert:</span>
+                         <span className="text-xs text-muted-foreground">Drag tags or click to insert at cursor:</span>
                        </div>
                      </div>
                      <Input
                        placeholder="e.g., Quick question about {{company}}"
                        value={step.subject}
                        onChange={(e) => updateStep(step.id, { subject: e.target.value })}
+                       onSelect={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
+                       onClick={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
+                       onKeyUp={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
                        className="bg-background border-border text-foreground"
                        onDragOver={handleDragOver}
                        onDrop={(e) => handleDrop(e, step.id, 'subject')}
@@ -360,18 +385,21 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                        <Label className="text-sm font-medium text-foreground">Email Body</Label>
                        <div className="flex items-center gap-1">
                          <Tag className="w-3 h-3 text-muted-foreground" />
-                         <span className="text-xs text-muted-foreground">Drag tags or click to insert:</span>
+                         <span className="text-xs text-muted-foreground">Drag tags or click to insert at cursor:</span>
                        </div>
                      </div>
-                     <Textarea
-                       placeholder={`Hi {{firstName}},\n\nI hope this email finds you well...\n\nBest regards,\n[Your name]`}
-                       value={step.body}
-                       onChange={(e) => updateStep(step.id, { body: e.target.value })}
-                       rows={8}
-                       className="bg-background border-border text-foreground font-mono text-sm"
-                       onDragOver={handleDragOver}
-                       onDrop={(e) => handleDrop(e, step.id, 'body')}
-                     />
+                      <Textarea
+                        placeholder={`Hi {{firstName}},\n\nI hope this email finds you well...\n\nBest regards,\n[Your name]`}
+                        value={step.body}
+                        onChange={(e) => updateStep(step.id, { body: e.target.value })}
+                        onSelect={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                        onClick={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                        onKeyUp={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                        rows={8}
+                        className="bg-background border-border text-foreground font-mono text-sm"
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, step.id, 'body')}
+                      />
                      <div className="flex flex-wrap gap-1">
                        {availableMergeTags.map(tag => (
                          <Badge 
