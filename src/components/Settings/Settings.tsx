@@ -43,8 +43,8 @@ const settingsSchema = z.object({
   
   // Sending Settings
   daily_send_limit: z.number().min(1, 'Daily limit must be at least 1').max(10000, 'Daily limit cannot exceed 10,000'),
-  send_time_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
-  send_time_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
+  send_time_start: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
+  send_time_end: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
   sending_days: z.array(z.string()).min(1, 'At least one day must be selected'),
   reply_handling_enabled: z.boolean(),
   
