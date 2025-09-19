@@ -28,24 +28,26 @@ async function scheduleFollowUpEmails(
   contactId: string,
   senderAccountId: string,
   sequences: any[],
-  userTimezone: string
+  firstEmailSentTime: Date
 ) {
   try {
     // Get follow-up sequences (skip step 1 as it's already sent)
-    const followUpSequences = sequences.filter(seq => seq.step_number > 1);
+    const followUpSequences = sequences.filter(seq => seq.step_number > 1).sort((a, b) => a.step_number - b.step_number);
     
     if (followUpSequences.length === 0) {
       console.log("No follow-up sequences to schedule");
       return;
     }
 
-    const now = new Date();
-    let previousEmailTime = now;
+    // Start from when the first email was actually sent
+    let previousEmailTime = firstEmailSentTime;
 
     for (const sequence of followUpSequences) {
-      // Calculate when this email should be sent based on delay
+      // Calculate when this email should be sent based on delay from previous email
       const delayInMinutes = calculateDelayInMinutes(sequence.delay_amount, sequence.delay_unit);
       const scheduledTime = new Date(previousEmailTime.getTime() + delayInMinutes * 60 * 1000);
+
+      console.log(`Scheduling step ${sequence.step_number}: ${delayInMinutes} minutes after previous email (${scheduledTime.toISOString()})`);
 
       // Create scheduled email record
       const { error: scheduleError } = await supabase
@@ -62,10 +64,10 @@ async function scheduleFollowUpEmails(
       if (scheduleError) {
         console.error("Error scheduling follow-up email:", scheduleError);
       } else {
-        console.log(`Scheduled follow-up email ${sequence.step_number} for ${scheduledTime.toISOString()}`);
+        console.log(`Scheduled follow-up email step ${sequence.step_number} for ${scheduledTime.toISOString()}`);
       }
 
-      // Update previous email time for next iteration
+      // Update previous email time for next iteration (when this email will be sent)
       previousEmailTime = scheduledTime;
     }
   } catch (error) {
@@ -438,12 +440,14 @@ const handler = async (req: Request): Promise<Response> => {
           console.log("Email sent successfully to", contact.email, "with ID:", emailResponse.data?.id);
           emailsSent++;
           
+          const sentTime = new Date();
+          
           // Update the email send record with sent status
           await supabase
             .from("email_sends")
             .update({
               status: "sent",
-              sent_at: new Date().toISOString(),
+              sent_at: sentTime.toISOString(),
             })
             .eq("id", insertedEmailSend.id);
 
@@ -454,8 +458,8 @@ const handler = async (req: Request): Promise<Response> => {
             console.log(`Updated ${currentSender.email} remaining capacity to ${senderInArray.remainingCapacity}`);
           }
 
-          // Schedule follow-up emails for the remaining sequences
-          await scheduleFollowUpEmails(supabase, campaignId, contact.id, currentSender.id, sequences, userTimezone);
+          // Schedule follow-up emails using the actual sent time
+          await scheduleFollowUpEmails(supabase, campaignId, contact.id, currentSender.id, sequences, sentTime);
         }
 
         // Move to next sender for round-robin distribution

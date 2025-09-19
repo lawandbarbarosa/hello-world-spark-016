@@ -62,12 +62,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const scheduledEmail of scheduledEmails) {
       try {
-        // Fetch related data
+        // Fetch related data with better error handling
         const [
-          { data: campaign },
-          { data: contact },
-          { data: sequence },
-          { data: senderAccount }
+          campaignResult,
+          contactResult,
+          sequenceResult,
+          senderAccountResult
         ] = await Promise.all([
           supabase.from("campaigns").select("*").eq("id", scheduledEmail.campaign_id).single(),
           supabase.from("contacts").select("*").eq("id", scheduledEmail.contact_id).single(),
@@ -75,8 +75,32 @@ const handler = async (req: Request): Promise<Response> => {
           supabase.from("sender_accounts").select("*").eq("id", scheduledEmail.sender_account_id).single()
         ]);
 
-        if (!campaign || !contact || !sequence || !senderAccount) {
-          console.error(`Missing related data for scheduled email ${scheduledEmail.id}`);
+        const campaign = campaignResult.data;
+        const contact = contactResult.data;
+        const sequence = sequenceResult.data;
+        const senderAccount = senderAccountResult.data;
+
+        if (!campaign || campaignResult.error) {
+          console.error(`Campaign ${scheduledEmail.campaign_id} not found for scheduled email ${scheduledEmail.id}:`, campaignResult.error);
+          await supabase.from("scheduled_emails").update({ status: "failed", error_message: "Campaign not found" }).eq("id", scheduledEmail.id);
+          continue;
+        }
+
+        if (!contact || contactResult.error) {
+          console.error(`Contact ${scheduledEmail.contact_id} not found for scheduled email ${scheduledEmail.id}:`, contactResult.error);
+          await supabase.from("scheduled_emails").update({ status: "failed", error_message: "Contact not found" }).eq("id", scheduledEmail.id);
+          continue;
+        }
+
+        if (!sequence || sequenceResult.error) {
+          console.error(`Sequence ${scheduledEmail.sequence_id} not found for scheduled email ${scheduledEmail.id}:`, sequenceResult.error);
+          await supabase.from("scheduled_emails").update({ status: "failed", error_message: "Email sequence not found" }).eq("id", scheduledEmail.id);
+          continue;
+        }
+
+        if (!senderAccount || senderAccountResult.error) {
+          console.error(`Sender account ${scheduledEmail.sender_account_id} not found for scheduled email ${scheduledEmail.id}:`, senderAccountResult.error);
+          await supabase.from("scheduled_emails").update({ status: "failed", error_message: "Sender account not found" }).eq("id", scheduledEmail.id);
           continue;
         }
 
