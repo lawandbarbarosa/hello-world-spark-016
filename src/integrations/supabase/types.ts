@@ -167,6 +167,8 @@ export type Database = {
           delay_amount: number | null
           delay_unit: string | null
           id: string
+          scheduled_date: string | null
+          scheduled_time: string | null
           step_number: number
           subject: string
         }
@@ -177,6 +179,8 @@ export type Database = {
           delay_amount?: number | null
           delay_unit?: string | null
           id?: string
+          scheduled_date?: string | null
+          scheduled_time?: string | null
           step_number: number
           subject: string
         }
@@ -187,6 +191,8 @@ export type Database = {
           delay_amount?: number | null
           delay_unit?: string | null
           id?: string
+          scheduled_date?: string | null
+          scheduled_time?: string | null
           step_number?: number
           subject?: string
         }
