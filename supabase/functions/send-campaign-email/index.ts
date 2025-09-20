@@ -298,7 +298,7 @@ const handler = async (req: Request): Promise<Response> => {
       currentSender = sendersWithCapacity[senderIndex % sendersWithCapacity.length];
       console.log(`Selected sender ${currentSender.email} with ${currentSender.remainingCapacity} remaining capacity`);
       
-      // Move to next sender in round-robin
+      // Move to next sender in round-robin for next iteration
       senderIndex = (senderIndex + 1) % sendersWithCapacity.length;
 
       try {
@@ -462,8 +462,6 @@ const handler = async (req: Request): Promise<Response> => {
           await scheduleFollowUpEmails(supabase, campaignId, contact.id, currentSender.id, sequences, sentTime);
         }
 
-        // Move to next sender for round-robin distribution
-        senderIndex = (senderIndex + 1) % availableSenders.length;
         
       } catch (error) {
         console.error("Error sending email to contact:", contact.email, error);
