@@ -285,10 +285,18 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
           <CardTitle className="text-xl text-foreground">{steps[currentStep].label}</CardTitle>
         </CardHeader>
         <CardContent>
-          <CurrentStepComponent 
-            data={campaignData}
-            onUpdate={handleDataUpdate}
-          />
+          {currentStep === steps.length - 1 ? (
+            <CampaignReview 
+              data={campaignData}
+              onUpdate={handleDataUpdate}
+              onLaunch={handleLaunch}
+            />
+          ) : (
+            <CurrentStepComponent 
+              data={campaignData}
+              onUpdate={handleDataUpdate}
+            />
+          )}
         </CardContent>
       </Card>
 
