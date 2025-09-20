@@ -7,12 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface EmailStep {
   id: string;
   subject: string;
   body: string;
+  scheduledDate?: Date;
+  scheduledTime?: string;
   delay: number;
   delayUnit: 'minutes' | 'hours' | 'days';
 }
@@ -69,7 +75,9 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
       subject: '',
       body: '',
       delay: sequence.length === 0 ? 0 : 3,
-      delayUnit: 'days'
+      delayUnit: 'days',
+      scheduledDate: sequence.length === 0 ? new Date() : undefined,
+      scheduledTime: sequence.length === 0 ? '09:00' : undefined
     };
     setSequence([...sequence, newStep]);
   };
@@ -230,11 +238,11 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                       {index + 1}
                     </div>
                     <span className="font-medium text-foreground">Step {index + 1}</span>
-                    {index > 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        {step.delay} {step.delayUnit} after previous email
-                      </Badge>
-                    )}
+                     {index > 0 && step.scheduledDate && (
+                       <Badge variant="outline" className="text-xs">
+                         {format(step.scheduledDate, "MMM dd")} at {step.scheduledTime || '09:00'}
+                       </Badge>
+                     )}
                   </div>
                   
                   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 font-sans">
@@ -293,12 +301,12 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                         {index + 1}
                       </div>
                       <span>Email Step {index + 1}</span>
-                      {index > 0 && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Clock className="w-4 h-4" />
-                          Wait {step.delay} {step.delayUnit}
-                        </div>
-                      )}
+                       {index > 0 && step.scheduledDate && (
+                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                           <Clock className="w-4 h-4" />
+                           {format(step.scheduledDate, "MMM dd")} at {step.scheduledTime || '09:00'}
+                         </div>
+                       )}
                     </div>
                     <Button 
                       variant="ghost" 
@@ -313,34 +321,44 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                 <CardContent className="space-y-4">
                   {/* Delay Settings (not for first email) */}
                   {index > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-foreground">Delay Amount</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={step.delay}
-                          onChange={(e) => updateStep(step.id, { delay: parseInt(e.target.value) || 1 })}
-                          className="bg-background border-border text-foreground"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-foreground">Delay Unit</Label>
-                        <Select 
-                          value={step.delayUnit} 
-                          onValueChange={(value: 'minutes' | 'hours' | 'days') => updateStep(step.id, { delayUnit: value })}
-                        >
-                          <SelectTrigger className="bg-background border-border text-foreground">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="minutes">Minutes</SelectItem>
-                            <SelectItem value="hours">Hours</SelectItem>
-                            <SelectItem value="days">Days</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                       <div className="space-y-2">
+                         <Label className="text-sm font-medium text-foreground">Scheduled Date</Label>
+                         <Popover>
+                           <PopoverTrigger asChild>
+                             <Button
+                               variant="outline"
+                               className={cn(
+                                 "w-full justify-start text-left font-normal bg-background border-border",
+                                 !step.scheduledDate && "text-muted-foreground"
+                               )}
+                             >
+                               <CalendarIcon className="mr-2 h-4 w-4" />
+                               {step.scheduledDate ? format(step.scheduledDate, "PPP") : <span>Pick a date</span>}
+                             </Button>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-auto p-0" align="start">
+                             <Calendar
+                               mode="single"
+                               selected={step.scheduledDate}
+                               onSelect={(date) => updateStep(step.id, { scheduledDate: date })}
+                               disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                               initialFocus
+                               className={cn("p-3 pointer-events-auto")}
+                             />
+                           </PopoverContent>
+                         </Popover>
+                       </div>
+                       <div className="space-y-2">
+                         <Label className="text-sm font-medium text-foreground">Scheduled Time</Label>
+                         <Input
+                           type="time"
+                           value={step.scheduledTime || '09:00'}
+                           onChange={(e) => updateStep(step.id, { scheduledTime: e.target.value })}
+                           className="bg-background border-border text-foreground"
+                         />
+                       </div>
+                     </div>
                   )}
 
                   {/* Subject Line */}

@@ -39,15 +39,26 @@ async function scheduleFollowUpEmails(
       return;
     }
 
-    // Start from when the first email was actually sent
-    let previousEmailTime = firstEmailSentTime;
-
     for (const sequence of followUpSequences) {
-      // Calculate when this email should be sent based on delay from previous email
-      const delayInMinutes = calculateDelayInMinutes(sequence.delay_amount, sequence.delay_unit);
-      const scheduledTime = new Date(previousEmailTime.getTime() + delayInMinutes * 60 * 1000);
+      let scheduledTime: Date;
 
-      console.log(`Scheduling step ${sequence.step_number}: ${delayInMinutes} minutes after previous email (${scheduledTime.toISOString()})`);
+      // Check if sequence has specific scheduling data (new format)
+      if (sequence.scheduled_date && sequence.scheduled_time) {
+        // Parse the scheduled date and time
+        const dateStr = sequence.scheduled_date;
+        const timeStr = sequence.scheduled_time;
+        
+        // Create the scheduled datetime
+        scheduledTime = new Date(`${dateStr}T${timeStr}:00`);
+        
+        console.log(`Scheduling step ${sequence.step_number} for specific date/time: ${scheduledTime.toISOString()}`);
+      } else {
+        // Fallback to delay-based scheduling (legacy support)
+        const delayInMinutes = calculateDelayInMinutes(sequence.delay_amount, sequence.delay_unit);
+        scheduledTime = new Date(firstEmailSentTime.getTime() + delayInMinutes * 60 * 1000);
+        
+        console.log(`Scheduling step ${sequence.step_number}: ${delayInMinutes} minutes after first email (${scheduledTime.toISOString()})`);
+      }
 
       // Create scheduled email record
       const { error: scheduleError } = await supabase
@@ -66,9 +77,6 @@ async function scheduleFollowUpEmails(
       } else {
         console.log(`Scheduled follow-up email step ${sequence.step_number} for ${scheduledTime.toISOString()}`);
       }
-
-      // Update previous email time for next iteration (when this email will be sent)
-      previousEmailTime = scheduledTime;
     }
   } catch (error) {
     console.error("Error in scheduleFollowUpEmails:", error);
