@@ -86,6 +86,12 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
+        // Check if campaign is active - skip paused campaigns
+        if (campaign.status !== 'active') {
+          console.log(`Campaign ${campaign.id} is ${campaign.status}, skipping scheduled email`);
+          continue;
+        }
+
         if (!contact || contactResult.error) {
           console.error(`Contact ${scheduledEmail.contact_id} not found for scheduled email ${scheduledEmail.id}:`, contactResult.error);
           await supabase.from("scheduled_emails").update({ status: "failed", error_message: "Contact not found" }).eq("id", scheduledEmail.id);
