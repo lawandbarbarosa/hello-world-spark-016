@@ -86,13 +86,13 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Check if email was sent recently (within last 5 minutes) - likely a false positive
+    // Check if email was sent recently (within last 2 minutes) - likely a false positive
     const sentTime = new Date(emailSend.sent_at);
     const now = new Date();
     const timeDiff = now.getTime() - sentTime.getTime();
     const minutesDiff = timeDiff / (1000 * 60);
 
-    if (minutesDiff < 5) {
+    if (minutesDiff < 2) {
       console.log(`⏰ Email opened too quickly (${minutesDiff.toFixed(1)} minutes after send) - likely false positive`);
       // Don't record this as an open
       const pixelData = Uint8Array.from(atob(TRACKING_PIXEL), c => c.charCodeAt(0));
@@ -240,10 +240,40 @@ function checkLegitimateOpen(userAgent: string, referer: string, ip: string): bo
     'status check'
   ];
   
-  // Check for bot patterns in user agent
-  for (const pattern of botPatterns) {
+  // Check for obvious bot patterns in user agent (more specific patterns)
+  const obviousBots = [
+    'microsoft defender',
+    'google safe browsing',
+    'barracuda',
+    'proofpoint',
+    'mimecast',
+    'symantec',
+    'trend micro',
+    'mcafee',
+    'kaspersky',
+    'sophos',
+    'fortinet',
+    'palo alto',
+    'cisco',
+    'fireeye',
+    'crowdstrike',
+    'curl',
+    'wget',
+    'python-requests',
+    'java/',
+    'go-http-client',
+    'okhttp',
+    'apache-httpclient',
+    'libwww-perl',
+    'lwp-trivial',
+    'dart/',
+    'node-fetch',
+    'axios'
+  ];
+  
+  for (const pattern of obviousBots) {
     if (ua.includes(pattern)) {
-      console.log(`🤖 Bot detected: ${pattern} in user agent`);
+      console.log(`🤖 Obvious bot detected: ${pattern} in user agent`);
       return false;
     }
   }
@@ -280,7 +310,13 @@ function checkLegitimateOpen(userAgent: string, referer: string, ip: string): bo
     'thunderbird', // Thunderbird
     'outlook', // Outlook
     'mail',    // Generic mail clients
-    'email'    // Generic email clients
+    'email',   // Generic email clients
+    'windows', // Windows-based clients
+    'macintosh', // Mac-based clients
+    'linux',   // Linux-based clients
+    'android', // Android clients
+    'iphone',  // iPhone clients
+    'ipad'     // iPad clients
   ];
   
   // If user agent contains legitimate patterns, it's likely a real email client
@@ -291,9 +327,15 @@ function checkLegitimateOpen(userAgent: string, referer: string, ip: string): bo
     }
   }
   
-  // If no legitimate patterns found, it's suspicious
-  console.log(`⚠️ No legitimate email client patterns found in user agent: ${userAgent}`);
-  return false;
+  // If user agent is empty or very short, it might be a bot
+  if (userAgent.length < 10) {
+    console.log(`⚠️ Very short user agent: ${userAgent}`);
+    return false;
+  }
+  
+  // If no obvious bot patterns and user agent is reasonable length, allow it
+  console.log(`✅ No obvious bot patterns found, allowing open: ${userAgent}`);
+  return true;
 }
 
 serve(handler);
