@@ -2,6 +2,7 @@ import * as React from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { sessionDebugger } from '@/utils/sessionDebugger';
 
 interface AuthContextType {
   user: User | null;
@@ -24,22 +25,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     let mounted = true;
 
+    // Enable session debugging
+    sessionDebugger.enableDebug();
+    sessionDebugger.log('Initializing authentication...');
+    sessionDebugger.checkLocalStorage();
+
     // First, check for existing session
     const initializeAuth = async () => {
       try {
+        sessionDebugger.log('Getting existing session...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('Error getting session:', error);
+          sessionDebugger.error('Error getting session:', error);
+        } else {
+          sessionDebugger.log('Session retrieved:', {
+            hasSession: !!session,
+            userEmail: session?.user?.email,
+            expiresAt: session?.expires_at
+          });
         }
         
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
           setLoading(false);
+          sessionDebugger.log('Auth state initialized', {
+            hasUser: !!session?.user,
+            userEmail: session?.user?.email
+          });
         }
       } catch (error) {
-        console.error('Error initializing auth:', error);
+        sessionDebugger.error('Error initializing auth:', error);
         if (mounted) {
           setLoading(false);
         }
@@ -52,7 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        sessionDebugger.log('Auth state changed:', {
+          event,
+          userEmail: session?.user?.email,
+          hasSession: !!session
+        });
         
         if (mounted) {
           setSession(session);
@@ -65,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      sessionDebugger.log('Auth cleanup completed');
     };
   }, []);
 
@@ -97,17 +119,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
+    sessionDebugger.log('Starting sign in process...', { email });
+    
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
     if (error) {
+      sessionDebugger.error('Sign in failed:', error);
       toast({
         variant: "destructive",
         title: "Login Error", 
         description: error.message,
       });
+    } else {
+      sessionDebugger.log('Sign in successful');
+      sessionDebugger.checkLocalStorage();
     }
     
     return { error };

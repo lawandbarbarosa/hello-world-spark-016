@@ -12,6 +12,7 @@ import SenderAccounts from '@/components/Senders/SenderAccounts';
 import Settings from '@/components/Settings/Settings';
 import ContactsList from '@/components/Contacts/ContactsList';
 import ReplyTracker from '@/components/Replies/ReplyTracker';
+import SessionDebugger from '@/components/SessionDebugger';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -46,6 +47,8 @@ const Index = () => {
       setActiveTab('senders');
     } else if (path === '/settings') {
       setActiveTab('settings');
+    } else if (path === '/debug') {
+      setActiveTab('debug');
     }
   }, [location.pathname, params.id]);
 
@@ -122,6 +125,8 @@ const Index = () => {
         return <SenderAccounts />;
       case 'settings':
         return <Settings />;
+      case 'debug':
+        return <SessionDebugger />;
       default:
         return <Dashboard onNavigate={handleNavigation} />;
     }

@@ -79,6 +79,11 @@ const App = () => (
                     <Index />
                   </ProtectedRoute>
                 } />
+                <Route path="/debug" element={
+                  <ProtectedRoute>
+                    <Index />
+                  </ProtectedRoute>
+                } />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
