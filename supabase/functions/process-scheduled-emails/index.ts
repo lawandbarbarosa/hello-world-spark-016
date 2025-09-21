@@ -24,12 +24,21 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log("Processing scheduled emails...");
+    console.log("🚀 Starting scheduled email processing...");
+    console.log("⏰ Current time:", new Date().toISOString());
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Check if this is a manual trigger
+    const body = await req.json().catch(() => ({}));
+    const isManual = body.manual || false;
+    
+    if (isManual) {
+      console.log("🔧 Manual trigger detected");
+    }
 
     // Get scheduled emails that are ready to be sent
     const now = new Date();
@@ -49,13 +58,33 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!scheduledEmails || scheduledEmails.length === 0) {
-      console.log("No scheduled emails ready to send");
-      return new Response(JSON.stringify({ message: "No emails to process", processed: 0 }), {
+      console.log("📭 No scheduled emails ready to send");
+      
+      // If manual trigger, also show all scheduled emails for debugging
+      if (isManual) {
+        const { data: allScheduled } = await supabase
+          .from("scheduled_emails")
+          .select("*")
+          .order("scheduled_for", { ascending: true });
+        
+        console.log("📋 All scheduled emails:", allScheduled?.length || 0);
+        if (allScheduled && allScheduled.length > 0) {
+          allScheduled.forEach(email => {
+            console.log(`  - ID: ${email.id}, Status: ${email.status}, Scheduled: ${email.scheduled_for}`);
+          });
+        }
+      }
+      
+      return new Response(JSON.stringify({ 
+        message: "No emails to process", 
+        processed: 0,
+        debug: isManual ? { allScheduled: scheduledEmails?.length || 0 } : undefined
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    console.log(`Found ${scheduledEmails.length} scheduled emails to process`);
+    console.log(`📧 Found ${scheduledEmails.length} scheduled emails to process`);
 
     let processedCount = 0;
     let failedCount = 0;
