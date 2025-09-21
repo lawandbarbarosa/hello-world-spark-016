@@ -18,6 +18,9 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const url = new URL(req.url);
     const emailSendId = url.searchParams.get("id");
+    const userAgent = req.headers.get("user-agent") || "";
+    const referer = req.headers.get("referer") || "";
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
 
     if (!emailSendId) {
       console.log("No email send ID provided");
@@ -34,12 +37,75 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    console.log(`Tracking email open for ID: ${emailSendId}`);
+    console.log(`🔍 Tracking email open for ID: ${emailSendId}`);
+    console.log(`📱 User Agent: ${userAgent}`);
+    console.log(`🌐 Referer: ${referer}`);
+    console.log(`📍 IP: ${ip}`);
 
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Check if this is a legitimate open (not a bot or security scanner)
+    const isLegitimateOpen = checkLegitimateOpen(userAgent, referer, ip);
+    
+    if (!isLegitimateOpen) {
+      console.log(`🤖 Suspicious open detected for ID: ${emailSendId} - not recording`);
+      // Still return the pixel but don't record the open
+      const pixelData = Uint8Array.from(atob(TRACKING_PIXEL), c => c.charCodeAt(0));
+      return new Response(pixelData, {
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+          ...corsHeaders,
+        },
+      });
+    }
+
+    // Get the email send record first to check if it was recently sent
+    const { data: emailSend, error: fetchError } = await supabase
+      .from("email_sends")
+      .select("sent_at, opened_at")
+      .eq("id", emailSendId)
+      .single();
+
+    if (fetchError || !emailSend) {
+      console.error("Error fetching email send record:", fetchError);
+      const pixelData = Uint8Array.from(atob(TRACKING_PIXEL), c => c.charCodeAt(0));
+      return new Response(pixelData, {
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+          ...corsHeaders,
+        },
+      });
+    }
+
+    // Check if email was sent recently (within last 5 minutes) - likely a false positive
+    const sentTime = new Date(emailSend.sent_at);
+    const now = new Date();
+    const timeDiff = now.getTime() - sentTime.getTime();
+    const minutesDiff = timeDiff / (1000 * 60);
+
+    if (minutesDiff < 5) {
+      console.log(`⏰ Email opened too quickly (${minutesDiff.toFixed(1)} minutes after send) - likely false positive`);
+      // Don't record this as an open
+      const pixelData = Uint8Array.from(atob(TRACKING_PIXEL), c => c.charCodeAt(0));
+      return new Response(pixelData, {
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+          ...corsHeaders,
+        },
+      });
+    }
 
     // Update the email_sends record with opened_at timestamp
     const { data, error } = await supabase
@@ -54,9 +120,9 @@ const handler = async (req: Request): Promise<Response> => {
     if (error) {
       console.error("Error updating email open status:", error);
     } else if (data && data.length > 0) {
-      console.log(`Successfully recorded email open for ID: ${emailSendId}`);
+      console.log(`✅ Successfully recorded legitimate email open for ID: ${emailSendId}`);
     } else {
-      console.log(`Email ${emailSendId} was already marked as opened or not found`);
+      console.log(`ℹ️ Email ${emailSendId} was already marked as opened or not found`);
     }
 
     // Always return the tracking pixel
@@ -87,5 +153,147 @@ const handler = async (req: Request): Promise<Response> => {
     });
   }
 };
+
+// Function to check if an email open is legitimate (not a bot or security scanner)
+function checkLegitimateOpen(userAgent: string, referer: string, ip: string): boolean {
+  const ua = userAgent.toLowerCase();
+  
+  // Common bot and security scanner patterns
+  const botPatterns = [
+    // Email security scanners
+    'microsoft defender',
+    'google safe browsing',
+    'barracuda',
+    'proofpoint',
+    'mimecast',
+    'symantec',
+    'trend micro',
+    'mcafee',
+    'kaspersky',
+    'sophos',
+    'fortinet',
+    'palo alto',
+    'cisco',
+    'fireeye',
+    'crowdstrike',
+    
+    // Web crawlers and bots
+    'bot',
+    'crawler',
+    'spider',
+    'scraper',
+    'scanner',
+    'monitor',
+    'checker',
+    'validator',
+    'tester',
+    'probe',
+    'ping',
+    'curl',
+    'wget',
+    'python-requests',
+    'java/',
+    'go-http-client',
+    'okhttp',
+    'apache-httpclient',
+    'libwww-perl',
+    'lwp-trivial',
+    'dart/',
+    'node-fetch',
+    'axios',
+    
+    // Email client security features
+    'outlook safety scanner',
+    'gmail security',
+    'yahoo security',
+    'aol security',
+    'icloud security',
+    'exchange security',
+    'office 365 security',
+    'microsoft 365 security',
+    
+    // Cloud security services
+    'aws',
+    'azure',
+    'google cloud',
+    'cloudflare',
+    'akamai',
+    'fastly',
+    'incapsula',
+    'sucuri',
+    'cloudfront',
+    
+    // Monitoring and analytics
+    'newrelic',
+    'datadog',
+    'splunk',
+    'elastic',
+    'kibana',
+    'grafana',
+    'prometheus',
+    'zabbix',
+    'nagios',
+    'pingdom',
+    'uptime',
+    'monitor',
+    'health check',
+    'status check'
+  ];
+  
+  // Check for bot patterns in user agent
+  for (const pattern of botPatterns) {
+    if (ua.includes(pattern)) {
+      console.log(`🤖 Bot detected: ${pattern} in user agent`);
+      return false;
+    }
+  }
+  
+  // Check for suspicious referer patterns
+  if (referer) {
+    const suspiciousReferers = [
+      'security',
+      'scanner',
+      'monitor',
+      'check',
+      'test',
+      'bot',
+      'crawler'
+    ];
+    
+    for (const pattern of suspiciousReferers) {
+      if (referer.toLowerCase().includes(pattern)) {
+        console.log(`🚨 Suspicious referer: ${referer}`);
+        return false;
+      }
+    }
+  }
+  
+  // Check for legitimate email client patterns
+  const legitimatePatterns = [
+    'mozilla', // Most email clients use Mozilla user agent
+    'webkit',  // WebKit-based clients
+    'chrome',  // Chrome-based clients
+    'safari',  // Safari
+    'firefox', // Firefox
+    'edge',    // Microsoft Edge
+    'opera',   // Opera
+    'thunderbird', // Thunderbird
+    'outlook', // Outlook
+    'mail',    // Generic mail clients
+    'email'    // Generic email clients
+  ];
+  
+  // If user agent contains legitimate patterns, it's likely a real email client
+  for (const pattern of legitimatePatterns) {
+    if (ua.includes(pattern)) {
+      console.log(`✅ Legitimate email client detected: ${pattern}`);
+      return true;
+    }
+  }
+  
+  // If no legitimate patterns found, it's suspicious
+  console.log(`⚠️ No legitimate email client patterns found in user agent: ${userAgent}`);
+  return false;
+}
 
 serve(handler);
