@@ -1,8 +1,15 @@
 # NeverBounce API Setup - Quick Guide
 
-## ✅ Your API Key
-**Key**: `private_d7276c92f1cfe69bb3bb15e43d14e488`
-**Type**: Private API Key (✅ Supported)
+## ⚠️ API Key Issue
+**Widget Key**: `public_7ed0f4312911b8ae48d65bc5ea3b582a` (❌ Wrong type)
+**Needed**: Private or Secret API Key (starts with `private_` or `secret_`)
+
+## 🔍 How to Get the Right API Key
+
+1. **Go to NeverBounce Dashboard**: https://neverbounce.com
+2. **Navigate to**: Apps → Your App
+3. **Look for**: Private API Key or Secret API Key (NOT Public/Widget key)
+4. **Copy the key** that starts with `private_` or `secret_`
 
 ## 🚀 Setup Steps
 
@@ -13,7 +20,7 @@
 4. Click **Settings** or **Environment Variables**
 5. Add new variable:
    - **Name**: `NEVERBOUNCE_API_KEY`
-   - **Value**: `private_d7276c92f1cfe69bb3bb15e43d14e488`
+   - **Value**: `[Your Private or Secret API Key]` (starts with `private_` or `secret_`)
 
 ### 2. Deploy the Function
 1. In the **verify-email** function page
