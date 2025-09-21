@@ -6,7 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import ComposeEmail from "./ComposeEmail";
+import ComposeEmailPage from "./ComposeEmailPage";
 import { 
   Mail, 
   Calendar, 
@@ -286,6 +286,22 @@ const Inbox = () => {
     fetchSentEmails();
   };
 
+  // If showing compose page, render it instead of inbox
+  if (showCompose) {
+    return (
+      <ComposeEmailPage
+        onBack={() => {
+          setShowCompose(false);
+          setComposeData({});
+        }}
+        onEmailSent={handleEmailSent}
+        initialRecipient={composeData.recipient}
+        initialSubject={composeData.subject}
+        initialBody={composeData.body}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -525,19 +541,6 @@ const Inbox = () => {
         </Card>
       )}
 
-      {/* Compose Email Modal */}
-      {showCompose && (
-        <ComposeEmail
-          onClose={() => {
-            setShowCompose(false);
-            setComposeData({});
-          }}
-          onEmailSent={handleEmailSent}
-          initialRecipient={composeData.recipient}
-          initialSubject={composeData.subject}
-          initialBody={composeData.body}
-        />
-      )}
     </div>
   );
 };
