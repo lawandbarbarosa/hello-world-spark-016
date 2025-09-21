@@ -39,9 +39,10 @@ interface CampaignData {
 interface CampaignReviewProps {
   data: CampaignData;
   onUpdate: (data: Partial<CampaignData>) => void;
+  onLaunch: () => void;
 }
 
-const CampaignReview = ({ data }: CampaignReviewProps) => {
+const CampaignReview = ({ data, onLaunch }: CampaignReviewProps) => {
   const totalDailyLimit = data.senderAccounts.reduce((sum, account) => sum + account.dailyLimit, 0);
   const estimatedDuration = Math.ceil(data.contacts.length / totalDailyLimit);
   const sequenceDuration = data.sequence.reduce((total, step, index) => {
@@ -254,6 +255,7 @@ const CampaignReview = ({ data }: CampaignReviewProps) => {
               variant="secondary"
               size="lg"
               className="w-full md:w-auto"
+              onClick={onLaunch}
             >
               <Rocket className="w-4 h-4 mr-2" />
               Launch Campaign

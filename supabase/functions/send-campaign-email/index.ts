@@ -28,24 +28,37 @@ async function scheduleFollowUpEmails(
   contactId: string,
   senderAccountId: string,
   sequences: any[],
-  userTimezone: string
+  firstEmailSentTime: Date
 ) {
   try {
     // Get follow-up sequences (skip step 1 as it's already sent)
-    const followUpSequences = sequences.filter(seq => seq.step_number > 1);
+    const followUpSequences = sequences.filter(seq => seq.step_number > 1).sort((a, b) => a.step_number - b.step_number);
     
     if (followUpSequences.length === 0) {
       console.log("No follow-up sequences to schedule");
       return;
     }
 
-    const now = new Date();
-    let previousEmailTime = now;
-
     for (const sequence of followUpSequences) {
-      // Calculate when this email should be sent based on delay
-      const delayInMinutes = calculateDelayInMinutes(sequence.delay_amount, sequence.delay_unit);
-      const scheduledTime = new Date(previousEmailTime.getTime() + delayInMinutes * 60 * 1000);
+      let scheduledTime: Date;
+
+      // Check if sequence has specific scheduling data (new format)
+      if (sequence.scheduled_date && sequence.scheduled_time) {
+        // Parse the scheduled date and time
+        const dateStr = sequence.scheduled_date;
+        const timeStr = sequence.scheduled_time;
+        
+        // Create the scheduled datetime
+        scheduledTime = new Date(`${dateStr}T${timeStr}:00`);
+        
+        console.log(`Scheduling step ${sequence.step_number} for specific date/time: ${scheduledTime.toISOString()}`);
+      } else {
+        // Fallback to delay-based scheduling (legacy support)
+        const delayInMinutes = calculateDelayInMinutes(sequence.delay_amount, sequence.delay_unit);
+        scheduledTime = new Date(firstEmailSentTime.getTime() + delayInMinutes * 60 * 1000);
+        
+        console.log(`Scheduling step ${sequence.step_number}: ${delayInMinutes} minutes after first email (${scheduledTime.toISOString()})`);
+      }
 
       // Create scheduled email record
       const { error: scheduleError } = await supabase
@@ -62,11 +75,8 @@ async function scheduleFollowUpEmails(
       if (scheduleError) {
         console.error("Error scheduling follow-up email:", scheduleError);
       } else {
-        console.log(`Scheduled follow-up email ${sequence.step_number} for ${scheduledTime.toISOString()}`);
+        console.log(`Scheduled follow-up email step ${sequence.step_number} for ${scheduledTime.toISOString()}`);
       }
-
-      // Update previous email time for next iteration
-      previousEmailTime = scheduledTime;
     }
   } catch (error) {
     console.error("Error in scheduleFollowUpEmails:", error);
@@ -126,26 +136,8 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", campaign.user_id)
       .single();
 
-    // Check time window with proper timezone handling
-    const userTimezone = userSettings?.timezone || 'UTC';
-    const now = new Date();
-    const zonedTime = toZonedTime(now, userTimezone);
-    const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
-    
-    const startTime = userSettings?.send_time_start || '08:00';
-    const endTime = userSettings?.send_time_end || '18:00';
-
-    console.log(`Time check - Current: ${currentTime}, Window: ${startTime} - ${endTime}, Timezone: ${userTimezone}`);
-
-    if (currentTime < startTime || currentTime > endTime) {
-      console.log(`Send blocked: Current time ${currentTime} outside allowed window ${startTime}-${endTime} in ${userTimezone}`);
-      return new Response(JSON.stringify({ 
-        error: `Sending is only allowed between ${startTime} and ${endTime} in ${userTimezone} timezone. Current time: ${currentTime}` 
-      }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Skip time window check - first emails send immediately
+    console.log("Time window check skipped - first emails send immediately");
 
     // Get email sequences for the campaign
     const { data: sequences, error: sequenceError } = await supabase
@@ -216,7 +208,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Calculate individual sender account capacities
-    const todayStart = new Date(zonedTime.getFullYear(), zonedTime.getMonth(), zonedTime.getDate());
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     
     const availableSenders = [];
@@ -296,7 +289,7 @@ const handler = async (req: Request): Promise<Response> => {
       currentSender = sendersWithCapacity[senderIndex % sendersWithCapacity.length];
       console.log(`Selected sender ${currentSender.email} with ${currentSender.remainingCapacity} remaining capacity`);
       
-      // Move to next sender in round-robin
+      // Move to next sender in round-robin for next iteration
       senderIndex = (senderIndex + 1) % sendersWithCapacity.length;
 
       try {
@@ -438,12 +431,14 @@ const handler = async (req: Request): Promise<Response> => {
           console.log("Email sent successfully to", contact.email, "with ID:", emailResponse.data?.id);
           emailsSent++;
           
+          const sentTime = new Date();
+          
           // Update the email send record with sent status
           await supabase
             .from("email_sends")
             .update({
               status: "sent",
-              sent_at: new Date().toISOString(),
+              sent_at: sentTime.toISOString(),
             })
             .eq("id", insertedEmailSend.id);
 
@@ -454,12 +449,10 @@ const handler = async (req: Request): Promise<Response> => {
             console.log(`Updated ${currentSender.email} remaining capacity to ${senderInArray.remainingCapacity}`);
           }
 
-          // Schedule follow-up emails for the remaining sequences
-          await scheduleFollowUpEmails(supabase, campaignId, contact.id, currentSender.id, sequences, userTimezone);
+          // Schedule follow-up emails using the actual sent time
+          await scheduleFollowUpEmails(supabase, campaignId, contact.id, currentSender.id, sequences, sentTime);
         }
 
-        // Move to next sender for round-robin distribution
-        senderIndex = (senderIndex + 1) % availableSenders.length;
         
       } catch (error) {
         console.error("Error sending email to contact:", contact.email, error);

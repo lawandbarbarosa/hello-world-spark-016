@@ -38,14 +38,10 @@ import { Loader2, Save, Settings as SettingsIcon, Sun, Moon, Monitor } from 'luc
 
 const settingsSchema = z.object({
   // General Settings
-  timezone: z.string().min(1, 'Timezone is required'),
   theme_mode: z.enum(['light', 'dark', 'auto']),
   
   // Sending Settings
   daily_send_limit: z.number().min(1, 'Daily limit must be at least 1').max(10000, 'Daily limit cannot exceed 10,000'),
-  send_time_start: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
-  send_time_end: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format'),
-  sending_days: z.array(z.string()).min(1, 'At least one day must be selected'),
   reply_handling_enabled: z.boolean(),
   
   // Email Composition Settings
@@ -91,12 +87,8 @@ const Settings = () => {
   const form = useForm<SettingsFormData>({
     resolver: zodResolver(settingsSchema),
     defaultValues: {
-      timezone: 'UTC',
       theme_mode: 'light',
       daily_send_limit: 50,
-      send_time_start: '08:00',
-      send_time_end: '18:00',
-      sending_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
       reply_handling_enabled: true,
       default_signature: '',
       from_name_format: 'first_last',
@@ -109,12 +101,8 @@ const Settings = () => {
   useEffect(() => {
     if (settings) {
       form.reset({
-        timezone: settings.timezone,
         theme_mode: settings.theme_mode,
         daily_send_limit: settings.daily_send_limit,
-        send_time_start: settings.send_time_start,
-        send_time_end: settings.send_time_end,
-        sending_days: settings.sending_days || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
         reply_handling_enabled: settings.reply_handling_enabled,
         default_signature: settings.default_signature,
         from_name_format: settings.from_name_format,
@@ -135,12 +123,12 @@ const Settings = () => {
     setSaving(true);
     try {
       await updateSettings({
-        timezone: data.timezone,
+        timezone: 'UTC', // Keep for backward compatibility but not user-configurable
         theme_mode: data.theme_mode,
         daily_send_limit: data.daily_send_limit,
-        send_time_start: data.send_time_start,
-        send_time_end: data.send_time_end,
-        sending_days: data.sending_days,
+        send_time_start: '00:00', // Not user-configurable, allow all times
+        send_time_end: '23:59', // Not user-configurable, allow all times
+        sending_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], // Always allow all days
         reply_handling_enabled: data.reply_handling_enabled,
         fallback_merge_tags: {
           first_name: 'there',
@@ -201,34 +189,6 @@ const Settings = () => {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-                <FormField
-                control={form.control}
-                name="timezone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Timezone</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select timezone" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {timezones.map((tz) => (
-                          <SelectItem key={tz} value={tz}>
-                            {tz}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Default timezone for campaign scheduling
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="theme_mode"
@@ -315,41 +275,6 @@ const Settings = () => {
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="send_time_start"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Send Time Start</FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Earliest time to send emails
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="send_time_end"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Send Time End</FormLabel>
-                      <FormControl>
-                        <Input type="time" {...field} />
-                      </FormControl>
-                      <FormDescription>
-                        Latest time to send emails
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
 
               <FormField
                 control={form.control}
@@ -372,42 +297,6 @@ const Settings = () => {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="sending_days"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sending Days</FormLabel>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {daysOfWeek.map((day) => (
-                        <FormItem key={day.value} className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value?.includes(day.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  field.onChange([...field.value, day.value]);
-                                } else {
-                                  field.onChange(
-                                    field.value?.filter((value: string) => value !== day.value)
-                                  );
-                                }
-                              }}
-                            />
-                          </FormControl>
-                          <FormLabel className="text-sm font-normal cursor-pointer">
-                            {day.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </div>
-                    <FormDescription>
-                      Select which days of the week emails should be sent
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </CardContent>
           </Card>
 

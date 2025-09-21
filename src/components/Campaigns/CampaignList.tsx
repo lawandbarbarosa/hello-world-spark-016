@@ -86,6 +86,13 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
 
       if (error) throw error;
 
+      // If resuming a paused campaign, we need to handle scheduled emails
+      if (newStatus === 'active') {
+        // When activating a campaign, scheduled emails should remain as they are
+        // The process-scheduled-emails function will pick them up when the campaign is active
+        console.log(`Campaign ${campaignId} activated - scheduled emails will resume processing`);
+      }
+
       // Update local state
       setCampaigns(campaigns.map(campaign => 
         campaign.id === campaignId 

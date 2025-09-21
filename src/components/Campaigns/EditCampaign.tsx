@@ -152,8 +152,8 @@ const EditCampaign = ({ campaignId, onBack }: EditCampaignProps) => {
         description: "Campaign updated successfully",
       });
 
-      // Reload data to get fresh state
-      await loadCampaignData();
+      // Only update the updated_at timestamp without reloading all data
+      setCampaignData(prev => prev ? { ...prev, updated_at: new Date().toISOString() } : null);
 
     } catch (error) {
       console.error('Error saving campaign:', error);

@@ -33,6 +33,8 @@ interface CampaignData {
     body: string;
     delay: number;
     delayUnit: 'hours' | 'days';
+    scheduledDate?: Date;
+    scheduledTime?: string;
   }>;
 }
 
@@ -143,7 +145,9 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         subject: email.subject,
         body: email.body,
         delay_amount: email.delay,
-        delay_unit: email.delayUnit
+        delay_unit: email.delayUnit,
+        scheduled_date: email.scheduledDate ? email.scheduledDate.toISOString().split('T')[0] : null,
+        scheduled_time: email.scheduledTime || null
       }));
 
       const { error: sequenceError } = await supabase
@@ -281,10 +285,18 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
           <CardTitle className="text-xl text-foreground">{steps[currentStep].label}</CardTitle>
         </CardHeader>
         <CardContent>
-          <CurrentStepComponent 
-            data={campaignData}
-            onUpdate={handleDataUpdate}
-          />
+          {currentStep === steps.length - 1 ? (
+            <CampaignReview 
+              data={campaignData}
+              onUpdate={handleDataUpdate}
+              onLaunch={handleLaunch}
+            />
+          ) : (
+            <CurrentStepComponent 
+              data={campaignData}
+              onUpdate={handleDataUpdate}
+            />
+          )}
         </CardContent>
       </Card>
 

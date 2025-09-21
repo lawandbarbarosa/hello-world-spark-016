@@ -7,12 +7,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User, CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface EmailStep {
   id: string;
   subject: string;
   body: string;
+  scheduledDate?: Date;
+  scheduledTime?: string;
   delay: number;
   delayUnit: 'minutes' | 'hours' | 'days';
 }
@@ -34,6 +40,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   const [sequence, setSequence] = useState<EmailStep[]>(data.sequence || []);
   const [previewMode, setPreviewMode] = useState<boolean>(false);
   const [selectedContactIndex, setSelectedContactIndex] = useState<number>(0);
+  const [cursorPositions, setCursorPositions] = useState<Record<string, { subject: number; body: number }>>({});
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
@@ -68,7 +75,9 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
       subject: '',
       body: '',
       delay: sequence.length === 0 ? 0 : 3,
-      delayUnit: 'days'
+      delayUnit: 'days',
+      scheduledDate: sequence.length === 0 ? new Date() : undefined,
+      scheduledTime: sequence.length === 0 ? '09:00' : undefined
     };
     setSequence([...sequence, newStep]);
   };
@@ -93,13 +102,59 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     return result;
   };
 
-  const insertMergeTag = (stepId: string, field: 'subject' | 'body', tag: string) => {
+  const handleCursorChange = (stepId: string, field: 'subject' | 'body', position: number) => {
+    setCursorPositions(prev => ({
+      ...prev,
+      [stepId]: {
+        ...prev[stepId],
+        [field]: position
+      }
+    }));
+  };
+
+  const insertMergeTag = (stepId: string, field: 'subject' | 'body', tag: string, position?: number) => {
     const step = sequence.find(s => s.id === stepId);
     if (!step) return;
     
     const currentValue = step[field];
-    const newValue = currentValue + `{{${tag}}}`;
+    let insertPosition = position;
+    
+    // If no position provided, use stored cursor position or end of text
+    if (insertPosition === undefined) {
+      insertPosition = cursorPositions[stepId]?.[field] ?? currentValue.length;
+    }
+    
+    // Insert the tag at the specified position
+    const newValue = currentValue.slice(0, insertPosition) + `{{${tag}}}` + currentValue.slice(insertPosition);
     updateStep(stepId, { [field]: newValue });
+    
+    // Update cursor position to after the inserted tag
+    const newCursorPosition = insertPosition + `{{${tag}}}`.length;
+    setCursorPositions(prev => ({
+      ...prev,
+      [stepId]: {
+        ...prev[stepId],
+        [field]: newCursorPosition
+      }
+    }));
+  };
+
+  const handleDragStart = (e: React.DragEvent, tag: string) => {
+    e.dataTransfer.setData('text/plain', tag);
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent, stepId: string, field: 'subject' | 'body') => {
+    e.preventDefault();
+    const tag = e.dataTransfer.getData('text/plain');
+    const target = e.target as HTMLInputElement | HTMLTextAreaElement;
+    const cursorPosition = target.selectionStart || 0;
+    insertMergeTag(stepId, field, tag, cursorPosition);
   };
 
   return (
@@ -183,11 +238,11 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                       {index + 1}
                     </div>
                     <span className="font-medium text-foreground">Step {index + 1}</span>
-                    {index > 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        {step.delay} {step.delayUnit} after previous email
-                      </Badge>
-                    )}
+                     {index > 0 && step.scheduledDate && (
+                       <Badge variant="outline" className="text-xs">
+                         {format(step.scheduledDate, "MMM dd")} at {step.scheduledTime || '09:00'}
+                       </Badge>
+                     )}
                   </div>
                   
                   <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg p-4 font-sans">
@@ -246,12 +301,12 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                         {index + 1}
                       </div>
                       <span>Email Step {index + 1}</span>
-                      {index > 0 && (
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <Clock className="w-4 h-4" />
-                          Wait {step.delay} {step.delayUnit}
-                        </div>
-                      )}
+                       {index > 0 && step.scheduledDate && (
+                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                           <Clock className="w-4 h-4" />
+                           {format(step.scheduledDate, "MMM dd")} at {step.scheduledTime || '09:00'}
+                         </div>
+                       )}
                     </div>
                     <Button 
                       variant="ghost" 
@@ -266,97 +321,121 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                 <CardContent className="space-y-4">
                   {/* Delay Settings (not for first email) */}
                   {index > 0 && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-foreground">Delay Amount</Label>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={step.delay}
-                          onChange={(e) => updateStep(step.id, { delay: parseInt(e.target.value) || 1 })}
-                          className="bg-background border-border text-foreground"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium text-foreground">Delay Unit</Label>
-                        <Select 
-                          value={step.delayUnit} 
-                          onValueChange={(value: 'minutes' | 'hours' | 'days') => updateStep(step.id, { delayUnit: value })}
-                        >
-                          <SelectTrigger className="bg-background border-border text-foreground">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="minutes">Minutes</SelectItem>
-                            <SelectItem value="hours">Hours</SelectItem>
-                            <SelectItem value="days">Days</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
+                       <div className="space-y-2">
+                         <Label className="text-sm font-medium text-foreground">Scheduled Date</Label>
+                         <Popover>
+                           <PopoverTrigger asChild>
+                             <Button
+                               variant="outline"
+                               className={cn(
+                                 "w-full justify-start text-left font-normal bg-background border-border",
+                                 !step.scheduledDate && "text-muted-foreground"
+                               )}
+                             >
+                               <CalendarIcon className="mr-2 h-4 w-4" />
+                               {step.scheduledDate ? format(step.scheduledDate, "PPP") : <span>Pick a date</span>}
+                             </Button>
+                           </PopoverTrigger>
+                           <PopoverContent className="w-auto p-0" align="start">
+                             <Calendar
+                               mode="single"
+                               selected={step.scheduledDate}
+                               onSelect={(date) => updateStep(step.id, { scheduledDate: date })}
+                               disabled={(date) => date < new Date(new Date().setHours(0,0,0,0))}
+                               initialFocus
+                               className={cn("p-3 pointer-events-auto")}
+                             />
+                           </PopoverContent>
+                         </Popover>
+                       </div>
+                       <div className="space-y-2">
+                         <Label className="text-sm font-medium text-foreground">Scheduled Time</Label>
+                         <Input
+                           type="time"
+                           value={step.scheduledTime || '09:00'}
+                           onChange={(e) => updateStep(step.id, { scheduledTime: e.target.value })}
+                           className="bg-background border-border text-foreground"
+                         />
+                       </div>
+                     </div>
                   )}
 
                   {/* Subject Line */}
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium text-foreground">Subject Line</Label>
-                      <div className="flex items-center gap-1">
-                        <Tag className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Click tags to insert:</span>
-                      </div>
-                    </div>
-                    <Input
-                      placeholder="e.g., Quick question about {{company}}"
-                      value={step.subject}
-                      onChange={(e) => updateStep(step.id, { subject: e.target.value })}
-                      className="bg-background border-border text-foreground"
-                    />
-                    <div className="flex flex-wrap gap-1">
-                      {availableMergeTags.map(tag => (
-                        <Badge 
-                          key={tag}
-                          variant="outline" 
-                          className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                          onClick={() => insertMergeTag(step.id, 'subject', tag)}
-                        >
-                          {`{{${tag}}}`}
-                        </Badge>
-                      ))}
-                    </div>
+                     <div className="flex items-center justify-between">
+                       <Label className="text-sm font-medium text-foreground">Subject Line</Label>
+                       <div className="flex items-center gap-1">
+                         <Tag className="w-3 h-3 text-muted-foreground" />
+                         <span className="text-xs text-muted-foreground">Drag tags or click to insert at cursor:</span>
+                       </div>
+                     </div>
+                     <Input
+                       placeholder="e.g., Quick question about {{company}}"
+                       value={step.subject}
+                       onChange={(e) => updateStep(step.id, { subject: e.target.value })}
+                       onSelect={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
+                       onClick={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
+                       onKeyUp={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
+                       className="bg-background border-border text-foreground"
+                       onDragOver={handleDragOver}
+                       onDrop={(e) => handleDrop(e, step.id, 'subject')}
+                     />
+                     <div className="flex flex-wrap gap-1">
+                       {availableMergeTags.map(tag => (
+                         <Badge 
+                           key={tag}
+                           variant="outline" 
+                           className="text-xs cursor-move hover:bg-primary hover:text-primary-foreground transition-colors select-none"
+                           onClick={() => insertMergeTag(step.id, 'subject', tag)}
+                           draggable
+                           onDragStart={(e) => handleDragStart(e, tag)}
+                         >
+                           {`{{${tag}}}`}
+                         </Badge>
+                       ))}
+                     </div>
                   </div>
 
-                  {/* Email Body */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium text-foreground">Email Body</Label>
-                      <div className="flex items-center gap-1">
-                        <Tag className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Click tags to insert:</span>
-                      </div>
-                    </div>
-                    <Textarea
-                      placeholder={`Hi {{firstName}},\n\nI hope this email finds you well...\n\nBest regards,\n[Your name]`}
-                      value={step.body}
-                      onChange={(e) => updateStep(step.id, { body: e.target.value })}
-                      rows={8}
-                      className="bg-background border-border text-foreground font-mono text-sm"
-                    />
-                    <div className="flex flex-wrap gap-1">
-                      {availableMergeTags.map(tag => (
-                        <Badge 
-                          key={tag}
-                          variant="outline" 
-                          className="text-xs cursor-pointer hover:bg-primary hover:text-primary-foreground transition-colors"
-                          onClick={() => insertMergeTag(step.id, 'body', tag)}
-                        >
-                          {`{{${tag}}}`}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Available merge tags from your CSV: {availableMergeTags.join(', ')}
-                    </div>
-                  </div>
+                   {/* Email Body */}
+                   <div className="space-y-2">
+                     <div className="flex items-center justify-between">
+                       <Label className="text-sm font-medium text-foreground">Email Body</Label>
+                       <div className="flex items-center gap-1">
+                         <Tag className="w-3 h-3 text-muted-foreground" />
+                         <span className="text-xs text-muted-foreground">Drag tags or click to insert at cursor:</span>
+                       </div>
+                     </div>
+                      <Textarea
+                        placeholder={`Hi {{firstName}},\n\nI hope this email finds you well...\n\nBest regards,\n[Your name]`}
+                        value={step.body}
+                        onChange={(e) => updateStep(step.id, { body: e.target.value })}
+                        onSelect={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                        onClick={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                        onKeyUp={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                        rows={8}
+                        className="bg-background border-border text-foreground font-mono text-sm"
+                        onDragOver={handleDragOver}
+                        onDrop={(e) => handleDrop(e, step.id, 'body')}
+                      />
+                     <div className="flex flex-wrap gap-1">
+                       {availableMergeTags.map(tag => (
+                         <Badge 
+                           key={tag}
+                           variant="outline" 
+                           className="text-xs cursor-move hover:bg-primary hover:text-primary-foreground transition-colors select-none"
+                           onClick={() => insertMergeTag(step.id, 'body', tag)}
+                           draggable
+                           onDragStart={(e) => handleDragStart(e, tag)}
+                         >
+                           {`{{${tag}}}`}
+                         </Badge>
+                       ))}
+                     </div>
+                     <div className="text-xs text-muted-foreground">
+                       Available merge tags from your CSV: {availableMergeTags.join(', ')}
+                     </div>
+                   </div>
 
                   {/* Preview */}
                   {!previewMode && (step.subject || step.body) && (
