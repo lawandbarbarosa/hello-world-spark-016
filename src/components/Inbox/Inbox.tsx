@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import ComposeEmail from "./ComposeEmail";
 import { 
   Mail, 
   Calendar, 
@@ -19,7 +20,9 @@ import {
   Clock,
   Inbox as InboxIcon,
   Users,
-  Reply
+  Reply,
+  Edit3,
+  Plus
 } from "lucide-react";
 
 interface SentEmail {
@@ -74,6 +77,12 @@ const Inbox = () => {
   const [contactGroups, setContactGroups] = useState<ContactGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+  const [showCompose, setShowCompose] = useState(false);
+  const [composeData, setComposeData] = useState<{
+    recipient?: string;
+    subject?: string;
+    body?: string;
+  }>({});
 
   useEffect(() => {
     if (user) {
@@ -267,6 +276,16 @@ const Inbox = () => {
       .replace(/\{\{email\}\}/g, contact.email);
   };
 
+  const handleComposeEmail = (recipient?: string, subject?: string, body?: string) => {
+    setComposeData({ recipient, subject, body });
+    setShowCompose(true);
+  };
+
+  const handleEmailSent = () => {
+    // Refresh the inbox data after sending an email
+    fetchSentEmails();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -276,15 +295,25 @@ const Inbox = () => {
             View all sent emails organized by prospect/receiver
           </p>
         </div>
-        <Button 
-          onClick={fetchSentEmails} 
-          variant="outline" 
-          size="sm"
-          disabled={loading}
-        >
-          <Mail className="w-4 h-4 mr-2" />
-          {loading ? 'Loading...' : 'Refresh'}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => handleComposeEmail()}
+            className="bg-primary hover:bg-primary/90"
+            size="sm"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Compose
+          </Button>
+          <Button 
+            onClick={fetchSentEmails} 
+            variant="outline" 
+            size="sm"
+            disabled={loading}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            {loading ? 'Loading...' : 'Refresh'}
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -445,6 +474,28 @@ const Inbox = () => {
                                 __html: personalizeContent(email.email_sequence.body, email.contact).replace(/\n/g, '<br>') 
                               }}
                             />
+                            <div className="mt-3 flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleComposeEmail(
+                                  email.contact.email,
+                                  `Re: ${email.email_sequence.subject}`,
+                                  `\n\n--- Original Message ---\nFrom: ${email.sender_account.email}\nTo: ${email.contact.email}\nSubject: ${email.email_sequence.subject}\n\n${email.email_sequence.body}`
+                                )}
+                              >
+                                <Reply className="w-3 h-3 mr-1" />
+                                Reply
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleComposeEmail(email.contact.email)}
+                              >
+                                <Edit3 className="w-3 h-3 mr-1" />
+                                New Email
+                              </Button>
+                            </div>
                           </div>
 
                           {email.error_message && (
@@ -472,6 +523,20 @@ const Inbox = () => {
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Compose Email Modal */}
+      {showCompose && (
+        <ComposeEmail
+          onClose={() => {
+            setShowCompose(false);
+            setComposeData({});
+          }}
+          onEmailSent={handleEmailSent}
+          initialRecipient={composeData.recipient}
+          initialSubject={composeData.subject}
+          initialBody={composeData.body}
+        />
       )}
     </div>
   );
