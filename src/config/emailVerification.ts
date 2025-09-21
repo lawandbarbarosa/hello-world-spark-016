@@ -1,7 +1,7 @@
 // Email verification configuration
 export const EMAIL_VERIFICATION_CONFIG = {
   // Set to 'neverbounce' for full API verification or 'simple' for basic validation
-  method: 'neverbounce' as 'neverbounce' | 'simple',
+  method: 'simple' as 'neverbounce' | 'simple',
   
   // Function names for each method
   functions: {
