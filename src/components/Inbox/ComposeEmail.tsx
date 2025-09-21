@@ -57,6 +57,9 @@ const ComposeEmail = ({
   const [isMinimized, setIsMinimized] = useState(false);
   const [showFormatting, setShowFormatting] = useState(false);
 
+  // Debug logging
+  console.log('ComposeEmail component rendered');
+
   useEffect(() => {
     if (user) {
       loadSenderAccounts();
@@ -254,11 +257,11 @@ const ComposeEmail = ({
 
   if (isMinimized) {
     return (
-      <div className="fixed bottom-4 right-4 z-50">
-        <Card className="w-80 shadow-lg border-2 border-primary">
-          <CardHeader className="pb-2">
+      <div className="fixed bottom-4 right-4 z-[9999]" style={{ zIndex: 9999 }}>
+        <div className="w-80 shadow-lg border-2 border-primary bg-background rounded-lg">
+          <div className="p-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-sm">Compose Email</CardTitle>
+              <h3 className="text-sm font-semibold">Compose Email</h3>
               <div className="flex gap-1">
                 <Button
                   variant="ghost"
@@ -276,21 +279,32 @@ const ComposeEmail = ({
                 </Button>
               </div>
             </div>
-          </CardHeader>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-4xl h-[80vh] flex flex-col shadow-2xl">
-        <CardHeader className="flex-shrink-0 border-b">
+    <div 
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
+      style={{ zIndex: 9999 }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div 
+        className="w-full max-w-4xl h-[80vh] flex flex-col bg-background border border-border rounded-lg shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex-shrink-0 border-b p-6">
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
               <Send className="w-5 h-5" />
               Compose Email
-            </CardTitle>
+            </h2>
             <div className="flex gap-2">
               <Button
                 variant="ghost"
@@ -308,9 +322,9 @@ const ComposeEmail = ({
               </Button>
             </div>
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="flex-1 flex flex-col space-y-4 p-6">
+        <div className="flex-1 flex flex-col space-y-4 p-6 overflow-auto">
           {/* Sender Email Input */}
           <div className="space-y-2">
             <Label htmlFor="sender-email" className="text-sm font-medium">
@@ -474,8 +488,8 @@ const ComposeEmail = ({
               </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
