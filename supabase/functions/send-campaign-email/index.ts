@@ -44,14 +44,17 @@ async function scheduleFollowUpEmails(
 
       // Check if sequence has specific scheduling data (new format)
       if (sequence.scheduled_date && sequence.scheduled_time) {
-        // Parse the scheduled date and time
+        // Parse the scheduled date and time in Kurdistan timezone (UTC+3)
         const dateStr = sequence.scheduled_date;
         const timeStr = sequence.scheduled_time;
         
-        // Create the scheduled datetime
-        scheduledTime = new Date(`${dateStr}T${timeStr}:00`);
+        // Create the scheduled datetime in Kurdistan timezone (UTC+3)
+        // Format: YYYY-MM-DDTHH:MM:00+03:00
+        const scheduledTimeStr = `${dateStr}T${timeStr}:00+03:00`;
+        scheduledTime = new Date(scheduledTimeStr);
         
-        console.log(`Scheduling step ${sequence.step_number} for specific date/time: ${scheduledTime.toISOString()}`);
+        console.log(`Scheduling step ${sequence.step_number} for specific date/time (Kurdistan UTC+3): ${scheduledTime.toISOString()}`);
+        console.log(`Local time: ${scheduledTime.toLocaleString('en-US', { timeZone: 'Asia/Baghdad' })}`);
       } else {
         // Fallback to delay-based scheduling (legacy support)
         const delayInMinutes = calculateDelayInMinutes(sequence.delay_amount, sequence.delay_unit);

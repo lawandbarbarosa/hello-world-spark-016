@@ -162,13 +162,15 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("user_id", campaign.user_id)
           .single();
 
-        // Check time window
-        const userTimezone = userSettings?.timezone || 'UTC';
+        // Check time window - Use Kurdistan timezone (UTC+3) by default
+        const userTimezone = userSettings?.timezone || 'Asia/Baghdad'; // Kurdistan region timezone
         const zonedTime = toZonedTime(now, userTimezone);
         const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
         
         const startTime = userSettings?.send_time_start || '08:00';
         const endTime = userSettings?.send_time_end || '18:00';
+        
+        console.log(`Current time in Kurdistan (${userTimezone}): ${currentTime}`);
 
         if (currentTime < startTime || currentTime > endTime) {
           console.log(`Skipping email outside time window: ${currentTime} not in ${startTime}-${endTime}`);
