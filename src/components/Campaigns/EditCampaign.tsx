@@ -73,13 +73,15 @@ const EditCampaign = ({ campaignId, onBack }: EditCampaignProps) => {
       if (senderAccountsResult.error) throw senderAccountsResult.error;
 
       // Format sequence data to match EmailSequence component structure
-      const formattedSequence = sequenceResult.data.map(seq => ({
+      const formattedSequence = sequenceResult.data?.map(seq => ({
         id: seq.id,
         subject: seq.subject,
         body: seq.body,
         delay: seq.delay_amount || 0,
-        delayUnit: seq.delay_unit || 'days'
-      }));
+        delayUnit: seq.delay_unit || 'days',
+        scheduledDate: seq.scheduled_date ? new Date(seq.scheduled_date) : undefined,
+        scheduledTime: seq.scheduled_time || undefined
+      })) || [];
 
       setCampaignData({
         ...campaign,
@@ -122,29 +124,59 @@ const EditCampaign = ({ campaignId, onBack }: EditCampaignProps) => {
 
       if (campaignError) throw campaignError;
 
-      // Update email sequences
+      // Update email sequences - preserve existing data and only update what changed
       if (campaignData.sequence.length > 0) {
-        // Delete existing sequences
-        await supabase
+        // Get existing sequences to preserve IDs and relationships
+        const { data: existingSequences } = await supabase
           .from('email_sequences')
-          .delete()
-          .eq('campaign_id', campaignId);
+          .select('*')
+          .eq('campaign_id', campaignId)
+          .order('step_number');
 
-        // Insert updated sequences
-        const sequenceData = campaignData.sequence.map((step, index) => ({
-          campaign_id: campaignId,
-          step_number: index + 1,
-          subject: step.subject,
-          body: step.body,
-          delay_amount: step.delay,
-          delay_unit: step.delayUnit
-        }));
+        // Update existing sequences or create new ones
+        for (let i = 0; i < campaignData.sequence.length; i++) {
+          const step = campaignData.sequence[i];
+          const existingSequence = existingSequences?.find(seq => seq.step_number === i + 1);
 
-        const { error: sequenceError } = await supabase
-          .from('email_sequences')
-          .insert(sequenceData);
+          const sequenceData = {
+            campaign_id: campaignId,
+            step_number: i + 1,
+            subject: step.subject,
+            body: step.body,
+            delay_amount: step.delay,
+            delay_unit: step.delayUnit,
+            scheduled_date: step.scheduledDate ? step.scheduledDate.toISOString().split('T')[0] : null,
+            scheduled_time: step.scheduledTime || null
+          };
 
-        if (sequenceError) throw sequenceError;
+          if (existingSequence) {
+            // Update existing sequence
+            const { error: updateError } = await supabase
+              .from('email_sequences')
+              .update(sequenceData)
+              .eq('id', existingSequence.id);
+
+            if (updateError) throw updateError;
+          } else {
+            // Insert new sequence
+            const { error: insertError } = await supabase
+              .from('email_sequences')
+              .insert(sequenceData);
+
+            if (insertError) throw insertError;
+          }
+        }
+
+        // Remove any sequences that were deleted (if the new sequence is shorter)
+        if (existingSequences && existingSequences.length > campaignData.sequence.length) {
+          const sequencesToDelete = existingSequences.slice(campaignData.sequence.length);
+          for (const sequenceToDelete of sequencesToDelete) {
+            await supabase
+              .from('email_sequences')
+              .delete()
+              .eq('id', sequenceToDelete.id);
+          }
+        }
       }
 
       toast({
