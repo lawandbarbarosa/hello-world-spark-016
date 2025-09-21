@@ -208,7 +208,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Calculate individual sender account capacities
-    const todayStart = new Date(zonedTime.getFullYear(), zonedTime.getMonth(), zonedTime.getDate());
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
     
     const availableSenders = [];
