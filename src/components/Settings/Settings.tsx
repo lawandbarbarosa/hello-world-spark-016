@@ -42,7 +42,6 @@ const settingsSchema = z.object({
   
   // Sending Settings
   daily_send_limit: z.number().min(1, 'Daily limit must be at least 1').max(10000, 'Daily limit cannot exceed 10,000'),
-  sending_days: z.array(z.string()).min(1, 'At least one day must be selected'),
   reply_handling_enabled: z.boolean(),
   
   // Email Composition Settings
@@ -90,7 +89,6 @@ const Settings = () => {
     defaultValues: {
       theme_mode: 'light',
       daily_send_limit: 50,
-      sending_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
       reply_handling_enabled: true,
       default_signature: '',
       from_name_format: 'first_last',
@@ -105,7 +103,6 @@ const Settings = () => {
       form.reset({
         theme_mode: settings.theme_mode,
         daily_send_limit: settings.daily_send_limit,
-        sending_days: settings.sending_days || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
         reply_handling_enabled: settings.reply_handling_enabled,
         default_signature: settings.default_signature,
         from_name_format: settings.from_name_format,
@@ -131,7 +128,7 @@ const Settings = () => {
         daily_send_limit: data.daily_send_limit,
         send_time_start: '00:00', // Not user-configurable, allow all times
         send_time_end: '23:59', // Not user-configurable, allow all times
-        sending_days: data.sending_days,
+        sending_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'], // Always allow all days
         reply_handling_enabled: data.reply_handling_enabled,
         fallback_merge_tags: {
           first_name: 'there',
@@ -300,42 +297,6 @@ const Settings = () => {
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="sending_days"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sending Days</FormLabel>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {daysOfWeek.map((day) => (
-                        <FormItem key={day.value} className="flex flex-row items-start space-x-3 space-y-0">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value?.includes(day.value)}
-                              onCheckedChange={(checked) => {
-                                if (checked) {
-                                  field.onChange([...field.value, day.value]);
-                                } else {
-                                  field.onChange(
-                                    field.value?.filter((value: string) => value !== day.value)
-                                  );
-                                }
-                              }}
-                            />
-                          </FormControl>
-                          <FormLabel className="text-sm font-normal cursor-pointer">
-                            {day.label}
-                          </FormLabel>
-                        </FormItem>
-                      ))}
-                    </div>
-                    <FormDescription>
-                      Select which days of the week emails should be sent
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </CardContent>
           </Card>
 
