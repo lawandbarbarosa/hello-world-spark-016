@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { getVerificationFunction } from '@/config/emailVerification';
 
 interface VerificationResult {
   email: string;
@@ -26,7 +27,7 @@ export const useEmailVerification = () => {
 
     setIsVerifying(true);
     try {
-      const { data, error } = await supabase.functions.invoke('verify-email', {
+      const { data, error } = await supabase.functions.invoke(getVerificationFunction(), {
         body: { email, userId: user.id }
       });
 

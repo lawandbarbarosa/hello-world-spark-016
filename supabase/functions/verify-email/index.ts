@@ -33,10 +33,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Validate key format early to provide clear guidance
     const keyPrefix = neverBounceApiKey.split('_')[0];
-    if (keyPrefix !== 'secret') {
+    if (!['secret', 'private'].includes(keyPrefix)) {
       return new Response(
         JSON.stringify({
-          error: "NeverBounce Secret Key required. Use the Secret API key (starts with 'secret_') from NeverBounce Apps > Your App > Secret Key. Keys like 'private_' or 'public_' won't work.",
+          error: "NeverBounce API key required. Use either the Secret API key (starts with 'secret_') or Private API key (starts with 'private_') from NeverBounce Apps > Your App. Public keys won't work.",
           result: 'error',
           isValid: false,
           isDeliverable: false
