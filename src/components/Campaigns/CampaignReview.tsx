@@ -45,10 +45,30 @@ interface CampaignReviewProps {
 const CampaignReview = ({ data, onLaunch }: CampaignReviewProps) => {
   const totalDailyLimit = data.senderAccounts.reduce((sum, account) => sum + account.dailyLimit, 0);
   const estimatedDuration = Math.ceil(data.contacts.length / totalDailyLimit);
-  const sequenceDuration = data.sequence.reduce((total, step, index) => {
-    if (index === 0) return 0;
-    return total + (step.delayUnit === 'days' ? step.delay : Math.ceil(step.delay / 24));
-  }, 0);
+  // Calculate sequence duration based on actual scheduled dates
+  const sequenceDuration = (() => {
+    if (data.sequence.length <= 1) return 0;
+    
+    // Find the last step with a scheduled date
+    const lastScheduledStep = data.sequence
+      .filter(step => step.scheduledDate)
+      .sort((a, b) => new Date(b.scheduledDate!).getTime() - new Date(a.scheduledDate!).getTime())[0];
+    
+    if (!lastScheduledStep) {
+      // Fallback to delay-based calculation if no scheduled dates
+      return data.sequence.reduce((total, step, index) => {
+        if (index === 0) return 0;
+        return total + (step.delayUnit === 'days' ? step.delay : Math.ceil(step.delay / 24));
+      }, 0);
+    }
+    
+    // Calculate duration from first email to last scheduled email
+    const firstEmailDate = new Date();
+    const lastEmailDate = new Date(lastScheduledStep.scheduledDate!);
+    const durationInDays = Math.ceil((lastEmailDate.getTime() - firstEmailDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    return Math.max(0, durationInDays);
+  })();
 
   const validationIssues = [];
   if (!data.name.trim()) validationIssues.push("Campaign name is required");
@@ -220,7 +240,13 @@ const CampaignReview = ({ data, onLaunch }: CampaignReviewProps) => {
                     {index > 0 && (
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Clock className="w-3 h-3" />
-                        Wait {step.delay} {step.delayUnit}
+                        {step.scheduledDate ? (
+                          <span>
+                            {new Date(step.scheduledDate).toLocaleDateString()} at {step.scheduledTime || '09:00'}
+                          </span>
+                        ) : (
+                          <span>Wait {step.delay} {step.delayUnit}</span>
+                        )}
                       </div>
                     )}
                   </div>
