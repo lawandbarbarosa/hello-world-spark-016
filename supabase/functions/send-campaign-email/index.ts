@@ -136,26 +136,8 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("user_id", campaign.user_id)
       .single();
 
-    // Check time window with proper timezone handling
-    const userTimezone = userSettings?.timezone || 'UTC';
-    const now = new Date();
-    const zonedTime = toZonedTime(now, userTimezone);
-    const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
-    
-    const startTime = userSettings?.send_time_start || '08:00';
-    const endTime = userSettings?.send_time_end || '18:00';
-
-    console.log(`Time check - Current: ${currentTime}, Window: ${startTime} - ${endTime}, Timezone: ${userTimezone}`);
-
-    if (currentTime < startTime || currentTime > endTime) {
-      console.log(`Send blocked: Current time ${currentTime} outside allowed window ${startTime}-${endTime} in ${userTimezone}`);
-      return new Response(JSON.stringify({ 
-        error: `Sending is only allowed between ${startTime} and ${endTime} in ${userTimezone} timezone. Current time: ${currentTime}` 
-      }), {
-        status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Skip time window check - first emails send immediately
+    console.log("Time window check skipped - first emails send immediately");
 
     // Get email sequences for the campaign
     const { data: sequences, error: sequenceError } = await supabase

@@ -31,8 +31,8 @@ const defaultSettings: UserSettings = {
   timezone: 'UTC',
   theme_mode: 'light',
   daily_send_limit: 50,
-  send_time_start: '08:00',
-  send_time_end: '18:00',
+  send_time_start: '00:00',
+  send_time_end: '23:59',
   sending_days: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
   reply_handling_enabled: true,
   fallback_merge_tags: {
