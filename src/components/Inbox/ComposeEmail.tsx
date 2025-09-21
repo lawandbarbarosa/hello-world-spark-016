@@ -93,10 +93,19 @@ const ComposeEmail = ({
   };
 
   const handleSend = async () => {
-    if (!selectedSender) {
+    if (!selectedSender.trim()) {
       toast({
         title: "Error",
-        description: "Please select a sender account",
+        description: "Please enter a sender email address",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!validateEmail(selectedSender)) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid sender email address",
         variant: "destructive",
       });
       return;
@@ -141,11 +150,8 @@ const ComposeEmail = ({
     try {
       setSending(true);
 
-      // Get sender account details
-      const senderAccount = senderAccounts.find(acc => acc.id === selectedSender);
-      if (!senderAccount) {
-        throw new Error("Selected sender account not found");
-      }
+      // Use the entered email address directly
+      const senderEmail = selectedSender.trim();
 
       // Create a direct email send record
       const { data: emailSendRecord, error: insertError } = await supabase
@@ -154,7 +160,7 @@ const ComposeEmail = ({
           campaign_id: null, // Direct email, not part of a campaign
           contact_id: null, // Direct email, not from contact list
           sequence_id: null, // Direct email, not part of sequence
-          sender_account_id: selectedSender,
+          sender_account_id: null, // Direct email, not from configured account
           status: "pending",
         })
         .select()
@@ -166,7 +172,7 @@ const ComposeEmail = ({
       const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-direct-email', {
         body: {
           to: recipient,
-          from: senderAccount.email,
+          from: senderEmail,
           subject: subject,
           html: body.replace(/\n/g, '<br>'),
           emailSendId: emailSendRecord.id
@@ -194,6 +200,7 @@ const ComposeEmail = ({
       });
 
       // Reset form
+      setSelectedSender("");
       setRecipient("");
       setSubject("");
       setBody("");
@@ -304,30 +311,38 @@ const ComposeEmail = ({
         </CardHeader>
 
         <CardContent className="flex-1 flex flex-col space-y-4 p-6">
-          {/* Sender Account Selection */}
+          {/* Sender Email Input */}
           <div className="space-y-2">
-            <Label htmlFor="sender" className="text-sm font-medium">
+            <Label htmlFor="sender-email" className="text-sm font-medium">
               From
             </Label>
             <div className="flex gap-2">
-              <select
-                id="sender"
+              <Input
+                id="sender-email"
+                type="email"
+                placeholder="your-email@example.com"
                 value={selectedSender}
                 onChange={(e) => setSelectedSender(e.target.value)}
-                className="flex-1 px-3 py-2 border border-border rounded-md bg-background text-foreground"
+                className="flex-1 bg-background border-border text-foreground"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Show a dropdown with configured accounts for quick selection
+                  const account = senderAccounts[0];
+                  if (account) {
+                    setSelectedSender(account.email);
+                  }
+                }}
+                title="Use configured account"
               >
-                {senderAccounts.map((account) => (
-                  <option key={account.id} value={account.id}>
-                    {account.email} ({account.provider})
-                  </option>
-                ))}
-              </select>
-              {selectedSender && (
-                <Badge variant="secondary" className="px-2 py-1">
-                  {senderAccounts.find(acc => acc.id === selectedSender)?.daily_limit || 0} emails/day
-                </Badge>
-              )}
+                <Mail className="w-4 h-4" />
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Enter any email address you want to send from
+            </p>
           </div>
 
           {/* Recipient */}
@@ -423,6 +438,7 @@ const ComposeEmail = ({
                 variant="outline"
                 size="sm"
                 onClick={() => {
+                  setSelectedSender("");
                   setRecipient("");
                   setSubject("");
                   setBody("");
@@ -441,7 +457,7 @@ const ComposeEmail = ({
               </Button>
               <Button
                 onClick={handleSend}
-                disabled={sending || !selectedSender || !recipient || !subject || !body}
+                disabled={sending || !selectedSender.trim() || !recipient.trim() || !subject.trim() || !body.trim()}
                 className="bg-primary hover:bg-primary/90"
               >
                 {sending ? (
