@@ -162,23 +162,19 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("user_id", campaign.user_id)
           .single();
 
-        // Check time window - Use user's timezone
-        const userTimezone = userSettings?.timezone || 'UTC';
+        // Check time window - Use Kurdistan timezone (Asia/Baghdad, UTC+3) as default
+        const userTimezone = userSettings?.timezone || 'Asia/Baghdad';
         const zonedTime = toZonedTime(now, userTimezone);
         const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
         
-        const startTime = userSettings?.send_time_start || '00:00';
-        const endTime = userSettings?.send_time_end || '23:59';
+        const startTime = userSettings?.send_time_start || '08:00';
+        const endTime = userSettings?.send_time_end || '18:00';
         
-        console.log(`Current time in ${userTimezone}: ${currentTime}`);
+        console.log(`Current time in Kurdistan (${userTimezone}): ${currentTime}`);
 
-        // Allow emails to be sent anytime if start and end times are 00:00 and 12:00 (default unrestricted)
-        if (startTime !== '00:00' || endTime !== '12:00') {
-          if (currentTime < startTime || currentTime > endTime) {
-            console.log(`Skipping email outside time window: ${currentTime} not in ${startTime}-${endTime}`);
-            continue; // Skip this email for now, will be processed in the next run
-          }
-        }
+        // Skip time window check for scheduled emails - they should be sent at their exact scheduled time
+        // Only apply time window restrictions for immediate/delay-based emails
+        console.log(`Processing scheduled email at exact time - time window check bypassed`);
 
         // Check sender daily limit
         const todayStart = new Date(zonedTime.getFullYear(), zonedTime.getMonth(), zonedTime.getDate());

@@ -22,8 +22,8 @@ export const checkSendingPermissions = async (
       return { canSend: false, reason: 'Unable to load user settings' };
     }
 
-    // Convert current time to user's timezone
-    const userTimezone = settings.timezone || 'UTC';
+    // Convert current time to user's timezone - default to Kurdistan timezone
+    const userTimezone = settings.timezone || 'Asia/Baghdad';
     const now = new Date();
     const zonedTime = toZonedTime(now, userTimezone);
     const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
@@ -32,7 +32,7 @@ export const checkSendingPermissions = async (
     const startTime = settings.send_time_start || '08:00';
     const endTime = settings.send_time_end || '18:00';
 
-    console.log(`Time check - Current: ${currentTime}, Window: ${startTime} - ${endTime}, Timezone: ${userTimezone}`);
+    console.log(`Time check - Current: ${currentTime}, Window: ${startTime} - ${endTime}, Timezone: ${userTimezone} (Kurdistan)`);
 
     if (currentTime < startTime || currentTime > endTime) {
       return { 
