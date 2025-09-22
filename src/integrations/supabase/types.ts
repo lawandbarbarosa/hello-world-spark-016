@@ -168,6 +168,82 @@ export type Database = {
           },
         ]
       }
+      email_replies: {
+        Row: {
+          campaign_id: string
+          contact_id: string
+          content: string
+          created_at: string
+          email_send_id: string | null
+          from_email: string
+          id: string
+          in_reply_to: string | null
+          message_id: string | null
+          received_at: string
+          references: string | null
+          subject: string
+          to_email: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          contact_id: string
+          content: string
+          created_at?: string
+          email_send_id?: string | null
+          from_email: string
+          id?: string
+          in_reply_to?: string | null
+          message_id?: string | null
+          received_at?: string
+          references?: string | null
+          subject: string
+          to_email: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string
+          content?: string
+          created_at?: string
+          email_send_id?: string | null
+          from_email?: string
+          id?: string
+          in_reply_to?: string | null
+          message_id?: string | null
+          received_at?: string
+          references?: string | null
+          subject?: string
+          to_email?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_email_replies_campaign_id"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_email_replies_contact_id"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_email_replies_email_send_id"
+            columns: ["email_send_id"]
+            isOneToOne: false
+            referencedRelation: "email_sends"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_sequences: {
         Row: {
           body: string
@@ -522,6 +598,33 @@ export type Database = {
           synced_emails: number
           sync_rate: number
           sender_accounts_with_sync: number
+        }[]
+      }
+      store_email_reply: {
+        Args: {
+          contact_email_param: string
+          campaign_id_param: string
+          from_email_param: string
+          to_email_param: string
+          subject_param: string
+          content_param: string
+          message_id_param?: string | null
+          in_reply_to_param?: string | null
+          references_param?: string | null
+          email_send_id_param?: string | null
+        }
+        Returns: string
+      }
+      get_contact_replies: {
+        Args: { contact_email_param: string; campaign_id_param: string }
+        Returns: {
+          id: string
+          from_email: string
+          to_email: string
+          subject: string
+          content: string
+          received_at: string
+          message_id: string | null
         }[]
       }
     }

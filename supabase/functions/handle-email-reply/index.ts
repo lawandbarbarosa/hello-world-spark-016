@@ -11,6 +11,7 @@ interface ReplyData {
   toEmail: string;
   campaignId?: string;
   subject?: string;
+  content?: string;
   messageId?: string;
   inReplyTo?: string;
   references?: string;
@@ -31,7 +32,7 @@ const handler = async (req: Request): Promise<Response> => {
     const replyData: ReplyData = await req.json();
     console.log('Processing email reply:', replyData);
 
-    const { fromEmail, toEmail, campaignId, subject, messageId, inReplyTo, references } = replyData;
+    const { fromEmail, toEmail, campaignId, subject, content, messageId, inReplyTo, references } = replyData;
 
     if (!fromEmail || !toEmail) {
       return new Response(JSON.stringify({ 
@@ -181,6 +182,53 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Successfully marked contact as replied:', contactEmail, 'Campaign:', matchedCampaignId);
 
+    // Store the reply content in the email_replies table
+    let replyId = null;
+    if (content) {
+      try {
+        // Try to find the original email_send_id if possible
+        let emailSendId = null;
+        if (inReplyTo || references) {
+          // Look for the original email send based on message ID
+          const { data: originalEmailSend } = await supabase
+            .from('email_sends')
+            .select('id')
+            .eq('contact_id', contact.id)
+            .eq('campaign_id', matchedCampaignId)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          emailSendId = originalEmailSend?.[0]?.id || null;
+        }
+
+        // Store the reply using the database function
+        const { data: storedReplyId, error: storeReplyError } = await supabase
+          .rpc('store_email_reply', {
+            contact_email_param: contactEmail,
+            campaign_id_param: matchedCampaignId,
+            from_email_param: fromEmail,
+            to_email_param: toEmail,
+            subject_param: subject || 'No subject',
+            content_param: content,
+            message_id_param: messageId,
+            in_reply_to_param: inReplyTo,
+            references_param: references,
+            email_send_id_param: emailSendId
+          });
+
+        if (storeReplyError) {
+          console.error('Error storing reply content:', storeReplyError);
+          // Don't fail the entire operation if reply storage fails
+        } else {
+          replyId = storedReplyId;
+          console.log('Successfully stored reply content with ID:', replyId);
+        }
+      } catch (error) {
+        console.error('Error storing reply content:', error);
+        // Don't fail the entire operation if reply storage fails
+      }
+    }
+
     // Log the reply for audit purposes
     const replyLogData = {
       contact_id: contact.id,
@@ -188,9 +236,11 @@ const handler = async (req: Request): Promise<Response> => {
       from_email: fromEmail,
       to_email: toEmail,
       subject: subject || 'No subject',
+      content: content || 'No content provided',
       message_id: messageId,
       in_reply_to: inReplyTo,
       references: references,
+      reply_id: replyId,
       processed_at: new Date().toISOString()
     };
 

@@ -114,6 +114,7 @@ const ReplyTracker = () => {
           toEmail: "manual@tracking.com", // Placeholder for manual tracking
           campaignId: campaignId,
           subject: "Manual Reply Tracking",
+          content: "This contact was manually marked as replied by the user.",
           messageId: `manual-${Date.now()}`,
           inReplyTo: null,
           references: null

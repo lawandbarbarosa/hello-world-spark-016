@@ -58,10 +58,21 @@ interface SentEmail {
   };
 }
 
+interface EmailReply {
+  id: string;
+  from_email: string;
+  to_email: string;
+  subject: string;
+  content: string;
+  received_at: string;
+  message_id: string | null;
+}
+
 interface ContactGroup {
   contactEmail: string;
   contactName: string;
   emails: SentEmail[];
+  replies: EmailReply[];
   totalSent: number;
   totalOpened: number;
   totalFailed: number;
@@ -77,6 +88,7 @@ const Inbox = () => {
   const [contactGroups, setContactGroups] = useState<ContactGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedEmails, setExpandedEmails] = useState<Set<string>>(new Set());
+  const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
   const [showCompose, setShowCompose] = useState(false);
   const [composeData, setComposeData] = useState<{
     recipient?: string;
@@ -160,6 +172,7 @@ const Inbox = () => {
             contactEmail,
             contactName: `${email.contact.first_name} ${email.contact.last_name}`.trim() || email.contact.email,
             emails: [],
+            replies: [], // Will be populated below
             totalSent: 0,
             totalOpened: 0,
             totalFailed: 0,
@@ -210,7 +223,30 @@ const Inbox = () => {
         return new Date(b.latestSent).getTime() - new Date(a.latestSent).getTime();
       });
 
-      setContactGroups(contactGroupsArray);
+      // Fetch replies for each contact
+      const contactGroupsWithReplies = await Promise.all(
+        contactGroupsArray.map(async (group) => {
+          // Get unique campaign IDs for this contact
+          const campaignIds = [...new Set(group.emails.map(email => email.campaign_id))];
+          
+          // Fetch replies for each campaign
+          const allReplies: EmailReply[] = [];
+          for (const campaignId of campaignIds) {
+            const replies = await fetchRepliesForContact(group.contactEmail, campaignId);
+            allReplies.push(...replies);
+          }
+          
+          // Sort replies by received date (newest first)
+          allReplies.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
+          
+          return {
+            ...group,
+            replies: allReplies
+          };
+        })
+      );
+
+      setContactGroups(contactGroupsWithReplies);
 
     } catch (error) {
       console.error('Error fetching sent emails:', error);
@@ -232,6 +268,36 @@ const Inbox = () => {
       newExpanded.add(emailId);
     }
     setExpandedEmails(newExpanded);
+  };
+
+  const toggleReplyExpansion = (replyId: string) => {
+    const newExpanded = new Set(expandedReplies);
+    if (newExpanded.has(replyId)) {
+      newExpanded.delete(replyId);
+    } else {
+      newExpanded.add(replyId);
+    }
+    setExpandedReplies(newExpanded);
+  };
+
+  const fetchRepliesForContact = async (contactEmail: string, campaignId: string): Promise<EmailReply[]> => {
+    try {
+      const { data, error } = await supabase
+        .rpc('get_contact_replies', {
+          contact_email_param: contactEmail,
+          campaign_id_param: campaignId
+        });
+
+      if (error) {
+        console.error('Error fetching replies for contact:', contactEmail, error);
+        return [];
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Error fetching replies for contact:', contactEmail, error);
+      return [];
+    }
   };
 
   const getStatusIcon = (status: string, sentAt: string | null, openedAt: string | null) => {
@@ -525,6 +591,110 @@ const Inbox = () => {
                     </Collapsible>
                   ))}
                 </div>
+                
+                {/* Replies Section */}
+                {group.replies.length > 0 && (
+                  <div className="mt-6 pt-6 border-t">
+                    <h4 className="font-medium text-foreground mb-3 flex items-center gap-2">
+                      <Reply className="w-4 h-4" />
+                      Replies ({group.replies.length})
+                    </h4>
+                    <div className="space-y-2">
+                      {group.replies.map((reply) => (
+                        <Collapsible
+                          key={reply.id}
+                          open={expandedReplies.has(reply.id)}
+                          onOpenChange={() => toggleReplyExpansion(reply.id)}
+                        >
+                          <CollapsibleTrigger asChild>
+                            <div className="flex items-center justify-between p-3 border border-border rounded-lg bg-background hover:bg-accent/50 cursor-pointer transition-colors">
+                              <div className="flex items-center gap-3 flex-1">
+                                <Reply className="w-4 h-4 text-warning" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <h5 className="font-medium text-foreground truncate">
+                                      {reply.subject}
+                                    </h5>
+                                    <Badge className="bg-warning text-warning-foreground">
+                                      <Reply className="w-3 h-3 mr-1" />
+                                      Reply
+                                    </Badge>
+                                  </div>
+                                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                                    <span className="flex items-center gap-1">
+                                      <User className="w-3 h-3" />
+                                      From: {reply.from_email}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      {new Date(reply.received_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {expandedReplies.has(reply.id) ? (
+                                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="px-3 pb-3">
+                            <div className="mt-3 space-y-3 bg-warning/5 rounded-lg p-4 border border-warning/20">
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <strong>From:</strong> {reply.from_email}
+                                </div>
+                                <div>
+                                  <strong>To:</strong> {reply.to_email}
+                                </div>
+                                <div>
+                                  <strong>Received:</strong> {new Date(reply.received_at).toLocaleString()}
+                                </div>
+                                {reply.message_id && (
+                                  <div>
+                                    <strong>Message ID:</strong> {reply.message_id}
+                                  </div>
+                                )}
+                              </div>
+                              
+                              <div className="border-t pt-3">
+                                <strong className="text-sm">Subject:</strong>
+                                <p className="mt-1 font-medium">{reply.subject}</p>
+                              </div>
+                              
+                              <div className="border-t pt-3">
+                                <strong className="text-sm">Reply Content:</strong>
+                                <div 
+                                  className="mt-2 prose prose-sm max-w-none text-foreground"
+                                  dangerouslySetInnerHTML={{ 
+                                    __html: reply.content.replace(/\n/g, '<br>') 
+                                  }}
+                                />
+                                <div className="mt-3 flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleComposeEmail(
+                                      reply.from_email,
+                                      `Re: ${reply.subject}`,
+                                      `\n\n--- Original Reply ---\nFrom: ${reply.from_email}\nTo: ${reply.to_email}\nSubject: ${reply.subject}\n\n${reply.content}`
+                                    )}
+                                  >
+                                    <Reply className="w-3 h-3 mr-1" />
+                                    Reply
+                                  </Button>
+                                </div>
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
