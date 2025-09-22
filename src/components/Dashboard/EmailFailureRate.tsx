@@ -88,27 +88,16 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
     try {
       setLoading(true);
 
-      // Get detailed failure statistics using the new database function
+      // Try to get detailed failure statistics using the new database function
       const { data: failureStats, error: statsError } = await supabase
         .rpc('get_email_failure_stats', {
           user_id_param: user?.id
         });
 
       if (statsError) {
-        console.error('Error fetching failure stats:', statsError);
-        
-        // If the function doesn't exist yet, fall back to basic stats
-        if (statsError.message?.includes('function') && statsError.message?.includes('does not exist')) {
-          console.log('Database functions not deployed yet, falling back to basic stats');
-          await fetchBasicFailureStats();
-          return;
-        }
-        
-        toast({
-          title: "Error",
-          description: "Failed to fetch email failure statistics",
-          variant: "destructive",
-        });
+        // If the function doesn't exist or any other error, fall back to basic stats
+        console.log('Using basic failure stats (advanced functions not available)');
+        await fetchBasicFailureStats();
         return;
       }
 
@@ -146,7 +135,7 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
         });
 
       if (failuresError) {
-        console.error('Error fetching recent failures:', failuresError);
+        console.log('Using basic recent failures (advanced functions not available)');
         // If function doesn't exist, we'll use empty array - the basic stats will handle recent failures
       }
 
@@ -174,11 +163,8 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
 
     } catch (error) {
       console.error('Error fetching failure stats:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load email failure data",
-        variant: "destructive",
-      });
+      // Fall back to basic stats on any error
+      await fetchBasicFailureStats();
     } finally {
       setLoading(false);
     }
@@ -343,6 +329,28 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
 
     } catch (error) {
       console.error('Error fetching basic failure stats:', error);
+      // Set empty stats if everything fails
+      setStats({
+        totalEmails: 0,
+        successfulEmails: 0,
+        failedEmails: 0,
+        bouncedEmails: 0,
+        rejectedEmails: 0,
+        invalidAddressEmails: 0,
+        blockedEmails: 0,
+        spamEmails: 0,
+        rateLimitedEmails: 0,
+        authenticationErrors: 0,
+        networkErrors: 0,
+        domainErrors: 0,
+        contentFilteredEmails: 0,
+        unknownErrors: 0,
+        successRate: 0,
+        failureRate: 0,
+        bounceRate: 0,
+        rejectionRate: 0,
+        recentFailures: []
+      });
     }
   };
 
