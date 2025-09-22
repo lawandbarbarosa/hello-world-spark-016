@@ -82,6 +82,8 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   useEffect(() => {
     if (data.contacts && data.contacts.length > 0) {
       console.log('EmailSequence - Loaded contacts:', data.contacts.length);
+      console.log('EmailSequence - First contact data:', data.contacts[0]);
+      console.log('EmailSequence - Available fields:', Object.keys(data.contacts[0]));
     }
   }, [data.contacts]);
 
@@ -109,12 +111,19 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   };
 
   const replaceVariables = (text: string) => {
+    console.log('replaceVariables called with text:', text);
+    console.log('availableMergeTags:', availableMergeTags);
+    console.log('previewContact:', previewContact);
+    
     let result = text;
     availableMergeTags.forEach(tag => {
       const regex = new RegExp(`{{${tag}}}`, 'g');
       const value = previewContact[tag] || `[${tag}]`;
+      console.log(`Replacing {{${tag}}} with:`, value);
       result = result.replace(regex, String(value));
     });
+    
+    console.log('Final result:', result);
     return result;
   };
 
