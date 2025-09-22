@@ -124,7 +124,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       setCsvData(validData);
       setShowPreview(true);
 
-      // Auto-map ALL columns - no predefined limitations
+      // Automatically import ALL columns without user interaction
       const mapping: Record<string, string> = {};
       headers.forEach((header, index) => {
         const lowerHeader = (header ?? '').toString().toLowerCase().replace(/[^a-z]/g, '');
@@ -148,12 +148,110 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       });
       setFieldMapping(mapping);
 
-      console.log('Auto-mapping:', mapping);
-
-      toast({
-        title: "File uploaded successfully",
-        description: `Found ${validData.length} contacts`,
+      // Automatically import contacts without showing preview
+      const potentialContacts: Contact[] = validData.map(row => {
+        const contact: Contact = { email: '' };
+        
+        Object.entries(mapping).forEach(([csvIndex, field]) => {
+          if (field && row[parseInt(csvIndex)]) {
+            const value = row[parseInt(csvIndex)].trim();
+            if (value) {
+              contact[field] = value;
+            }
+          }
+        });
+        
+        return contact;
       });
+
+      // Extract just the emails for validation
+      const emails = potentialContacts.map(contact => contact.email).filter(email => email);
+      
+      // Validate all emails using our comprehensive validation
+      const validationResult = validateEmailList(emails);
+      
+      // Create valid contacts only from emails that passed validation
+      const validEmailSet = new Set(validationResult.validEmails);
+      const validContacts = potentialContacts.filter(contact => 
+        contact.email && validEmailSet.has(contact.email.toLowerCase())
+      );
+
+      // Store invalid emails with their contact information for spam folder
+      const invalidContactsWithInfo = potentialContacts.filter(contact => 
+        contact.email && !validEmailSet.has(contact.email.toLowerCase())
+      ).map(contact => {
+        const invalidEmailInfo = validationResult.invalidEmails.find(e => 
+          e.email.toLowerCase() === contact.email.toLowerCase()
+        );
+        return {
+          email: contact.email,
+          error: invalidEmailInfo?.error || 'Invalid email format',
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          company: contact.company
+        };
+      });
+
+      setInvalidEmails(invalidContactsWithInfo);
+
+      if (validContacts.length === 0) {
+        const invalidCount = validationResult.invalidEmails.length;
+        const errorDetails = invalidCount > 0 
+          ? `Found ${invalidCount} invalid email${invalidCount > 1 ? 's' : ''}. Common issues: ${validationResult.invalidEmails.slice(0, 3).map(e => e.error).join(', ')}`
+          : "No valid email addresses found in the uploaded file";
+          
+        toast({
+          title: "No valid contacts found",
+          description: errorDetails,
+          variant: "destructive",
+        });
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return false;
+      }
+
+      setContacts(validContacts);
+      setShowPreview(false);
+      
+      // Create detailed success message
+      let description = `Imported ${validContacts.length} valid contact${validContacts.length > 1 ? 's' : ''}`;
+      
+      const issues: string[] = [];
+      if (validationResult.statistics.invalid > 0) {
+        issues.push(`${validationResult.statistics.invalid} invalid email${validationResult.statistics.invalid > 1 ? 's' : ''} rejected`);
+      }
+      if (validationResult.statistics.duplicates > 0) {
+        issues.push(`${validationResult.statistics.duplicates} duplicate${validationResult.statistics.duplicates > 1 ? 's' : ''} removed`);
+      }
+      
+      if (issues.length > 0) {
+        description += ` (${issues.join(', ')})`;
+      }
+      
+      toast({
+        title: "Contacts imported successfully",
+        description,
+        variant: validationResult.statistics.invalid > 0 ? "default" : "default",
+      });
+
+      // Show detailed breakdown if there were issues
+      if (validationResult.statistics.invalid > 0) {
+        console.log('Invalid emails detected:', validationResult.invalidEmails);
+        
+        // Show a follow-up toast with more details about invalid emails
+        setTimeout(() => {
+          const topErrors = validationResult.invalidEmails
+            .slice(0, 5)
+            .map(e => `${e.email}: ${e.error}`)
+            .join('\n');
+            
+          toast({
+            title: `${validationResult.statistics.invalid} emails were rejected`,
+            description: `Common issues:\n${topErrors}${validationResult.invalidEmails.length > 5 ? '\n...' : ''}`,
+            variant: "destructive",
+          });
+        }, 2000);
+      }
 
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -372,131 +470,6 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     }
   }, [toast]);
 
-  const handleImportContacts = () => {
-    try {
-      const emailIndex = Object.entries(fieldMapping).find(([_, field]) => field === 'email')?.[0];
-      
-      if (!emailIndex) {
-        toast({
-          title: "Email field required",
-          description: "Please map at least one field to 'Email'",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      // Extract all contacts from CSV data with all custom fields
-      const potentialContacts: Contact[] = csvData.map(row => {
-        const contact: Contact = { email: '' };
-        
-        Object.entries(fieldMapping).forEach(([csvIndex, field]) => {
-          if (field && row[parseInt(csvIndex)]) {
-            const value = row[parseInt(csvIndex)].trim();
-            if (value) {
-              contact[field] = value;
-            }
-          }
-        });
-        
-        return contact;
-      });
-
-      // Extract just the emails for validation
-      const emails = potentialContacts.map(contact => contact.email).filter(email => email);
-      
-      // Validate all emails using our comprehensive validation
-      const validationResult = validateEmailList(emails);
-      
-      // Create valid contacts only from emails that passed validation
-      const validEmailSet = new Set(validationResult.validEmails);
-      const validContacts = potentialContacts.filter(contact => 
-        contact.email && validEmailSet.has(contact.email.toLowerCase())
-      );
-
-      // Store invalid emails with their contact information for spam folder
-      const invalidContactsWithInfo = potentialContacts.filter(contact => 
-        contact.email && !validEmailSet.has(contact.email.toLowerCase())
-      ).map(contact => {
-        const invalidEmailInfo = validationResult.invalidEmails.find(e => 
-          e.email.toLowerCase() === contact.email.toLowerCase()
-        );
-        return {
-          email: contact.email,
-          error: invalidEmailInfo?.error || 'Invalid email format',
-          firstName: contact.firstName,
-          lastName: contact.lastName,
-          company: contact.company
-        };
-      });
-
-      setInvalidEmails(invalidContactsWithInfo);
-
-      if (validContacts.length === 0) {
-        const invalidCount = validationResult.invalidEmails.length;
-        const errorDetails = invalidCount > 0 
-          ? `Found ${invalidCount} invalid email${invalidCount > 1 ? 's' : ''}. Common issues: ${validationResult.invalidEmails.slice(0, 3).map(e => e.error).join(', ')}`
-          : "No valid email addresses found in the uploaded file";
-          
-        toast({
-          title: "No valid contacts found",
-          description: errorDetails,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setContacts(validContacts);
-      setShowPreview(false);
-      
-      // Create detailed success message
-      let description = `Imported ${validContacts.length} valid contact${validContacts.length > 1 ? 's' : ''}`;
-      
-      const issues: string[] = [];
-      if (validationResult.statistics.invalid > 0) {
-        issues.push(`${validationResult.statistics.invalid} invalid email${validationResult.statistics.invalid > 1 ? 's' : ''} rejected`);
-      }
-      if (validationResult.statistics.duplicates > 0) {
-        issues.push(`${validationResult.statistics.duplicates} duplicate${validationResult.statistics.duplicates > 1 ? 's' : ''} removed`);
-      }
-      
-      if (issues.length > 0) {
-        description += ` (${issues.join(', ')})`;
-      }
-      
-      toast({
-        title: "Contacts imported successfully",
-        description,
-        variant: validationResult.statistics.invalid > 0 ? "default" : "default",
-      });
-
-      // Show detailed breakdown if there were issues
-      if (validationResult.statistics.invalid > 0) {
-        console.log('Invalid emails detected:', validationResult.invalidEmails);
-        
-        // Show a follow-up toast with more details about invalid emails
-        setTimeout(() => {
-          const topErrors = validationResult.invalidEmails
-            .slice(0, 5)
-            .map(e => `${e.email}: ${e.error}`)
-            .join('\n');
-            
-          toast({
-            title: `${validationResult.statistics.invalid} emails were rejected`,
-            description: `Common issues:\n${topErrors}${validationResult.invalidEmails.length > 5 ? '\n...' : ''}`,
-            variant: "destructive",
-          });
-        }, 2000);
-      }
-      
-    } catch (error) {
-      console.error('Import error:', error);
-      toast({
-        title: "Import failed",
-        description: "Failed to import contacts. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleRemoveContact = (index: number) => {
     setContacts(contacts.filter((_, i) => i !== index));
@@ -523,7 +496,7 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Financ
         <div>
           <h3 className="text-lg font-semibold text-foreground">Upload Contact List</h3>
           <p className="text-sm text-muted-foreground">
-            Import your contacts from a CSV file to target with your campaign
+            Upload your CSV file - ALL columns will be automatically imported and available in email templates
           </p>
         </div>
         <Button 
@@ -579,7 +552,7 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Financ
                 <div className="text-sm text-muted-foreground">
                   <p>Supported formats: CSV, Excel (.xlsx, .xls)</p>
                   <p>Required field: email</p>
-                  <p>ALL columns will be imported and available in email templates</p>
+                  <p>ALL columns automatically imported - no mapping needed</p>
                   <p>Maximum file size: 5MB</p>
                 </div>
               </div>
@@ -588,116 +561,6 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Financ
         </Card>
       )}
 
-      {/* CSV Preview and Mapping */}
-      {showPreview && (
-        <Card className="bg-gradient-card border-border">
-          <CardHeader>
-            <CardTitle className="text-base text-foreground flex items-center justify-between">
-              <span>File Preview & Field Mapping</span>
-              <Button variant="ghost" size="sm" onClick={() => setShowPreview(false)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {csvHeaders.map((header, index) => {
-                const currentMapping = fieldMapping[index.toString()] || "";
-                const isEmailField = currentMapping === 'email';
-                
-                return (
-                  <div key={index} className="space-y-2">
-                    <Label className="text-sm font-medium text-foreground">
-                      {header}
-                      {isEmailField && <span className="text-red-500 ml-1">*</span>}
-                    </Label>
-                    <div className="flex gap-2">
-                      <Select 
-                        value={currentMapping || "skip"} 
-                        onValueChange={(value) => {
-                          if (value === "skip") {
-                            const newMapping = { ...fieldMapping };
-                            delete newMapping[index.toString()];
-                            setFieldMapping(newMapping);
-                          } else {
-                            setFieldMapping({...fieldMapping, [index.toString()]: value});
-                          }
-                        }}
-                      >
-                        <SelectTrigger className="bg-background border-border text-foreground flex-1">
-                          <SelectValue placeholder="Skip field" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="skip">Skip field</SelectItem>
-                          <SelectItem value="email">Email *</SelectItem>
-                          <SelectItem value="custom">Custom Field Name</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      
-                      {currentMapping === "custom" && (
-                        <Input
-                          placeholder="Field name (e.g., city, phone, title)"
-                          value={fieldMapping[index.toString()] || ""}
-                          onChange={(e) => {
-                            const customFieldName = e.target.value
-                              .replace(/[^a-zA-Z0-9]/g, '_')
-                              .replace(/^_+|_+$/g, '')
-                              .replace(/_+/g, '_')
-                              .toLowerCase();
-                            setFieldMapping({...fieldMapping, [index.toString()]: customFieldName});
-                          }}
-                          className="w-48 text-sm"
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="bg-muted p-4 rounded-lg">
-              <h4 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
-                <Eye className="w-4 h-4" />
-                Preview ({csvData.length} rows)
-              </h4>
-              <div className="overflow-auto max-h-48">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {csvHeaders.map((header, index) => (
-                        <TableHead key={index} className="text-foreground">{header}</TableHead>
-                      ))}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {csvData.slice(0, 5).map((row, rowIndex) => (
-                      <TableRow key={rowIndex}>
-                        {row.map((cell, cellIndex) => (
-                          <TableCell key={cellIndex} className="text-foreground">{cell}</TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowPreview(false)}>
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleImportContacts}
-                disabled={!Object.values(fieldMapping).includes('email')}
-                className="bg-gradient-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-4 h-4 mr-2" />
-                Import {csvData.length} Contacts
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Imported Contacts */}
       {contacts.length > 0 && (
