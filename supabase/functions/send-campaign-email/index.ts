@@ -17,6 +17,50 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Helper function to sync email to Gmail Sent folder
+async function syncToGmailSent({ emailSendId, senderEmail, recipientEmail, subject, body, sentAt }: {
+  emailSendId: string;
+  senderEmail: string;
+  recipientEmail: string;
+  subject: string;
+  body: string;
+  sentAt: string;
+}) {
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const response = await fetch(`${supabaseUrl}/functions/v1/sync-to-gmail-sent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`
+      },
+      body: JSON.stringify({
+        emailSendId,
+        senderEmail,
+        recipientEmail,
+        subject,
+        body,
+        sentAt
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Gmail sync failed: ${error}`);
+    }
+
+    const result = await response.json();
+    if (result.success) {
+      console.log("Email synced to Gmail Sent folder:", result.gmailMessageId);
+    } else {
+      console.log("Gmail sync not configured or failed:", result.message);
+    }
+  } catch (error) {
+    console.warn("Gmail sync error (non-critical):", error);
+    // Don't throw - this is non-critical
+  }
+}
+
 interface SendEmailRequest {
   campaignId: string;
 }
@@ -457,6 +501,21 @@ const handler = async (req: Request): Promise<Response> => {
               sent_at: sentTime.toISOString(),
             })
             .eq("id", insertedEmailSend.id);
+
+          // Sync to Gmail Sent folder if enabled
+          try {
+            await syncToGmailSent({
+              emailSendId: insertedEmailSend.id,
+              senderEmail: currentSender.email,
+              recipientEmail: contact.email,
+              subject: personalizedSubject,
+              body: emailBodyWithTracking,
+              sentAt: sentTime.toISOString()
+            });
+          } catch (syncError) {
+            console.warn("Failed to sync to Gmail (non-critical):", syncError);
+            // Don't fail the email send if Gmail sync fails
+          }
 
           // Update sender's remaining capacity in our local array
           const senderInArray = availableSenders.find(s => s.id === currentSender.id);
