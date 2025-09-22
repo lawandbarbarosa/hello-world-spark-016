@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { Resend } from "npm:resend@2.0.0";
-import { toZonedTime, format } from "npm:date-fns-tz@3.0.0";
+import { toZonedTime, format, fromZonedTime } from "npm:date-fns-tz@3.0.0";
 
 // Security enhancement: Validate required environment variables
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -44,24 +44,30 @@ async function scheduleFollowUpEmails(
 
       // Check if sequence has specific scheduling data (new format)
       if (sequence.scheduled_date && sequence.scheduled_time) {
-        // Parse the scheduled date and time in Kurdistan timezone (UTC+3)
+        // Parse the scheduled date and time for Kurdistan timezone (Asia/Baghdad, UTC+3)
         const dateStr = sequence.scheduled_date;
-        const timeStr = sequence.scheduled_time;
-        
-        // Create the scheduled datetime in Kurdistan timezone (UTC+3)
-        // Format: YYYY-MM-DDTHH:MM:00+03:00
-        const scheduledTimeStr = `${dateStr}T${timeStr}:00+03:00`;
-        scheduledTime = new Date(scheduledTimeStr);
-        
+        const timeRaw: string = sequence.scheduled_time;
+
+        // Normalize time to HH:mm:ss
+        const parts = timeRaw.split(":");
+        const hh = parts[0]?.padStart(2, "0") ?? "00";
+        const mm = parts[1]?.padStart(2, "0") ?? "00";
+        const ss = (parts[2] ?? "00").padStart(2, "0");
+        const timeStr = `${hh}:${mm}:${ss}`;
+
+        // Build a zoned Date in Asia/Baghdad and convert to UTC Date
+        const zonedDateTimeStr = `${dateStr} ${timeStr}`; // e.g. 2025-09-22 14:30:00
+        scheduledTime = fromZonedTime(zonedDateTimeStr, 'Asia/Baghdad');
+
         // Validate that the scheduled time is in the future
         const now = new Date();
         if (scheduledTime <= now) {
           console.warn(`Scheduled time ${scheduledTime.toISOString()} is in the past, skipping step ${sequence.step_number}`);
           continue; // Skip this sequence
         }
-        
-        console.log(`Scheduling step ${sequence.step_number} for specific date/time (Kurdistan UTC+3): ${scheduledTime.toISOString()}`);
-        console.log(`Local time: ${scheduledTime.toLocaleString('en-US', { timeZone: 'Asia/Baghdad' })}`);
+
+        console.log(`Scheduling step ${sequence.step_number} for specific date/time (Kurdistan ${'Asia/Baghdad'}): ${scheduledTime.toISOString()}`);
+        console.log(`Kurdistan local time (Asia/Baghdad): ${new Date(toZonedTime(scheduledTime, 'Asia/Baghdad')).toLocaleString('en-US', { timeZone: 'Asia/Baghdad' })}`);
       } else {
         // Fallback to delay-based scheduling (legacy support)
         const delayInMinutes = calculateDelayInMinutes(sequence.delay_amount, sequence.delay_unit);

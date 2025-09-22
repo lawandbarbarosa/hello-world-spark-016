@@ -146,7 +146,10 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         body: email.body,
         delay_amount: email.delay,
         delay_unit: email.delayUnit,
-        scheduled_date: email.scheduledDate ? email.scheduledDate.toISOString().split('T')[0] : null,
+        // Store date as local calendar date (avoid UTC shift)
+        scheduled_date: email.scheduledDate
+          ? `${email.scheduledDate.getFullYear()}-${String(email.scheduledDate.getMonth() + 1).padStart(2, '0')}-${String(email.scheduledDate.getDate()).padStart(2, '0')}`
+          : null,
         scheduled_time: email.scheduledTime || null
       }));
 
