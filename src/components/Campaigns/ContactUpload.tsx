@@ -124,20 +124,16 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       setCsvData(validData);
       setShowPreview(true);
 
-      // Auto-map common fields and preserve all other columns
+      // Auto-map ALL columns - no predefined limitations
       const mapping: Record<string, string> = {};
       headers.forEach((header, index) => {
         const lowerHeader = (header ?? '').toString().toLowerCase().replace(/[^a-z]/g, '');
+        
+        // Only auto-map email field as required
         if (lowerHeader.includes('email') || lowerHeader === 'email') {
           mapping[index.toString()] = 'email';
-        } else if (lowerHeader.includes('first') || lowerHeader === 'firstname' || lowerHeader === 'fname') {
-          mapping[index.toString()] = 'firstName';
-        } else if (lowerHeader.includes('last') || lowerHeader === 'lastname' || lowerHeader === 'lname') {
-          mapping[index.toString()] = 'lastName';
-        } else if (lowerHeader.includes('company') || lowerHeader === 'company' || lowerHeader === 'organization') {
-          mapping[index.toString()] = 'company';
         } else {
-          // For all other columns, use the original header name as the field name
+          // For ALL other columns, use the original header name as the field name
           // Clean the header name to be a valid field name
           const cleanHeader = (header ?? '').toString()
             .replace(/[^a-zA-Z0-9]/g, '_') // Replace special chars with underscore
@@ -145,8 +141,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
             .replace(/_+/g, '_') // Replace multiple underscores with single
             .toLowerCase();
           
-          if (cleanHeader && cleanHeader !== 'email' && cleanHeader !== 'firstname' && 
-              cleanHeader !== 'lastname' && cleanHeader !== 'company') {
+          if (cleanHeader && cleanHeader !== 'email') {
             mapping[index.toString()] = cleanHeader;
           }
         }
@@ -508,10 +503,10 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
   };
 
   const downloadSampleCSV = () => {
-    const sampleData = `email,firstName,lastName,company,phone,title,department,location,notes
-john@example.com,John,Doe,Example Corp,+1-555-0123,Manager,Marketing,New York,Interested in our services
-jane@sample.com,Jane,Smith,Sample Inc,+1-555-0124,Director,Sales,California,Previous customer
-mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Texas,Potential partnership`;
+    const sampleData = `email,firstName,lastName,company,phone,title,department,city,country,industry,website,notes
+john@example.com,John,Doe,Example Corp,+1-555-0123,Manager,Marketing,New York,USA,Technology,example.com,Interested in our services
+jane@sample.com,Jane,Smith,Sample Inc,+1-555-0124,Director,Sales,Los Angeles,USA,Healthcare,sample.com,Previous customer
+mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Finance,test.org,Potential partnership`;
     
     const blob = new Blob([sampleData], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -584,7 +579,7 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Texas,Potential pa
                 <div className="text-sm text-muted-foreground">
                   <p>Supported formats: CSV, Excel (.xlsx, .xls)</p>
                   <p>Required field: email</p>
-                  <p>All other columns will be imported as custom fields</p>
+                  <p>ALL columns will be imported and available in email templates</p>
                   <p>Maximum file size: 5MB</p>
                 </div>
               </div>
@@ -635,16 +630,13 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Texas,Potential pa
                         <SelectContent>
                           <SelectItem value="skip">Skip field</SelectItem>
                           <SelectItem value="email">Email *</SelectItem>
-                          <SelectItem value="firstName">First Name</SelectItem>
-                          <SelectItem value="lastName">Last Name</SelectItem>
-                          <SelectItem value="company">Company</SelectItem>
-                          <SelectItem value="custom">Custom Field</SelectItem>
+                          <SelectItem value="custom">Custom Field Name</SelectItem>
                         </SelectContent>
                       </Select>
                       
                       {currentMapping === "custom" && (
                         <Input
-                          placeholder="Field name"
+                          placeholder="Field name (e.g., city, phone, title)"
                           value={fieldMapping[index.toString()] || ""}
                           onChange={(e) => {
                             const customFieldName = e.target.value
@@ -654,7 +646,7 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Texas,Potential pa
                               .toLowerCase();
                             setFieldMapping({...fieldMapping, [index.toString()]: customFieldName});
                           }}
-                          className="w-32 text-sm"
+                          className="w-48 text-sm"
                         />
                       )}
                     </div>

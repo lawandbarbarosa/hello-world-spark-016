@@ -45,13 +45,17 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
     if (!data.contacts || data.contacts.length === 0) {
-      return ['firstName', 'lastName', 'company', 'email'];
+      return ['email']; // Only email is required
     }
     
     // Get all unique keys from contacts
     const allKeys = new Set<string>();
     data.contacts.forEach(contact => {
-      Object.keys(contact).forEach(key => allKeys.add(key));
+      Object.keys(contact).forEach(key => {
+        if (key && key.trim()) { // Only add non-empty keys
+          allKeys.add(key);
+        }
+      });
     });
     
     const availableTags = Array.from(allKeys).sort();
@@ -61,10 +65,13 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   
   const availableMergeTags = getAvailableMergeTags();
   const previewContact = data.contacts?.[selectedContactIndex] || {
+    email: 'john@example.com',
     firstName: 'John',
     lastName: 'Doe', 
     company: 'Example Corp',
-    email: 'john@example.com'
+    city: 'New York',
+    phone: '+1-555-0123',
+    title: 'Manager'
   };
 
   useEffect(() => {
@@ -380,7 +387,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                        </div>
                      </div>
                      <Input
-                       placeholder="e.g., Quick question about {{company}}"
+                       placeholder="e.g., Quick question about {{company}} from {{city}}"
                        value={step.subject}
                        onChange={(e) => updateStep(step.id, { subject: e.target.value })}
                        onSelect={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
@@ -416,7 +423,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                        </div>
                      </div>
                       <Textarea
-                        placeholder={`Hi {{firstName}},\n\nI hope this email finds you well...\n\nBest regards,\n[Your name]`}
+                        placeholder={`Hi {{firstName}},\n\nI hope this email finds you well. I noticed you're from {{city}} and work at {{company}} as a {{title}}.\n\nBest regards,\n[Your name]`}
                         value={step.body}
                         onChange={(e) => updateStep(step.id, { body: e.target.value })}
                         onSelect={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
