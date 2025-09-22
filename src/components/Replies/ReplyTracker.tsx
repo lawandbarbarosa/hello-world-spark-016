@@ -110,21 +110,22 @@ const ReplyTracker = () => {
       // Call the handle-email-reply edge function
       const { data, error } = await supabase.functions.invoke('handle-email-reply', {
         body: {
-          contactEmail,
-          campaignId,
-          replyData: {
-            subject: "Manual Reply Tracking",
-            body: "Reply manually marked by user",
-            timestamp: new Date().toISOString()
-          }
+          fromEmail: contactEmail,
+          toEmail: "manual@tracking.com", // Placeholder for manual tracking
+          campaignId: campaignId,
+          subject: "Manual Reply Tracking",
+          messageId: `manual-${Date.now()}`,
+          inReplyTo: null,
+          references: null
         }
       });
 
       if (error) {
         console.error('Error marking contact as replied:', error);
+        console.error('Full error details:', error);
         toast({
           title: "Error",
-          description: "Failed to mark contact as replied",
+          description: `Failed to mark contact as replied: ${error.message || 'Unknown error'}`,
           variant: "destructive",
         });
         return;
@@ -163,6 +164,54 @@ const ReplyTracker = () => {
     await markContactReplied(testEmail, testCampaignId);
     setTestEmail("");
     setTestCampaignId("");
+  };
+
+  const testReplyTracking = async () => {
+    if (!testEmail || !testCampaignId) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter both email and campaign ID",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setMarkingReply(true);
+      
+      const { data, error } = await supabase.functions.invoke('test-reply-tracking', {
+        body: {
+          contactEmail: testEmail,
+          campaignId: testCampaignId
+        }
+      });
+
+      if (error) {
+        console.error('Test error:', error);
+        toast({
+          title: "Test Failed",
+          description: `Test failed: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('Test results:', data);
+      toast({
+        title: "Test Complete",
+        description: "Check console for detailed results",
+      });
+
+    } catch (error) {
+      console.error('Test error:', error);
+      toast({
+        title: "Test Error",
+        description: "Failed to run test",
+        variant: "destructive",
+      });
+    } finally {
+      setMarkingReply(false);
+    }
   };
 
   const filteredContacts = contacts.filter(contact =>
@@ -226,14 +275,25 @@ const ReplyTracker = () => {
               />
             </div>
           </div>
-          <Button 
-            onClick={handleManualReplyMark}
-            disabled={markingReply || !testEmail || !testCampaignId}
-            className="w-full"
-          >
-            <CheckCircle className="w-4 h-4 mr-2" />
-            {markingReply ? 'Marking as Replied...' : 'Mark as Replied'}
-          </Button>
+          <div className="space-y-2">
+            <Button 
+              onClick={handleManualReplyMark}
+              disabled={markingReply || !testEmail || !testCampaignId}
+              className="w-full"
+            >
+              <CheckCircle className="w-4 h-4 mr-2" />
+              {markingReply ? 'Marking as Replied...' : 'Mark as Replied'}
+            </Button>
+            <Button 
+              onClick={testReplyTracking}
+              disabled={markingReply || !testEmail || !testCampaignId}
+              variant="outline"
+              className="w-full"
+            >
+              <Search className="w-4 h-4 mr-2" />
+              {markingReply ? 'Testing...' : 'Test Reply Tracking'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

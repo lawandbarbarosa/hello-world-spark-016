@@ -100,19 +100,38 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Check if contact exists and hasn't already replied
-    const { data: contact, error: contactError } = await supabase
+    const { data: contacts, error: contactError } = await supabase
       .from('contacts')
       .select('id, email, replied_at, campaign_id')
       .eq('email', contactEmail)
-      .eq('campaign_id', matchedCampaignId)
-      .single();
+      .eq('campaign_id', matchedCampaignId);
+    
+    const contact = contacts?.[0]; // Get the first match
 
-    if (contactError || !contact) {
+    if (contactError) {
+      console.error('Error querying contacts:', contactError);
+      return new Response(JSON.stringify({ 
+        error: 'Database error while looking up contact',
+        details: contactError.message,
+        contactEmail,
+        campaignId: matchedCampaignId
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    if (!contact) {
       console.log('Contact not found:', contactEmail, 'Campaign:', matchedCampaignId);
+      console.log('Available contacts for this email:', contacts?.length || 0);
       return new Response(JSON.stringify({ 
         error: 'Contact not found in the specified campaign',
         contactEmail,
-        campaignId: matchedCampaignId
+        campaignId: matchedCampaignId,
+        debug: {
+          totalContactsFound: contacts?.length || 0,
+          contacts: contacts?.map(c => ({ id: c.id, email: c.email, campaign_id: c.campaign_id })) || []
+        }
       }), {
         status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -141,9 +160,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (markReplyError) {
       console.error('Error marking contact as replied:', markReplyError);
+      console.error('RPC call details:', {
+        contact_email: contactEmail,
+        campaign_id_param: matchedCampaignId,
+        contact_id: contact.id
+      });
       return new Response(JSON.stringify({ 
         error: 'Failed to mark contact as replied',
-        details: markReplyError.message
+        details: markReplyError.message,
+        debug: {
+          contact_email: contactEmail,
+          campaign_id_param: matchedCampaignId,
+          contact_id: contact.id
+        }
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
