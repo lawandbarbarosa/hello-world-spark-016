@@ -45,6 +45,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    console.log('ContactUpload - contacts updated:', contacts);
     onUpdate({ contacts });
   }, [contacts]); // Removed onUpdate from dependencies to prevent infinite loop
 
@@ -450,6 +451,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         return;
       }
 
+      console.log('ContactUpload - Setting contacts:', validContacts);
       setContacts(validContacts);
       setShowPreview(false);
       

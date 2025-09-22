@@ -44,17 +44,23 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
+    console.log('EmailSequence - data.contacts:', data.contacts);
+    
     if (!data.contacts || data.contacts.length === 0) {
+      console.log('EmailSequence - No contacts found, using default tags');
       return ['firstName', 'lastName', 'company', 'email'];
     }
     
     // Get all unique keys from contacts
     const allKeys = new Set<string>();
     data.contacts.forEach(contact => {
+      console.log('EmailSequence - Processing contact:', contact);
       Object.keys(contact).forEach(key => allKeys.add(key));
     });
     
-    return Array.from(allKeys).sort();
+    const availableTags = Array.from(allKeys).sort();
+    console.log('EmailSequence - Available merge tags:', availableTags);
+    return availableTags;
   };
   
   const availableMergeTags = getAvailableMergeTags();
@@ -68,6 +74,12 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   useEffect(() => {
     onUpdate({ sequence });
   }, [sequence, onUpdate]);
+
+  // Debug effect to monitor data changes
+  useEffect(() => {
+    console.log('EmailSequence - data prop changed:', data);
+    console.log('EmailSequence - contacts in data:', data.contacts);
+  }, [data]);
 
   const addEmailStep = () => {
     const newStep: EmailStep = {
@@ -93,12 +105,19 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   };
 
   const replaceVariables = (text: string) => {
+    console.log('EmailSequence - replaceVariables called with text:', text);
+    console.log('EmailSequence - previewContact:', previewContact);
+    console.log('EmailSequence - availableMergeTags:', availableMergeTags);
+    
     let result = text;
     availableMergeTags.forEach(tag => {
       const regex = new RegExp(`{{${tag}}}`, 'g');
       const value = previewContact[tag] || `[${tag}]`;
+      console.log(`EmailSequence - Replacing {{${tag}}} with:`, value);
       result = result.replace(regex, String(value));
     });
+    
+    console.log('EmailSequence - Final result:', result);
     return result;
   };
 
