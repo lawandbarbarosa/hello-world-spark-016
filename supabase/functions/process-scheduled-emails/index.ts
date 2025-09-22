@@ -162,19 +162,22 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("user_id", campaign.user_id)
           .single();
 
-        // Check time window - Use Kurdistan timezone (UTC+3) by default
-        const userTimezone = userSettings?.timezone || 'Asia/Baghdad'; // Kurdistan region timezone
+        // Check time window - Use user's timezone
+        const userTimezone = userSettings?.timezone || 'UTC';
         const zonedTime = toZonedTime(now, userTimezone);
         const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
         
-        const startTime = userSettings?.send_time_start || '08:00';
-        const endTime = userSettings?.send_time_end || '18:00';
+        const startTime = userSettings?.send_time_start || '00:00';
+        const endTime = userSettings?.send_time_end || '23:59';
         
-        console.log(`Current time in Kurdistan (${userTimezone}): ${currentTime}`);
+        console.log(`Current time in ${userTimezone}: ${currentTime}`);
 
-        if (currentTime < startTime || currentTime > endTime) {
-          console.log(`Skipping email outside time window: ${currentTime} not in ${startTime}-${endTime}`);
-          continue; // Skip this email for now, will be processed in the next run
+        // Allow emails to be sent anytime if start and end times are 00:00 and 12:00 (default unrestricted)
+        if (startTime !== '00:00' || endTime !== '12:00') {
+          if (currentTime < startTime || currentTime > endTime) {
+            console.log(`Skipping email outside time window: ${currentTime} not in ${startTime}-${endTime}`);
+            continue; // Skip this email for now, will be processed in the next run
+          }
         }
 
         // Check sender daily limit

@@ -33,6 +33,8 @@ interface CampaignData {
     body: string;
     delay: number;
     delayUnit: 'hours' | 'days';
+    scheduledDate?: Date;
+    scheduledTime?: string;
   }>;
 }
 

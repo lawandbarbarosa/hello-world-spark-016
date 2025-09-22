@@ -68,11 +68,10 @@ const ComposeEmail = ({
 
   const loadSenderAccounts = async () => {
     try {
-      const { data, error } = await supabase
+  const { data, error } = await supabase
         .from('sender_accounts')
         .select('*')
-        .eq('user_id', user?.id)
-        .eq('status', 'active');
+        .eq('user_id', user?.id);
 
       if (error) throw error;
 
@@ -351,7 +350,7 @@ const ComposeEmail = ({
                 }}
                 title="Use configured account"
               >
-                <Mail className="w-4 h-4" />
+                <Send className="w-4 h-4" />
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">

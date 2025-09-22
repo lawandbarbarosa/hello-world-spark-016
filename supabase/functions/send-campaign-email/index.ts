@@ -44,14 +44,16 @@ async function scheduleFollowUpEmails(
 
       // Check if sequence has specific scheduling data (new format)
       if (sequence.scheduled_date && sequence.scheduled_time) {
-        // Parse the scheduled date and time in Kurdistan timezone (UTC+3)
+        // Parse the scheduled date and time properly
         const dateStr = sequence.scheduled_date;
         const timeStr = sequence.scheduled_time;
         
-        // Create the scheduled datetime in Kurdistan timezone (UTC+3)
-        // Format: YYYY-MM-DDTHH:MM:00+03:00
-        const scheduledTimeStr = `${dateStr}T${timeStr}:00+03:00`;
-        scheduledTime = new Date(scheduledTimeStr);
+        // Create the scheduled datetime using the user's timezone
+        // Convert date string to proper ISO format for parsing
+        const scheduledDate = new Date(dateStr);
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        scheduledDate.setHours(hours, minutes, 0, 0);
+        scheduledTime = scheduledDate;
         
         console.log(`Scheduling step ${sequence.step_number} for specific date/time (Kurdistan UTC+3): ${scheduledTime.toISOString()}`);
         console.log(`Local time: ${scheduledTime.toLocaleString('en-US', { timeZone: 'Asia/Baghdad' })}`);
