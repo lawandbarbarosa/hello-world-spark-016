@@ -16,7 +16,7 @@ interface Contact {
   firstName?: string;
   lastName?: string;
   company?: string;
-  [key: string]: any;
+  [key: string]: any; // Allow any additional custom fields
 }
 
 interface CampaignData {
@@ -124,7 +124,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       setCsvData(validData);
       setShowPreview(true);
 
-      // Auto-map common fields
+      // Auto-map common fields and preserve all other columns
       const mapping: Record<string, string> = {};
       headers.forEach((header, index) => {
         const lowerHeader = (header ?? '').toString().toLowerCase().replace(/[^a-z]/g, '');
@@ -136,6 +136,19 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
           mapping[index.toString()] = 'lastName';
         } else if (lowerHeader.includes('company') || lowerHeader === 'company' || lowerHeader === 'organization') {
           mapping[index.toString()] = 'company';
+        } else {
+          // For all other columns, use the original header name as the field name
+          // Clean the header name to be a valid field name
+          const cleanHeader = (header ?? '').toString()
+            .replace(/[^a-zA-Z0-9]/g, '_') // Replace special chars with underscore
+            .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+            .replace(/_+/g, '_') // Replace multiple underscores with single
+            .toLowerCase();
+          
+          if (cleanHeader && cleanHeader !== 'email' && cleanHeader !== 'firstname' && 
+              cleanHeader !== 'lastname' && cleanHeader !== 'company') {
+            mapping[index.toString()] = cleanHeader;
+          }
         }
       });
       setFieldMapping(mapping);
@@ -377,13 +390,16 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         return;
       }
 
-      // Extract all contacts from CSV data
+      // Extract all contacts from CSV data with all custom fields
       const potentialContacts: Contact[] = csvData.map(row => {
         const contact: Contact = { email: '' };
         
         Object.entries(fieldMapping).forEach(([csvIndex, field]) => {
           if (field && row[parseInt(csvIndex)]) {
-            contact[field] = row[parseInt(csvIndex)].trim();
+            const value = row[parseInt(csvIndex)].trim();
+            if (value) {
+              contact[field] = value;
+            }
           }
         });
         
@@ -492,10 +508,10 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
   };
 
   const downloadSampleCSV = () => {
-    const sampleData = `email,firstName,lastName,company
-john@example.com,John,Doe,Example Corp
-jane@sample.com,Jane,Smith,Sample Inc
-mike@test.org,Mike,Johnson,Test LLC`;
+    const sampleData = `email,firstName,lastName,company,phone,title,department,location,notes
+john@example.com,John,Doe,Example Corp,+1-555-0123,Manager,Marketing,New York,Interested in our services
+jane@sample.com,Jane,Smith,Sample Inc,+1-555-0124,Director,Sales,California,Previous customer
+mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Texas,Potential partnership`;
     
     const blob = new Blob([sampleData], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -568,7 +584,7 @@ mike@test.org,Mike,Johnson,Test LLC`;
                 <div className="text-sm text-muted-foreground">
                   <p>Supported formats: CSV, Excel (.xlsx, .xls)</p>
                   <p>Required field: email</p>
-                  <p>Optional fields: firstName, lastName, company</p>
+                  <p>All other columns will be imported as custom fields</p>
                   <p>Maximum file size: 5MB</p>
                 </div>
               </div>
@@ -589,29 +605,62 @@ mike@test.org,Mike,Johnson,Test LLC`;
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {csvHeaders.map((header, index) => (
-                <div key={index} className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground">
-                    {header}
-                  </Label>
-                  <Select 
-                    value={fieldMapping[index.toString()] || "skip"} 
-                    onValueChange={(value) => setFieldMapping({...fieldMapping, [index.toString()]: value === "skip" ? "" : value})}
-                  >
-                    <SelectTrigger className="bg-background border-border text-foreground">
-                      <SelectValue placeholder="Skip field" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="skip">Skip field</SelectItem>
-                      <SelectItem value="email">Email *</SelectItem>
-                      <SelectItem value="firstName">First Name</SelectItem>
-                      <SelectItem value="lastName">Last Name</SelectItem>
-                      <SelectItem value="company">Company</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {csvHeaders.map((header, index) => {
+                const currentMapping = fieldMapping[index.toString()] || "";
+                const isEmailField = currentMapping === 'email';
+                
+                return (
+                  <div key={index} className="space-y-2">
+                    <Label className="text-sm font-medium text-foreground">
+                      {header}
+                      {isEmailField && <span className="text-red-500 ml-1">*</span>}
+                    </Label>
+                    <div className="flex gap-2">
+                      <Select 
+                        value={currentMapping || "skip"} 
+                        onValueChange={(value) => {
+                          if (value === "skip") {
+                            const newMapping = { ...fieldMapping };
+                            delete newMapping[index.toString()];
+                            setFieldMapping(newMapping);
+                          } else {
+                            setFieldMapping({...fieldMapping, [index.toString()]: value});
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="bg-background border-border text-foreground flex-1">
+                          <SelectValue placeholder="Skip field" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="skip">Skip field</SelectItem>
+                          <SelectItem value="email">Email *</SelectItem>
+                          <SelectItem value="firstName">First Name</SelectItem>
+                          <SelectItem value="lastName">Last Name</SelectItem>
+                          <SelectItem value="company">Company</SelectItem>
+                          <SelectItem value="custom">Custom Field</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      {currentMapping === "custom" && (
+                        <Input
+                          placeholder="Field name"
+                          value={fieldMapping[index.toString()] || ""}
+                          onChange={(e) => {
+                            const customFieldName = e.target.value
+                              .replace(/[^a-zA-Z0-9]/g, '_')
+                              .replace(/^_+|_+$/g, '')
+                              .replace(/_+/g, '_')
+                              .toLowerCase();
+                            setFieldMapping({...fieldMapping, [index.toString()]: customFieldName});
+                          }}
+                          className="w-32 text-sm"
+                        />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="bg-muted p-4 rounded-lg">
@@ -688,6 +737,15 @@ mike@test.org,Mike,Johnson,Test LLC`;
                     <TableHead className="text-foreground">First Name</TableHead>
                     <TableHead className="text-foreground">Last Name</TableHead>
                     <TableHead className="text-foreground">Company</TableHead>
+                    {/* Dynamically add headers for custom fields */}
+                    {contacts.length > 0 && Object.keys(contacts[0])
+                      .filter(key => !['email', 'firstName', 'lastName', 'company'].includes(key))
+                      .map(key => (
+                        <TableHead key={key} className="text-foreground capitalize">
+                          {key.replace(/_/g, ' ')}
+                        </TableHead>
+                      ))
+                    }
                     <TableHead className="text-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -698,6 +756,15 @@ mike@test.org,Mike,Johnson,Test LLC`;
                       <TableCell className="text-foreground">{contact.firstName || '-'}</TableCell>
                       <TableCell className="text-foreground">{contact.lastName || '-'}</TableCell>
                       <TableCell className="text-foreground">{contact.company || '-'}</TableCell>
+                      {/* Dynamically add cells for custom fields */}
+                      {Object.keys(contact)
+                        .filter(key => !['email', 'firstName', 'lastName', 'company'].includes(key))
+                        .map(key => (
+                          <TableCell key={key} className="text-foreground">
+                            {contact[key] || '-'}
+                          </TableCell>
+                        ))
+                      }
                       <TableCell>
                         <Button 
                           variant="ghost" 
@@ -718,6 +785,32 @@ mike@test.org,Mike,Johnson,Test LLC`;
               <p className="text-sm text-muted-foreground mt-2">
                 Showing first 10 contacts of {contacts.length} total
               </p>
+            )}
+            
+            {/* Show summary of imported fields */}
+            {contacts.length > 0 && (
+              <div className="mt-4 p-3 bg-muted/50 rounded-lg">
+                <h4 className="text-sm font-medium text-foreground mb-2">Imported Fields:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {['email', 'firstName', 'lastName', 'company'].map(field => (
+                    contacts[0][field] !== undefined && (
+                      <Badge key={field} variant="secondary" className="text-xs">
+                        {field === 'firstName' ? 'First Name' : 
+                         field === 'lastName' ? 'Last Name' : 
+                         field.charAt(0).toUpperCase() + field.slice(1)}
+                      </Badge>
+                    )
+                  ))}
+                  {Object.keys(contacts[0])
+                    .filter(key => !['email', 'firstName', 'lastName', 'company'].includes(key))
+                    .map(key => (
+                      <Badge key={key} variant="outline" className="text-xs">
+                        {key.replace(/_/g, ' ')}
+                      </Badge>
+                    ))
+                  }
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
