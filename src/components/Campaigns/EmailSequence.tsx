@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import TemplateTest from "./TemplateTest";
 
 interface EmailStep {
   id: string;
@@ -205,6 +206,11 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
           </Button>
         </div>
       </div>
+
+      {/* Template Test Component */}
+      {data.contacts && data.contacts.length > 0 && (
+        <TemplateTest contacts={data.contacts} />
+      )}
 
       {/* Preview Controls */}
       {previewMode && data.contacts && data.contacts.length > 0 && (
