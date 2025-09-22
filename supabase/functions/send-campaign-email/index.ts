@@ -53,6 +53,13 @@ async function scheduleFollowUpEmails(
         const scheduledTimeStr = `${dateStr}T${timeStr}:00+03:00`;
         scheduledTime = new Date(scheduledTimeStr);
         
+        // Validate that the scheduled time is in the future
+        const now = new Date();
+        if (scheduledTime <= now) {
+          console.warn(`Scheduled time ${scheduledTime.toISOString()} is in the past, skipping step ${sequence.step_number}`);
+          continue; // Skip this sequence
+        }
+        
         console.log(`Scheduling step ${sequence.step_number} for specific date/time (Kurdistan UTC+3): ${scheduledTime.toISOString()}`);
         console.log(`Local time: ${scheduledTime.toLocaleString('en-US', { timeZone: 'Asia/Baghdad' })}`);
       } else {

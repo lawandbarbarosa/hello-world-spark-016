@@ -74,10 +74,10 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
       id: Date.now().toString(),
       subject: '',
       body: '',
-      delay: sequence.length === 0 ? 0 : 3,
+      delay: 0, // Default to 0 delay - user will set specific dates
       delayUnit: 'days',
-      scheduledDate: sequence.length === 0 ? new Date() : undefined,
-      scheduledTime: sequence.length === 0 ? '09:00' : undefined
+      scheduledDate: undefined, // Let user set specific date
+      scheduledTime: undefined // Let user set specific time
     };
     setSequence([...sequence, newStep]);
   };
@@ -483,13 +483,33 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                 <div>
                   <span className="text-muted-foreground">Sequence Duration:</span>
                   <span className="ml-2 font-medium text-foreground">
-                    {sequence.reduce((total, step, index) => {
-                      if (index === 0) return 0;
-                      const delayInDays = step.delayUnit === 'days' ? step.delay : 
-                                         step.delayUnit === 'hours' ? Math.ceil(step.delay / 24) :
-                                         Math.ceil(step.delay / (24 * 60));
-                      return total + delayInDays;
-                    }, 0)} days
+                    {(() => {
+                      if (sequence.length <= 1) return "0 days";
+                      
+                      // Find the last step with a scheduled date
+                      const lastScheduledStep = sequence
+                        .filter(step => step.scheduledDate)
+                        .sort((a, b) => new Date(b.scheduledDate!).getTime() - new Date(a.scheduledDate!).getTime())[0];
+                      
+                      if (!lastScheduledStep) {
+                        // Fallback to delay-based calculation if no scheduled dates
+                        const totalDays = sequence.reduce((total, step, index) => {
+                          if (index === 0) return 0;
+                          const delayInDays = step.delayUnit === 'days' ? step.delay : 
+                                             step.delayUnit === 'hours' ? Math.ceil(step.delay / 24) :
+                                             Math.ceil(step.delay / (24 * 60));
+                          return total + delayInDays;
+                        }, 0);
+                        return `${totalDays} days`;
+                      }
+                      
+                      // Calculate duration from first email to last scheduled email
+                      const firstEmailDate = new Date();
+                      const lastEmailDate = new Date(lastScheduledStep.scheduledDate!);
+                      const durationInDays = Math.ceil((lastEmailDate.getTime() - firstEmailDate.getTime()) / (1000 * 60 * 60 * 24));
+                      
+                      return `${Math.max(0, durationInDays)} days`;
+                    })()}
                   </span>
                 </div>
                 <div>

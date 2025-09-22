@@ -162,19 +162,28 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("user_id", campaign.user_id)
           .single();
 
-        // Check time window - Use Kurdistan timezone (UTC+3) by default
+        // Get user timezone for daily limit calculations
         const userTimezone = userSettings?.timezone || 'Asia/Baghdad'; // Kurdistan region timezone
         const zonedTime = toZonedTime(now, userTimezone);
-        const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
         
-        const startTime = userSettings?.send_time_start || '08:00';
-        const endTime = userSettings?.send_time_end || '18:00';
+        // Check if this is a specifically scheduled email (has scheduled_date and scheduled_time)
+        const isSpecificScheduled = sequence.scheduled_date && sequence.scheduled_time;
         
-        console.log(`Current time in Kurdistan (${userTimezone}): ${currentTime}`);
+        if (!isSpecificScheduled) {
+          // Only apply time window restrictions for delay-based emails, not specifically scheduled ones
+          const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
+          
+          const startTime = userSettings?.send_time_start || '08:00';
+          const endTime = userSettings?.send_time_end || '18:00';
+          
+          console.log(`Current time in Kurdistan (${userTimezone}): ${currentTime}`);
 
-        if (currentTime < startTime || currentTime > endTime) {
-          console.log(`Skipping email outside time window: ${currentTime} not in ${startTime}-${endTime}`);
-          continue; // Skip this email for now, will be processed in the next run
+          if (currentTime < startTime || currentTime > endTime) {
+            console.log(`Skipping delay-based email outside time window: ${currentTime} not in ${startTime}-${endTime}`);
+            continue; // Skip this email for now, will be processed in the next run
+          }
+        } else {
+          console.log(`Processing specifically scheduled email at exact time: ${scheduledEmail.scheduled_for}`);
         }
 
         // Check sender daily limit

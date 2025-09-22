@@ -49,12 +49,12 @@ const CampaignReview = ({ data, onLaunch }: CampaignReviewProps) => {
   const sequenceDuration = (() => {
     if (data.sequence.length <= 1) return 0;
     
-    // Find the last step with a scheduled date
-    const lastScheduledStep = data.sequence
+    // Get all steps with scheduled dates, sorted by date
+    const scheduledSteps = data.sequence
       .filter(step => step.scheduledDate)
-      .sort((a, b) => new Date(b.scheduledDate!).getTime() - new Date(a.scheduledDate!).getTime())[0];
+      .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime());
     
-    if (!lastScheduledStep) {
+    if (scheduledSteps.length === 0) {
       // Fallback to delay-based calculation if no scheduled dates
       return data.sequence.reduce((total, step, index) => {
         if (index === 0) return 0;
@@ -62,9 +62,9 @@ const CampaignReview = ({ data, onLaunch }: CampaignReviewProps) => {
       }, 0);
     }
     
-    // Calculate duration from first email to last scheduled email
-    const firstEmailDate = new Date();
-    const lastEmailDate = new Date(lastScheduledStep.scheduledDate!);
+    // Calculate duration from first scheduled email to last scheduled email
+    const firstEmailDate = new Date(scheduledSteps[0].scheduledDate!);
+    const lastEmailDate = new Date(scheduledSteps[scheduledSteps.length - 1].scheduledDate!);
     const durationInDays = Math.ceil((lastEmailDate.getTime() - firstEmailDate.getTime()) / (1000 * 60 * 60 * 24));
     
     return Math.max(0, durationInDays);
