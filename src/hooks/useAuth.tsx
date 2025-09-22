@@ -34,16 +34,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       try {
         sessionDebugger.log('Getting existing session...');
-        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        // Try to get session with retry logic
+        let session = null;
+        let error = null;
+        
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          const result = await supabase.auth.getSession();
+          session = result.data.session;
+          error = result.error;
+          
+          if (!error && session) {
+            sessionDebugger.log(`Session retrieved on attempt ${attempt}`);
+            break;
+          }
+          
+          if (attempt < 3) {
+            sessionDebugger.log(`Session retrieval attempt ${attempt} failed, retrying...`);
+            await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+          }
+        }
         
         if (error) {
-          sessionDebugger.error('Error getting session:', error);
+          sessionDebugger.error('Error getting session after retries:', error);
         } else {
           sessionDebugger.log('Session retrieved:', {
             hasSession: !!session,
             userEmail: session?.user?.email,
-            expiresAt: session?.expires_at
+            expiresAt: session?.expires_at,
+            isValid: session ? new Date(session.expires_at * 1000) > new Date() : false
           });
+        }
+        
+        // Validate session if it exists
+        if (session && new Date(session.expires_at * 1000) <= new Date()) {
+          sessionDebugger.log('Session expired, clearing...');
+          session = null;
         }
         
         if (mounted) {
@@ -72,8 +98,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sessionDebugger.log('Auth state changed:', {
           event,
           userEmail: session?.user?.email,
-          hasSession: !!session
+          hasSession: !!session,
+          isValid: session ? new Date(session.expires_at * 1000) > new Date() : false
         });
+        
+        // Handle different auth events
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          sessionDebugger.log('User signed in or token refreshed');
+          sessionDebugger.checkLocalStorage();
+        } else if (event === 'SIGNED_OUT') {
+          sessionDebugger.log('User signed out');
+          sessionDebugger.clearAllAuthData();
+        }
         
         if (mounted) {
           setSession(session);
