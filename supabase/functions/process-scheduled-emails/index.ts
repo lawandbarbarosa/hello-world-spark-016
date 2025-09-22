@@ -409,16 +409,24 @@ const handler = async (req: Request): Promise<Response> => {
 // Helper function to personalize text with merge tags
 function personalizeText(text: string, contact: any, fallbackTags: any): string {
   let result = text;
+  
+  console.log(`personalizeText called with text:`, text);
+  console.log(`Contact data:`, contact);
+  console.log(`Available contact fields:`, Object.keys(contact));
 
   // Replace with fallback support {{field|fallback}}
   result = result.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match, field, fallback) => {
+    console.log(`Fallback replacement for "${field}":`, contact[field] || fallback);
     return contact[field] || fallback;
   });
 
   // Replace simple merge tags
   result = result.replace(/\{\{(\w+)\}\}/g, (match, field) => {
+    console.log(`Template replacement: Looking for field "${field}"`);
+    
     // Check direct field match first
     if (contact[field] !== undefined && contact[field] !== null) {
+      console.log(`Direct match found for "${field}":`, contact[field]);
       return String(contact[field]);
     }
     
@@ -426,24 +434,33 @@ function personalizeText(text: string, contact: any, fallbackTags: any): string 
     const fieldLower = field.toLowerCase();
     const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
     if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
+      console.log(`Case-insensitive match found for "${field}" -> "${contactKey}":`, contact[contactKey]);
       return String(contact[contactKey]);
     }
     
     // Legacy field mappings
     if (field === 'firstName' || field === 'first_name') {
-      return contact.first_name || contact.firstName || fallbackTags.first_name;
+      const value = contact.first_name || contact.firstName || fallbackTags.first_name;
+      console.log(`Legacy firstName mapping for "${field}":`, value);
+      return value;
     }
     if (field === 'lastName' || field === 'last_name') {
-      return contact.last_name || contact.lastName || '';
+      const value = contact.last_name || contact.lastName || '';
+      console.log(`Legacy lastName mapping for "${field}":`, value);
+      return value;
     }
     if (field === 'company') {
-      return contact.company || fallbackTags.company;
+      const value = contact.company || fallbackTags.company;
+      console.log(`Legacy company mapping for "${field}":`, value);
+      return value;
     }
     
     // Return the tag unchanged if no match found
+    console.log(`No match found for "${field}", returning unchanged:`, match);
     return match;
   });
 
+  console.log(`Final personalized text:`, result);
   return result;
 }
 
