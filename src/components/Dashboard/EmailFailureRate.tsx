@@ -96,6 +96,14 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
 
       if (statsError) {
         console.error('Error fetching failure stats:', statsError);
+        
+        // If the function doesn't exist yet, fall back to basic stats
+        if (statsError.message?.includes('function') && statsError.message?.includes('does not exist')) {
+          console.log('Database functions not deployed yet, falling back to basic stats');
+          await fetchBasicFailureStats();
+          return;
+        }
+        
         toast({
           title: "Error",
           description: "Failed to fetch email failure statistics",
@@ -139,6 +147,7 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
 
       if (failuresError) {
         console.error('Error fetching recent failures:', failuresError);
+        // If function doesn't exist, we'll use empty array - the basic stats will handle recent failures
       }
 
       setStats({
@@ -225,6 +234,115 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
       case 'domain_issue': return '🏠';
       case 'content_filtered': return '🔍';
       default: return '❓';
+    }
+  };
+
+  const fetchBasicFailureStats = async () => {
+    try {
+      // Get all campaigns for the user
+      const { data: campaigns, error: campaignError } = await supabase
+        .from('campaigns')
+        .select('id, name')
+        .eq('user_id', user?.id);
+
+      if (campaignError) {
+        console.error('Error fetching campaigns:', campaignError);
+        return;
+      }
+
+      const campaignIds = campaigns?.map(c => c.id) || [];
+
+      if (campaignIds.length === 0) {
+        setStats({
+          totalEmails: 0,
+          successfulEmails: 0,
+          failedEmails: 0,
+          bouncedEmails: 0,
+          rejectedEmails: 0,
+          invalidAddressEmails: 0,
+          blockedEmails: 0,
+          spamEmails: 0,
+          rateLimitedEmails: 0,
+          authenticationErrors: 0,
+          networkErrors: 0,
+          domainErrors: 0,
+          contentFilteredEmails: 0,
+          unknownErrors: 0,
+          successRate: 0,
+          failureRate: 0,
+          bounceRate: 0,
+          rejectionRate: 0,
+          recentFailures: []
+        });
+        return;
+      }
+
+      // Get all email sends for user's campaigns
+      const { data: emailSends, error: emailSendsError } = await supabase
+        .from('email_sends')
+        .select(`
+          id,
+          status,
+          error_message,
+          created_at,
+          contacts!inner(email),
+          campaigns!inner(name)
+        `)
+        .in('campaign_id', campaignIds)
+        .order('created_at', { ascending: false });
+
+      if (emailSendsError) {
+        console.error('Error fetching email sends:', emailSendsError);
+        return;
+      }
+
+      const totalEmails = emailSends?.length || 0;
+      const successfulEmails = emailSends?.filter(e => e.status === 'sent').length || 0;
+      const failedEmails = emailSends?.filter(e => e.status === 'failed').length || 0;
+      const successRate = totalEmails > 0 ? Math.round((successfulEmails / totalEmails) * 100) : 100;
+      const failureRate = totalEmails > 0 ? Math.round((failedEmails / totalEmails) * 100) : 0;
+
+      // Get recent failures (last 10)
+      const recentFailures = emailSends
+        ?.filter(e => e.status === 'failed')
+        .slice(0, 10)
+        .map(email => ({
+          id: email.id,
+          contact_email: email.contacts?.email || 'Unknown',
+          campaign_name: email.campaigns?.name || 'Unknown Campaign',
+          status: email.status,
+          failure_category: null,
+          failure_reason: null,
+          bounce_type: null,
+          rejection_reason: null,
+          error_message: email.error_message || 'Unknown error',
+          created_at: email.created_at
+        })) || [];
+
+      setStats({
+        totalEmails,
+        successfulEmails,
+        failedEmails,
+        bouncedEmails: 0,
+        rejectedEmails: 0,
+        invalidAddressEmails: 0,
+        blockedEmails: 0,
+        spamEmails: 0,
+        rateLimitedEmails: 0,
+        authenticationErrors: 0,
+        networkErrors: 0,
+        domainErrors: 0,
+        contentFilteredEmails: 0,
+        unknownErrors: failedEmails,
+        successRate,
+        failureRate,
+        bounceRate: 0,
+        rejectionRate: 0,
+        recentFailures
+      });
+
+    } catch (error) {
+      console.error('Error fetching basic failure stats:', error);
     }
   };
 
