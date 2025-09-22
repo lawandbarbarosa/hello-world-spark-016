@@ -73,7 +73,24 @@ const GmailCallback = () => {
       });
 
       if (updateError) {
-        throw updateError;
+        // If function doesn't exist yet, just update the database directly
+        if (updateError.message?.includes('function') && updateError.message?.includes('does not exist')) {
+          const { error: directUpdateError } = await supabase
+            .from('sender_accounts')
+            .update({ 
+              gmail_sync_enabled: true,
+              gmail_refresh_token: tokenData.refresh_token,
+              gmail_client_id: process.env.REACT_APP_GMAIL_CLIENT_ID || '',
+              gmail_client_secret: process.env.REACT_APP_GMAIL_CLIENT_SECRET || ''
+            })
+            .eq('email', senderEmail);
+
+          if (directUpdateError) {
+            throw directUpdateError;
+          }
+        } else {
+          throw updateError;
+        }
       }
 
       setStatus('success');

@@ -95,6 +95,9 @@ export type Database = {
           contact_id: string
           created_at: string
           error_message: string | null
+          gmail_message_id: string | null
+          gmail_synced: boolean | null
+          gmail_synced_at: string | null
           id: string
           opened_at: string | null
           sender_account_id: string
@@ -108,6 +111,9 @@ export type Database = {
           contact_id: string
           created_at?: string
           error_message?: string | null
+          gmail_message_id?: string | null
+          gmail_synced?: boolean | null
+          gmail_synced_at?: string | null
           id?: string
           opened_at?: string | null
           sender_account_id: string
@@ -121,6 +127,9 @@ export type Database = {
           contact_id?: string
           created_at?: string
           error_message?: string | null
+          gmail_message_id?: string | null
+          gmail_synced?: boolean | null
+          gmail_synced_at?: string | null
           id?: string
           opened_at?: string | null
           sender_account_id?: string
@@ -329,6 +338,10 @@ export type Database = {
           created_at: string
           daily_limit: number | null
           email: string
+          gmail_client_id: string | null
+          gmail_client_secret: string | null
+          gmail_refresh_token: string | null
+          gmail_sync_enabled: boolean | null
           id: string
           provider: string
           user_id: string
@@ -338,6 +351,10 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           email: string
+          gmail_client_id?: string | null
+          gmail_client_secret?: string | null
+          gmail_refresh_token?: string | null
+          gmail_sync_enabled?: boolean | null
           id?: string
           provider: string
           user_id: string
@@ -347,6 +364,10 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           email?: string
+          gmail_client_id?: string | null
+          gmail_client_secret?: string | null
+          gmail_refresh_token?: string | null
+          gmail_sync_enabled?: boolean | null
           id?: string
           provider?: string
           user_id?: string
@@ -480,6 +501,28 @@ export type Database = {
       mark_contact_replied: {
         Args: { campaign_id_param: string; contact_email: string }
         Returns: undefined
+      }
+      enable_gmail_sync: {
+        Args: { 
+          sender_email_param: string
+          refresh_token_param: string
+          client_id_param: string
+          client_secret_param: string
+        }
+        Returns: undefined
+      }
+      disable_gmail_sync: {
+        Args: { sender_email_param: string }
+        Returns: undefined
+      }
+      get_gmail_sync_stats: {
+        Args: { user_id_param: string }
+        Returns: {
+          total_emails: number
+          synced_emails: number
+          sync_rate: number
+          sender_accounts_with_sync: number
+        }[]
       }
     }
     Enums: {

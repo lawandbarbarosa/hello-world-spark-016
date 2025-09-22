@@ -43,6 +43,29 @@ const GmailSyncSettings = () => {
 
       if (error) {
         console.error('Error fetching sender accounts:', error);
+        // If columns don't exist yet, fetch without Gmail fields
+        if (error.message?.includes('gmail_sync_enabled')) {
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('sender_accounts')
+            .select('id, email, provider')
+            .eq('user_id', user?.id)
+            .order('email');
+
+          if (fallbackError) {
+            throw fallbackError;
+          }
+
+          // Map fallback data to include Gmail fields as false/null
+          const mappedData = (fallbackData || []).map(account => ({
+            ...account,
+            gmail_sync_enabled: false,
+            gmail_refresh_token: null
+          }));
+          
+          setSenderAccounts(mappedData);
+          return;
+        }
+        
         toast({
           title: "Error",
           description: "Failed to fetch sender accounts",
@@ -114,7 +137,24 @@ const GmailSyncSettings = () => {
         });
 
         if (error) {
-          throw error;
+          // If function doesn't exist yet, just update the database directly
+          if (error.message?.includes('function') && error.message?.includes('does not exist')) {
+            const { error: updateError } = await supabase
+              .from('sender_accounts')
+              .update({ 
+                gmail_sync_enabled: false,
+                gmail_refresh_token: null,
+                gmail_client_id: null,
+                gmail_client_secret: null
+              })
+              .eq('email', senderEmail);
+
+            if (updateError) {
+              throw updateError;
+            }
+          } else {
+            throw error;
+          }
         }
 
         toast({
