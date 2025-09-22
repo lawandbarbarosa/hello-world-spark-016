@@ -18,14 +18,33 @@ import {
 
 interface FailureStats {
   totalEmails: number;
+  successfulEmails: number;
   failedEmails: number;
+  bouncedEmails: number;
+  rejectedEmails: number;
+  invalidAddressEmails: number;
+  blockedEmails: number;
+  spamEmails: number;
+  rateLimitedEmails: number;
+  authenticationErrors: number;
+  networkErrors: number;
+  domainErrors: number;
+  contentFilteredEmails: number;
+  unknownErrors: number;
   successRate: number;
   failureRate: number;
+  bounceRate: number;
+  rejectionRate: number;
   recentFailures: Array<{
     id: string;
     contact_email: string;
     campaign_name: string;
-    error_message: string;
+    status: string;
+    failure_category: string | null;
+    failure_reason: string | null;
+    bounce_type: string | null;
+    rejection_reason: string | null;
+    error_message: string | null;
     created_at: string;
   }>;
 }
@@ -38,9 +57,23 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
   const { user } = useAuth();
   const [stats, setStats] = useState<FailureStats>({
     totalEmails: 0,
+    successfulEmails: 0,
     failedEmails: 0,
+    bouncedEmails: 0,
+    rejectedEmails: 0,
+    invalidAddressEmails: 0,
+    blockedEmails: 0,
+    spamEmails: 0,
+    rateLimitedEmails: 0,
+    authenticationErrors: 0,
+    networkErrors: 0,
+    domainErrors: 0,
+    contentFilteredEmails: 0,
+    unknownErrors: 0,
     successRate: 0,
     failureRate: 0,
+    bounceRate: 0,
+    rejectionRate: 0,
     recentFailures: []
   });
   const [loading, setLoading] = useState(true);
@@ -55,77 +88,79 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
     try {
       setLoading(true);
 
-      // Get all campaigns for the user
-      const { data: campaigns, error: campaignError } = await supabase
-        .from('campaigns')
-        .select('id, name')
-        .eq('user_id', user?.id);
-
-      if (campaignError) {
-        console.error('Error fetching campaigns:', campaignError);
-        return;
-      }
-
-      const campaignIds = campaigns?.map(c => c.id) || [];
-
-      if (campaignIds.length === 0) {
-        setStats({
-          totalEmails: 0,
-          failedEmails: 0,
-          successRate: 0,
-          failureRate: 0,
-          recentFailures: []
+      // Get detailed failure statistics using the new database function
+      const { data: failureStats, error: statsError } = await supabase
+        .rpc('get_email_failure_stats', {
+          user_id_param: user?.id
         });
-        return;
-      }
 
-      // Get all email sends for user's campaigns
-      const { data: emailSends, error: emailSendsError } = await supabase
-        .from('email_sends')
-        .select(`
-          id,
-          status,
-          error_message,
-          created_at,
-          contacts!inner(email),
-          campaigns!inner(name)
-        `)
-        .in('campaign_id', campaignIds)
-        .order('created_at', { ascending: false });
-
-      if (emailSendsError) {
-        console.error('Error fetching email sends:', emailSendsError);
+      if (statsError) {
+        console.error('Error fetching failure stats:', statsError);
         toast({
           title: "Error",
-          description: "Failed to fetch email failure data",
+          description: "Failed to fetch email failure statistics",
           variant: "destructive",
         });
         return;
       }
 
-      const totalEmails = emailSends?.length || 0;
-      const failedEmails = emailSends?.filter(e => e.status === 'failed').length || 0;
-      const successRate = totalEmails > 0 ? Math.round(((totalEmails - failedEmails) / totalEmails) * 100) : 100;
-      const failureRate = totalEmails > 0 ? Math.round((failedEmails / totalEmails) * 100) : 0;
+      const stats = failureStats?.[0];
+      if (!stats) {
+        setStats({
+          totalEmails: 0,
+          successfulEmails: 0,
+          failedEmails: 0,
+          bouncedEmails: 0,
+          rejectedEmails: 0,
+          invalidAddressEmails: 0,
+          blockedEmails: 0,
+          spamEmails: 0,
+          rateLimitedEmails: 0,
+          authenticationErrors: 0,
+          networkErrors: 0,
+          domainErrors: 0,
+          contentFilteredEmails: 0,
+          unknownErrors: 0,
+          successRate: 0,
+          failureRate: 0,
+          bounceRate: 0,
+          rejectionRate: 0,
+          recentFailures: []
+        });
+        return;
+      }
 
-      // Get recent failures (last 10)
-      const recentFailures = emailSends
-        ?.filter(e => e.status === 'failed')
-        .slice(0, 10)
-        .map(email => ({
-          id: email.id,
-          contact_email: email.contacts?.email || 'Unknown',
-          campaign_name: email.campaigns?.name || 'Unknown Campaign',
-          error_message: email.error_message || 'Unknown error',
-          created_at: email.created_at
-        })) || [];
+      // Get recent failures by category
+      const { data: recentFailures, error: failuresError } = await supabase
+        .rpc('get_recent_failures_by_category', {
+          user_id_param: user?.id,
+          limit_count: 10
+        });
+
+      if (failuresError) {
+        console.error('Error fetching recent failures:', failuresError);
+      }
 
       setStats({
-        totalEmails,
-        failedEmails,
-        successRate,
-        failureRate,
-        recentFailures
+        totalEmails: Number(stats.total_emails) || 0,
+        successfulEmails: Number(stats.successful_emails) || 0,
+        failedEmails: Number(stats.failed_emails) || 0,
+        bouncedEmails: Number(stats.bounced_emails) || 0,
+        rejectedEmails: Number(stats.rejected_emails) || 0,
+        invalidAddressEmails: Number(stats.invalid_address_emails) || 0,
+        blockedEmails: Number(stats.blocked_emails) || 0,
+        spamEmails: Number(stats.spam_emails) || 0,
+        rateLimitedEmails: Number(stats.rate_limited_emails) || 0,
+        authenticationErrors: Number(stats.authentication_errors) || 0,
+        networkErrors: Number(stats.network_errors) || 0,
+        domainErrors: Number(stats.domain_errors) || 0,
+        contentFilteredEmails: Number(stats.content_filtered_emails) || 0,
+        unknownErrors: Number(stats.unknown_errors) || 0,
+        successRate: Number(stats.overall_failure_rate) ? 100 - Number(stats.overall_failure_rate) : 100,
+        failureRate: Number(stats.overall_failure_rate) || 0,
+        bounceRate: Number(stats.bounce_rate) || 0,
+        rejectionRate: Number(stats.rejection_rate) || 0,
+        recentFailures: recentFailures || []
       });
 
     } catch (error) {
@@ -159,6 +194,38 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
     if (rate <= 5) return "Good delivery rate";
     if (rate <= 15) return "Moderate failure rate - monitor closely";
     return "High failure rate - immediate attention needed";
+  };
+
+  const getFailureCategoryColor = (category: string | null) => {
+    switch (category) {
+      case 'invalid_address': return 'text-red-600';
+      case 'bounced': return 'text-orange-600';
+      case 'rejected': return 'text-yellow-600';
+      case 'blocked': return 'text-purple-600';
+      case 'spam': return 'text-pink-600';
+      case 'rate_limited': return 'text-blue-600';
+      case 'authentication': return 'text-indigo-600';
+      case 'network': return 'text-gray-600';
+      case 'domain_issue': return 'text-teal-600';
+      case 'content_filtered': return 'text-amber-600';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getFailureCategoryIcon = (category: string | null) => {
+    switch (category) {
+      case 'invalid_address': return '📧';
+      case 'bounced': return '↩️';
+      case 'rejected': return '❌';
+      case 'blocked': return '🚫';
+      case 'spam': return '📮';
+      case 'rate_limited': return '⏱️';
+      case 'authentication': return '🔐';
+      case 'network': return '🌐';
+      case 'domain_issue': return '🏠';
+      case 'content_filtered': return '🔍';
+      default: return '❓';
+    }
   };
 
   const handleRefresh = () => {
@@ -201,10 +268,10 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
           ) : (
             <div className="space-y-6">
               {/* Main Stats */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="text-center">
                   <div className="text-3xl font-bold text-foreground">{stats.failureRate}%</div>
-                  <div className="text-sm text-muted-foreground">Failure Rate</div>
+                  <div className="text-sm text-muted-foreground">Overall Failure Rate</div>
                   <Badge 
                     variant={getFailureRateBadge(stats.failureRate).variant}
                     className={`mt-2 ${getFailureRateBadge(stats.failureRate).className}`}
@@ -216,17 +283,113 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
                   <div className="text-3xl font-bold text-success">{stats.successRate}%</div>
                   <div className="text-sm text-muted-foreground">Success Rate</div>
                   <div className="text-xs text-muted-foreground mt-2">
-                    {stats.totalEmails - stats.failedEmails} of {stats.totalEmails} emails delivered
+                    {stats.successfulEmails} of {stats.totalEmails} emails delivered
                   </div>
                 </div>
                 <div className="text-center">
-                  <div className="text-3xl font-bold text-destructive">{stats.failedEmails}</div>
-                  <div className="text-sm text-muted-foreground">Failed Emails</div>
+                  <div className="text-3xl font-bold text-orange-600">{stats.bounceRate}%</div>
+                  <div className="text-sm text-muted-foreground">Bounce Rate</div>
                   <div className="text-xs text-muted-foreground mt-2">
-                    Out of {stats.totalEmails} total emails
+                    {stats.bouncedEmails} emails bounced
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-yellow-600">{stats.rejectionRate}%</div>
+                  <div className="text-sm text-muted-foreground">Rejection Rate</div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    {stats.rejectedEmails} emails rejected
                   </div>
                 </div>
               </div>
+
+              {/* Detailed Failure Breakdown */}
+              {stats.failedEmails > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-lg font-semibold text-foreground mb-4">Failure Breakdown</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {stats.invalidAddressEmails > 0 && (
+                      <div className="p-3 border border-red-200 rounded-lg bg-red-50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">📧</span>
+                          <span className="font-medium text-red-800">Invalid Address</span>
+                        </div>
+                        <div className="text-2xl font-bold text-red-600">{stats.invalidAddressEmails}</div>
+                        <div className="text-xs text-red-600">Wrong email format</div>
+                      </div>
+                    )}
+                    {stats.bouncedEmails > 0 && (
+                      <div className="p-3 border border-orange-200 rounded-lg bg-orange-50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">↩️</span>
+                          <span className="font-medium text-orange-800">Bounced</span>
+                        </div>
+                        <div className="text-2xl font-bold text-orange-600">{stats.bouncedEmails}</div>
+                        <div className="text-xs text-orange-600">Mailbox issues</div>
+                      </div>
+                    )}
+                    {stats.rejectedEmails > 0 && (
+                      <div className="p-3 border border-yellow-200 rounded-lg bg-yellow-50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">❌</span>
+                          <span className="font-medium text-yellow-800">Rejected</span>
+                        </div>
+                        <div className="text-2xl font-bold text-yellow-600">{stats.rejectedEmails}</div>
+                        <div className="text-xs text-yellow-600">Server rejection</div>
+                      </div>
+                    )}
+                    {stats.blockedEmails > 0 && (
+                      <div className="p-3 border border-purple-200 rounded-lg bg-purple-50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">🚫</span>
+                          <span className="font-medium text-purple-800">Blocked</span>
+                        </div>
+                        <div className="text-2xl font-bold text-purple-600">{stats.blockedEmails}</div>
+                        <div className="text-xs text-purple-600">IP/domain blocked</div>
+                      </div>
+                    )}
+                    {stats.spamEmails > 0 && (
+                      <div className="p-3 border border-pink-200 rounded-lg bg-pink-50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">📮</span>
+                          <span className="font-medium text-pink-800">Spam</span>
+                        </div>
+                        <div className="text-2xl font-bold text-pink-600">{stats.spamEmails}</div>
+                        <div className="text-xs text-pink-600">Marked as spam</div>
+                      </div>
+                    )}
+                    {stats.rateLimitedEmails > 0 && (
+                      <div className="p-3 border border-blue-200 rounded-lg bg-blue-50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">⏱️</span>
+                          <span className="font-medium text-blue-800">Rate Limited</span>
+                        </div>
+                        <div className="text-2xl font-bold text-blue-600">{stats.rateLimitedEmails}</div>
+                        <div className="text-xs text-blue-600">Quota exceeded</div>
+                      </div>
+                    )}
+                    {stats.authenticationErrors > 0 && (
+                      <div className="p-3 border border-indigo-200 rounded-lg bg-indigo-50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">🔐</span>
+                          <span className="font-medium text-indigo-800">Auth Error</span>
+                        </div>
+                        <div className="text-2xl font-bold text-indigo-600">{stats.authenticationErrors}</div>
+                        <div className="text-xs text-indigo-600">Credential issue</div>
+                      </div>
+                    )}
+                    {stats.networkErrors > 0 && (
+                      <div className="p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">🌐</span>
+                          <span className="font-medium text-gray-800">Network</span>
+                        </div>
+                        <div className="text-2xl font-bold text-gray-600">{stats.networkErrors}</div>
+                        <div className="text-xs text-gray-600">Connection issue</div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Visual Indicators */}
               <div className="space-y-4">
@@ -314,26 +477,41 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
                   key={failure.id}
                   className="p-4 border border-destructive/20 rounded-lg bg-destructive/5"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Mail className="w-4 h-4 text-destructive" />
-                        <span className="font-medium text-foreground">{failure.contact_email}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {failure.campaign_name}
-                        </Badge>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-lg">{getFailureCategoryIcon(failure.failure_category)}</span>
+                            <span className="font-medium text-foreground">{failure.contact_email}</span>
+                            <Badge variant="outline" className="text-xs">
+                              {failure.campaign_name}
+                            </Badge>
+                            {failure.failure_category && (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-xs ${getFailureCategoryColor(failure.failure_category)}`}
+                              >
+                                {failure.failure_category.replace('_', ' ')}
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-sm text-muted-foreground mb-2">
+                            <span className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {new Date(failure.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          {failure.failure_reason && (
+                            <div className="text-sm text-foreground bg-muted/50 p-2 rounded border mb-2">
+                              <strong>Reason:</strong> {failure.failure_reason}
+                            </div>
+                          )}
+                          {failure.error_message && (
+                            <div className="text-sm text-destructive bg-destructive/10 p-2 rounded border">
+                              <strong>Technical Error:</strong> {failure.error_message}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="text-sm text-muted-foreground mb-2">
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3 h-3" />
-                          {new Date(failure.created_at).toLocaleString()}
-                        </span>
-                      </div>
-                      <div className="text-sm text-destructive bg-destructive/10 p-2 rounded border">
-                        <strong>Error:</strong> {failure.error_message}
-                      </div>
-                    </div>
-                  </div>
                 </div>
               ))}
             </div>

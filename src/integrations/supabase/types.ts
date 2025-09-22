@@ -90,48 +90,60 @@ export type Database = {
       }
       email_sends: {
         Row: {
+          bounce_type: string | null
           campaign_id: string
           clicked_at: string | null
           contact_id: string
           created_at: string
           error_message: string | null
+          failure_category: string | null
+          failure_reason: string | null
           gmail_message_id: string | null
           gmail_synced: boolean | null
           gmail_synced_at: string | null
           id: string
           opened_at: string | null
+          rejection_reason: string | null
           sender_account_id: string
           sent_at: string | null
           sequence_id: string
           status: string | null
         }
         Insert: {
+          bounce_type?: string | null
           campaign_id: string
           clicked_at?: string | null
           contact_id: string
           created_at?: string
           error_message?: string | null
+          failure_category?: string | null
+          failure_reason?: string | null
           gmail_message_id?: string | null
           gmail_synced?: boolean | null
           gmail_synced_at?: string | null
           id?: string
           opened_at?: string | null
+          rejection_reason?: string | null
           sender_account_id: string
           sent_at?: string | null
           sequence_id: string
           status?: string | null
         }
         Update: {
+          bounce_type?: string | null
           campaign_id?: string
           clicked_at?: string | null
           contact_id?: string
           created_at?: string
           error_message?: string | null
+          failure_category?: string | null
+          failure_reason?: string | null
           gmail_message_id?: string | null
           gmail_synced?: boolean | null
           gmail_synced_at?: string | null
           id?: string
           opened_at?: string | null
+          rejection_reason?: string | null
           sender_account_id?: string
           sent_at?: string | null
           sequence_id?: string
@@ -625,6 +637,60 @@ export type Database = {
           content: string
           received_at: string
           message_id: string | null
+        }[]
+      }
+      categorize_email_failure: {
+        Args: { error_message_param: string; status_param?: string }
+        Returns: {
+          failure_category: string
+          failure_reason: string
+          bounce_type: string | null
+          rejection_reason: string | null
+        }[]
+      }
+      update_email_failure_details: {
+        Args: {
+          email_send_id_param: string
+          error_message_param: string
+          status_param?: string
+        }
+        Returns: undefined
+      }
+      get_email_failure_stats: {
+        Args: { user_id_param: string }
+        Returns: {
+          total_emails: number
+          successful_emails: number
+          failed_emails: number
+          bounced_emails: number
+          rejected_emails: number
+          invalid_address_emails: number
+          blocked_emails: number
+          spam_emails: number
+          rate_limited_emails: number
+          authentication_errors: number
+          network_errors: number
+          domain_errors: number
+          content_filtered_emails: number
+          unknown_errors: number
+          overall_failure_rate: number
+          bounce_rate: number
+          rejection_rate: number
+        }[]
+      }
+      get_recent_failures_by_category: {
+        Args: { user_id_param: string; limit_count?: number }
+        Returns: {
+          id: string
+          contact_email: string
+          campaign_name: string
+          status: string
+          failure_category: string | null
+          failure_reason: string | null
+          bounce_type: string | null
+          rejection_reason: string | null
+          error_message: string | null
+          created_at: string
         }[]
       }
     }

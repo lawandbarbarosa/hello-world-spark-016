@@ -479,14 +479,25 @@ const handler = async (req: Request): Promise<Response> => {
           console.error("Email send error for", contact.email, ":", emailResponse.error);
           emailsError++;
           
-          // Update the email send record with failed status
-          await supabase
-            .from("email_sends")
-            .update({
-              status: "failed",
-              error_message: JSON.stringify(emailResponse.error),
-            })
-            .eq("id", insertedEmailSend.id);
+          // Update the email send record with failed status and categorize the failure
+          const { error: updateError } = await supabase
+            .rpc('update_email_failure_details', {
+              email_send_id_param: insertedEmailSend.id,
+              error_message_param: JSON.stringify(emailResponse.error),
+              status_param: 'failed'
+            });
+
+          if (updateError) {
+            console.error('Error updating email failure details:', updateError);
+            // Fallback to basic update if categorization fails
+            await supabase
+              .from("email_sends")
+              .update({
+                status: "failed",
+                error_message: JSON.stringify(emailResponse.error),
+              })
+              .eq("id", insertedEmailSend.id);
+          }
         } else {
           console.log("Email sent successfully to", contact.email, "with ID:", emailResponse.data?.id);
           emailsSent++;

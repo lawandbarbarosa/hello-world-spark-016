@@ -53,15 +53,26 @@ const handler = async (req: Request): Promise<Response> => {
     if (emailResponse.error) {
       console.error("❌ Email send error:", emailResponse.error);
       
-      // Update email send record with error
+      // Update email send record with error and categorize the failure
       if (emailSendId) {
-        await supabase
-          .from("email_sends")
-          .update({
-            status: "failed",
-            error_message: JSON.stringify(emailResponse.error),
-          })
-          .eq("id", emailSendId);
+        const { error: updateError } = await supabase
+          .rpc('update_email_failure_details', {
+            email_send_id_param: emailSendId,
+            error_message_param: JSON.stringify(emailResponse.error),
+            status_param: 'failed'
+          });
+
+        if (updateError) {
+          console.error('Error updating email failure details:', updateError);
+          // Fallback to basic update if categorization fails
+          await supabase
+            .from("email_sends")
+            .update({
+              status: "failed",
+              error_message: JSON.stringify(emailResponse.error),
+            })
+            .eq("id", emailSendId);
+        }
       }
 
       return new Response(
