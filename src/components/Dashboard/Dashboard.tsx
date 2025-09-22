@@ -18,8 +18,10 @@ import {
   Pause,
   Play,
   Trash2,
-  Edit
+  Edit,
+  AlertTriangle
 } from "lucide-react";
+import EmailFailureRate from "./EmailFailureRate";
 
 interface DashboardProps {
   onNavigate?: (tab: string, campaignId?: string) => void;
@@ -39,8 +41,10 @@ interface DashboardStats {
   activeContacts: number;
   emailsSent: number;
   emailsOpened: number;
+  emailsFailed: number;
   responseRate: number; // This is now reply rate
   openRate: number; // Add separate open rate
+  failureRate: number; // Add failure rate
 }
 
 const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
@@ -51,8 +55,10 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
     activeContacts: 0,
     emailsSent: 0,
     emailsOpened: 0,
+    emailsFailed: 0,
     responseRate: 0,
     openRate: 0,
+    failureRate: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -103,19 +109,23 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
 
       const totalSent = emailSendsData?.filter(e => e.status === 'sent').length || 0;
       const totalOpened = emailSendsData?.filter(e => e.opened_at).length || 0;
+      const totalFailed = emailSendsData?.filter(e => e.status === 'failed').length || 0;
       const totalContacted = contactsData?.length || 0;
       const totalReplied = contactsData?.filter(c => c.replied_at).length || 0;
       
       const openRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
       const replyRate = totalContacted > 0 ? Math.round((totalReplied / totalContacted) * 100) : 0;
+      const failureRate = emailSendsData && emailSendsData.length > 0 ? Math.round((totalFailed / emailSendsData.length) * 100) : 0;
 
       setStats({
         totalCampaigns: campaignData?.length || 0,
         activeContacts: totalContacted,
         emailsSent: totalSent,
         emailsOpened: totalOpened,
+        emailsFailed: totalFailed,
         responseRate: replyRate, // This is now actually the reply rate
         openRate: openRate, // Add separate open rate
+        failureRate: failureRate, // Add failure rate
       });
 
     } catch (error) {
@@ -277,6 +287,13 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
       change: stats.responseRate > 0 ? `Contacts replied to your emails` : "No replies yet",
       icon: TrendingUp,
       color: "text-warning"
+    },
+    {
+      title: "Failure Rate",
+      value: `${stats.failureRate}%`,
+      change: stats.emailsFailed > 0 ? `${stats.emailsFailed} emails failed to send` : "All emails delivered successfully",
+      icon: AlertTriangle,
+      color: stats.failureRate === 0 ? "text-success" : stats.failureRate <= 5 ? "text-warning" : "text-destructive"
     }
   ];
 
@@ -345,7 +362,7 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         {/* Performance Stats - Separated with Distance */}
         <div className="mt-8">
           <h2 className="text-xl font-semibold text-foreground mb-4">Email Performance</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {performanceStats.map((stat, index) => {
               const Icon = stat.icon;
               return (
@@ -368,6 +385,9 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
           </div>
         </div>
       </div>
+
+      {/* Email Failure Rate Component */}
+      <EmailFailureRate onRefresh={fetchDashboardData} />
 
       {/* Recent Campaigns */}
       <Card className="shadow-md">
