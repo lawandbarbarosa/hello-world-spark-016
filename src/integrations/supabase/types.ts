@@ -48,6 +48,7 @@ export type Database = {
         Row: {
           campaign_id: string | null
           created_at: string
+          custom_fields: Json | null
           email: string
           first_name: string | null
           id: string
@@ -59,6 +60,7 @@ export type Database = {
         Insert: {
           campaign_id?: string | null
           created_at?: string
+          custom_fields?: Json | null
           email: string
           first_name?: string | null
           id?: string
@@ -70,6 +72,7 @@ export type Database = {
         Update: {
           campaign_id?: string | null
           created_at?: string
+          custom_fields?: Json | null
           email?: string
           first_name?: string | null
           id?: string
@@ -90,60 +93,39 @@ export type Database = {
       }
       email_sends: {
         Row: {
-          bounce_type: string | null
           campaign_id: string
           clicked_at: string | null
           contact_id: string
           created_at: string
           error_message: string | null
-          failure_category: string | null
-          failure_reason: string | null
-          gmail_message_id: string | null
-          gmail_synced: boolean | null
-          gmail_synced_at: string | null
           id: string
           opened_at: string | null
-          rejection_reason: string | null
           sender_account_id: string
           sent_at: string | null
           sequence_id: string
           status: string | null
         }
         Insert: {
-          bounce_type?: string | null
           campaign_id: string
           clicked_at?: string | null
           contact_id: string
           created_at?: string
           error_message?: string | null
-          failure_category?: string | null
-          failure_reason?: string | null
-          gmail_message_id?: string | null
-          gmail_synced?: boolean | null
-          gmail_synced_at?: string | null
           id?: string
           opened_at?: string | null
-          rejection_reason?: string | null
           sender_account_id: string
           sent_at?: string | null
           sequence_id: string
           status?: string | null
         }
         Update: {
-          bounce_type?: string | null
           campaign_id?: string
           clicked_at?: string | null
           contact_id?: string
           created_at?: string
           error_message?: string | null
-          failure_category?: string | null
-          failure_reason?: string | null
-          gmail_message_id?: string | null
-          gmail_synced?: boolean | null
-          gmail_synced_at?: string | null
           id?: string
           opened_at?: string | null
-          rejection_reason?: string | null
           sender_account_id?: string
           sent_at?: string | null
           sequence_id?: string
@@ -176,82 +158,6 @@ export type Database = {
             columns: ["sequence_id"]
             isOneToOne: false
             referencedRelation: "email_sequences"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      email_replies: {
-        Row: {
-          campaign_id: string
-          contact_id: string
-          content: string
-          created_at: string
-          email_send_id: string | null
-          from_email: string
-          id: string
-          in_reply_to: string | null
-          message_id: string | null
-          received_at: string
-          references: string | null
-          subject: string
-          to_email: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          campaign_id: string
-          contact_id: string
-          content: string
-          created_at?: string
-          email_send_id?: string | null
-          from_email: string
-          id?: string
-          in_reply_to?: string | null
-          message_id?: string | null
-          received_at?: string
-          references?: string | null
-          subject: string
-          to_email: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          campaign_id?: string
-          contact_id?: string
-          content?: string
-          created_at?: string
-          email_send_id?: string | null
-          from_email?: string
-          id?: string
-          in_reply_to?: string | null
-          message_id?: string | null
-          received_at?: string
-          references?: string | null
-          subject?: string
-          to_email?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "fk_email_replies_campaign_id"
-            columns: ["campaign_id"]
-            isOneToOne: false
-            referencedRelation: "campaigns"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_email_replies_contact_id"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "fk_email_replies_email_send_id"
-            columns: ["email_send_id"]
-            isOneToOne: false
-            referencedRelation: "email_sends"
             referencedColumns: ["id"]
           },
         ]
@@ -426,10 +332,6 @@ export type Database = {
           created_at: string
           daily_limit: number | null
           email: string
-          gmail_client_id: string | null
-          gmail_client_secret: string | null
-          gmail_refresh_token: string | null
-          gmail_sync_enabled: boolean | null
           id: string
           provider: string
           user_id: string
@@ -439,10 +341,6 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           email: string
-          gmail_client_id?: string | null
-          gmail_client_secret?: string | null
-          gmail_refresh_token?: string | null
-          gmail_sync_enabled?: boolean | null
           id?: string
           provider: string
           user_id: string
@@ -452,10 +350,6 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           email?: string
-          gmail_client_id?: string | null
-          gmail_client_secret?: string | null
-          gmail_refresh_token?: string | null
-          gmail_sync_enabled?: boolean | null
           id?: string
           provider?: string
           user_id?: string
@@ -589,109 +483,6 @@ export type Database = {
       mark_contact_replied: {
         Args: { campaign_id_param: string; contact_email: string }
         Returns: undefined
-      }
-      enable_gmail_sync: {
-        Args: { 
-          sender_email_param: string
-          refresh_token_param: string
-          client_id_param: string
-          client_secret_param: string
-        }
-        Returns: undefined
-      }
-      disable_gmail_sync: {
-        Args: { sender_email_param: string }
-        Returns: undefined
-      }
-      get_gmail_sync_stats: {
-        Args: { user_id_param: string }
-        Returns: {
-          total_emails: number
-          synced_emails: number
-          sync_rate: number
-          sender_accounts_with_sync: number
-        }[]
-      }
-      store_email_reply: {
-        Args: {
-          contact_email_param: string
-          campaign_id_param: string
-          from_email_param: string
-          to_email_param: string
-          subject_param: string
-          content_param: string
-          message_id_param?: string | null
-          in_reply_to_param?: string | null
-          references_param?: string | null
-          email_send_id_param?: string | null
-        }
-        Returns: string
-      }
-      get_contact_replies: {
-        Args: { contact_email_param: string; campaign_id_param: string }
-        Returns: {
-          id: string
-          from_email: string
-          to_email: string
-          subject: string
-          content: string
-          received_at: string
-          message_id: string | null
-        }[]
-      }
-      categorize_email_failure: {
-        Args: { error_message_param: string; status_param?: string }
-        Returns: {
-          failure_category: string
-          failure_reason: string
-          bounce_type: string | null
-          rejection_reason: string | null
-        }[]
-      }
-      update_email_failure_details: {
-        Args: {
-          email_send_id_param: string
-          error_message_param: string
-          status_param?: string
-        }
-        Returns: undefined
-      }
-      get_email_failure_stats: {
-        Args: { user_id_param: string }
-        Returns: {
-          total_emails: number
-          successful_emails: number
-          failed_emails: number
-          bounced_emails: number
-          rejected_emails: number
-          invalid_address_emails: number
-          blocked_emails: number
-          spam_emails: number
-          rate_limited_emails: number
-          authentication_errors: number
-          network_errors: number
-          domain_errors: number
-          content_filtered_emails: number
-          unknown_errors: number
-          overall_failure_rate: number
-          bounce_rate: number
-          rejection_rate: number
-        }[]
-      }
-      get_recent_failures_by_category: {
-        Args: { user_id_param: string; limit_count?: number }
-        Returns: {
-          id: string
-          contact_email: string
-          campaign_name: string
-          status: string
-          failure_category: string | null
-          failure_reason: string | null
-          bounce_type: string | null
-          rejection_reason: string | null
-          error_message: string | null
-          created_at: string
-        }[]
       }
     }
     Enums: {

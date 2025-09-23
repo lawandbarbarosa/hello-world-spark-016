@@ -379,7 +379,23 @@ const handler = async (req: Request): Promise<Response> => {
             return String(contact[field]);
           }
           
-          // Check case-insensitive match
+          // Check custom_fields JSON if it exists
+          if (contact.custom_fields && typeof contact.custom_fields === 'object') {
+            if (contact.custom_fields[field] !== undefined && contact.custom_fields[field] !== null) {
+              console.log(`Custom field match found for "${field}":`, contact.custom_fields[field]);
+              return String(contact.custom_fields[field]);
+            }
+            
+            // Check case-insensitive match in custom_fields
+            const fieldLower = field.toLowerCase();
+            const customFieldKey = Object.keys(contact.custom_fields).find(key => key.toLowerCase() === fieldLower);
+            if (customFieldKey && contact.custom_fields[customFieldKey] !== undefined && contact.custom_fields[customFieldKey] !== null) {
+              console.log(`Case-insensitive custom field match found for "${field}" -> "${customFieldKey}":`, contact.custom_fields[customFieldKey]);
+              return String(contact.custom_fields[customFieldKey]);
+            }
+          }
+          
+          // Check case-insensitive match in main contact object
           const fieldLower = field.toLowerCase();
           const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
           if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
@@ -399,7 +415,7 @@ const handler = async (req: Request): Promise<Response> => {
             return value;
           }
           if (field === 'company') {
-            const value = contact.company || fallbackTags.company;
+            const value = contact.company || (contact.custom_fields && contact.custom_fields.company) || fallbackTags.company;
             console.log(`Legacy company mapping for "${field}":`, value);
             return value;
           }
@@ -418,7 +434,23 @@ const handler = async (req: Request): Promise<Response> => {
             return String(contact[field]);
           }
           
-          // Check case-insensitive match
+          // Check custom_fields JSON if it exists
+          if (contact.custom_fields && typeof contact.custom_fields === 'object') {
+            if (contact.custom_fields[field] !== undefined && contact.custom_fields[field] !== null) {
+              console.log(`Custom field match found for "${field}":`, contact.custom_fields[field]);
+              return String(contact.custom_fields[field]);
+            }
+            
+            // Check case-insensitive match in custom_fields
+            const fieldLower = field.toLowerCase();
+            const customFieldKey = Object.keys(contact.custom_fields).find(key => key.toLowerCase() === fieldLower);
+            if (customFieldKey && contact.custom_fields[customFieldKey] !== undefined && contact.custom_fields[customFieldKey] !== null) {
+              console.log(`Case-insensitive custom field match found for "${field}" -> "${customFieldKey}":`, contact.custom_fields[customFieldKey]);
+              return String(contact.custom_fields[customFieldKey]);
+            }
+          }
+          
+          // Check case-insensitive match in main contact object
           const fieldLower = field.toLowerCase();
           const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
           if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
@@ -438,7 +470,7 @@ const handler = async (req: Request): Promise<Response> => {
             return value;
           }
           if (field === 'company') {
-            const value = contact.company || fallbackTags.company;
+            const value = contact.company || (contact.custom_fields && contact.custom_fields.company) || fallbackTags.company;
             console.log(`Legacy company mapping for "${field}":`, value);
             return value;
           }
