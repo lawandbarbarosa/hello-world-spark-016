@@ -10,7 +10,8 @@ import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import RichTextEditor from "@/components/ui/rich-text-editor";
-import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User, CalendarIcon } from "lucide-react";
+import EmailTemplateLibrary from "./EmailTemplateLibrary";
+import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User, CalendarIcon, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   const [selectedContactIndex, setSelectedContactIndex] = useState<number>(0);
   const [cursorPositions, setCursorPositions] = useState<Record<string, { subject: number; body: number }>>({});
   const [richTextMode, setRichTextMode] = useState<Record<string, boolean>>({});
+  const [showTemplateLibrary, setShowTemplateLibrary] = useState<boolean>(false);
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
@@ -110,6 +112,27 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
 
   const removeStep = (id: string) => {
     setSequence(sequence.filter(step => step.id !== id));
+  };
+
+  const handleSelectTemplate = (template: any) => {
+    if (template.template_data?.sequence) {
+      // Convert template data to our EmailStep format
+      const templateSequence = template.template_data.sequence.map((step: any) => ({
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 9), // Generate new ID
+        subject: step.subject || '',
+        body: step.body || '',
+        scheduledDate: step.scheduledDate ? new Date(step.scheduledDate) : undefined,
+        scheduledTime: step.scheduledTime || undefined
+      }));
+      
+      setSequence(templateSequence);
+      setShowTemplateLibrary(false);
+    }
+  };
+
+  const handleSaveTemplate = (templateData: any) => {
+    // Template saved successfully, no action needed here
+    console.log('Template saved:', templateData);
   };
 
   const replaceVariables = (text: string) => {
@@ -218,6 +241,14 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
             />
           </div>
           <Button 
+            variant="outline"
+            onClick={() => setShowTemplateLibrary(!showTemplateLibrary)}
+            className="flex items-center gap-2"
+          >
+            <BookOpen className="w-4 h-4" />
+            {showTemplateLibrary ? 'Hide Templates' : 'Templates'}
+          </Button>
+          <Button 
             onClick={addEmailStep}
             className="bg-gradient-primary text-primary-foreground hover:opacity-90"
           >
@@ -226,6 +257,20 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
           </Button>
         </div>
       </div>
+
+      {/* Template Library */}
+      {showTemplateLibrary && (
+        <Card className="bg-gradient-card border-border">
+          <CardContent className="pt-6">
+            <EmailTemplateLibrary
+              onSelectTemplate={handleSelectTemplate}
+              onSaveTemplate={handleSaveTemplate}
+              currentSequence={sequence}
+              currentCampaignName={data.name || ''}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Preview Controls */}
       {previewMode && data.contacts && data.contacts.length > 0 && (
