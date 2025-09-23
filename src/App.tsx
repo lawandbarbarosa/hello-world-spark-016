@@ -10,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { SessionPersistence } from "@/components/SessionPersistence";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import GmailCallback from "./pages/GmailCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,7 @@ const App = () => (
                       <Index />
                     </ProtectedRoute>
                   } />
+                  <Route path="/gmail-callback" element={<GmailCallback />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>
