@@ -74,7 +74,7 @@ const GmailSyncSettings = () => {
         return;
       }
 
-      setSenderAccounts(data || []);
+      setSenderAccounts((data || []) as any);
     } catch (error) {
       console.error('Error fetching sender accounts:', error);
       toast({
@@ -132,9 +132,16 @@ const GmailSyncSettings = () => {
         await handleGmailAuth(senderEmail);
       } else {
         // Disable Gmail sync
-        const { error } = await supabase.rpc('disable_gmail_sync', {
-          sender_email_param: senderEmail
-        });
+        try {
+          const account = senderAccounts.find(acc => acc.email === senderEmail);
+          if (!account) {
+            throw new Error('Account not found');
+          }
+
+          const { error } = await supabase.rpc('disable_gmail_sync' as any, {
+            sender_account_id_param: account.id,
+            user_id_param: user?.id
+          }) as { error: any };
 
         if (error) {
           // If function doesn't exist yet, just update the database directly
@@ -173,7 +180,7 @@ const GmailSyncSettings = () => {
         variant: "destructive",
       });
     } finally {
-      setUpdating(null);
+      setUpdating('');
     }
   };
 

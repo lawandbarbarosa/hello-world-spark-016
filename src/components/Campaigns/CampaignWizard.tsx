@@ -163,18 +163,34 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         return;
       }
 
-      // Create contacts with detailed logging
+      // Create contacts with detailed logging - preserve ALL CSV columns
       if (campaignData.contacts && campaignData.contacts.length > 0) {
         console.log("Creating contacts for campaign:", campaign.id, "Contacts data:", campaignData.contacts);
         
-        const contactsData = campaignData.contacts.map(contact => ({
-          campaign_id: campaign.id,
-          email: contact.email,
-          first_name: contact.firstName,
-          last_name: contact.lastName,
-          status: 'active',
-          user_id: user.id
-        }));
+        const contactsData = campaignData.contacts.map(contact => {
+          // Extract standard fields
+          const standardFields = {
+            campaign_id: campaign.id,
+            email: contact.email,
+            first_name: contact.firstName || contact.first_name,
+            last_name: contact.lastName || contact.last_name,
+            status: 'active',
+            user_id: user.id
+          };
+
+          // Extract ALL custom fields (everything except standard ones)
+          const customFields: Record<string, any> = {};
+          Object.keys(contact).forEach(key => {
+            if (!['email', 'firstName', 'lastName', 'first_name', 'last_name'].includes(key)) {
+              customFields[key] = contact[key];
+            }
+          });
+
+          return {
+            ...standardFields,
+            custom_fields: customFields
+          };
+        });
 
         console.log("Contacts data to insert:", contactsData);
 

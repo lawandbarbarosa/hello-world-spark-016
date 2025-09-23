@@ -64,13 +64,30 @@ const GmailCallback = () => {
 
       const tokenData = await tokenResponse.json();
       
+      // Get current user for account validation
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Find the sender account to get its ID
+      const { data: senderAccounts, error: accountError } = await supabase
+        .from('sender_accounts')
+        .select('id')
+        .eq('email', senderEmail)
+        .eq('user_id', user.id);
+
+      if (accountError || !senderAccounts || senderAccounts.length === 0) {
+        throw new Error('Sender account not found');
+      }
+
+      const senderAccountId = senderAccounts[0].id;
+
       // Save the refresh token to the sender account
-      const { error: updateError } = await supabase.rpc('enable_gmail_sync', {
-        sender_email_param: senderEmail,
-        refresh_token_param: tokenData.refresh_token,
-        client_id_param: process.env.REACT_APP_GMAIL_CLIENT_ID || '',
-        client_secret_param: process.env.REACT_APP_GMAIL_CLIENT_SECRET || ''
-      });
+      const { error: updateError } = await supabase.rpc('enable_gmail_sync' as any, {
+        sender_account_id_param: senderAccountId,
+        user_id_param: user?.id
+      }) as { error: any };
 
       if (updateError) {
         // If function doesn't exist yet, just update the database directly
@@ -78,12 +95,10 @@ const GmailCallback = () => {
           const { error: directUpdateError } = await supabase
             .from('sender_accounts')
             .update({ 
-              gmail_sync_enabled: true,
-              gmail_refresh_token: tokenData.refresh_token,
-              gmail_client_id: process.env.REACT_APP_GMAIL_CLIENT_ID || '',
-              gmail_client_secret: process.env.REACT_APP_GMAIL_CLIENT_SECRET || ''
+              gmail_sync_enabled: true
             })
-            .eq('email', senderEmail);
+            .eq('id', senderAccountId)
+            .eq('user_id', user.id);
 
           if (directUpdateError) {
             throw directUpdateError;

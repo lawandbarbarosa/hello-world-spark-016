@@ -283,17 +283,29 @@ const Inbox = () => {
   const fetchRepliesForContact = async (contactEmail: string, campaignId: string): Promise<EmailReply[]> => {
     try {
       const { data, error } = await supabase
-        .rpc('get_contact_replies', {
-          contact_email_param: contactEmail,
-          campaign_id_param: campaignId
-        });
+        .rpc('get_contact_replies' as any, {
+          user_id_param: user?.id
+        }) as { data: any, error: any };
 
       if (error) {
         console.error('Error fetching replies for contact:', contactEmail, error);
         return [];
       }
 
-      return data || [];
+      // Transform the data to match EmailReply interface and filter by contact email
+      const transformedReplies = (data || [])
+        .filter((reply: any) => reply.contact_email.toLowerCase() === contactEmail.toLowerCase())
+        .map((reply: any) => ({
+          id: reply.id,
+          from_email: reply.contact_email,
+          to_email: reply.sender_email,
+          subject: 'Re: Your Email',
+          content: reply.reply_content,
+          received_at: reply.replied_at,
+          processed: true
+        }));
+
+      return transformedReplies;
     } catch (error) {
       console.error('Error fetching replies for contact:', contactEmail, error);
       return [];

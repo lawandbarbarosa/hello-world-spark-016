@@ -90,9 +90,9 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
 
       // Try to get detailed failure statistics using the new database function
       const { data: failureStats, error: statsError } = await supabase
-        .rpc('get_email_failure_stats', {
+        .rpc('get_email_failure_stats' as any, {
           user_id_param: user?.id
-        });
+        }) as { data: any, error: any };
 
       if (statsError) {
         // If the function doesn't exist or any other error, fall back to basic stats
@@ -129,10 +129,10 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
 
       // Get recent failures by category
       const { data: recentFailures, error: failuresError } = await supabase
-        .rpc('get_recent_failures_by_category', {
+        .rpc('get_recent_failures_by_category' as any, {
           user_id_param: user?.id,
           limit_count: 10
-        });
+        }) as { data: any, error: any };
 
       if (failuresError) {
         console.log('Using basic recent failures (advanced functions not available)');
