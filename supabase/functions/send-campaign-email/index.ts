@@ -372,6 +372,7 @@ const handler = async (req: Request): Promise<Response> => {
         personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\}\}/g, (match, field) => {
           console.log(`Template replacement - Subject: Looking for field "${field}" in contact:`, contact);
           console.log(`Available contact fields:`, Object.keys(contact));
+          console.log(`Custom fields:`, contact.custom_fields);
           
           // Check direct field match first
           if (contact[field] !== undefined && contact[field] !== null) {
@@ -405,12 +406,12 @@ const handler = async (req: Request): Promise<Response> => {
           
           // Legacy field mappings for backward compatibility
           if (field === 'firstName' || field === 'first_name') {
-            const value = contact.first_name || contact.firstName || fallbackTags.first_name;
+            const value = contact.first_name || contact.firstName || (contact.custom_fields && contact.custom_fields.firstName) || (contact.custom_fields && contact.custom_fields.first_name) || fallbackTags.first_name;
             console.log(`Legacy firstName mapping for "${field}":`, value);
             return value;
           }
           if (field === 'lastName' || field === 'last_name') {
-            const value = contact.last_name || contact.lastName || '';
+            const value = contact.last_name || contact.lastName || (contact.custom_fields && contact.custom_fields.lastName) || (contact.custom_fields && contact.custom_fields.last_name) || '';
             console.log(`Legacy lastName mapping for "${field}":`, value);
             return value;
           }
@@ -418,6 +419,26 @@ const handler = async (req: Request): Promise<Response> => {
             const value = contact.company || (contact.custom_fields && contact.custom_fields.company) || fallbackTags.company;
             console.log(`Legacy company mapping for "${field}":`, value);
             return value;
+          }
+          
+          // Additional check: if custom_fields exists, try to find any field that might match
+          if (contact.custom_fields && typeof contact.custom_fields === 'object') {
+            // Try to find any field in custom_fields that might be what we're looking for
+            const allCustomKeys = Object.keys(contact.custom_fields);
+            console.log(`Checking all custom fields for "${field}":`, allCustomKeys);
+            
+            // Try exact match first
+            if (contact.custom_fields[field] !== undefined && contact.custom_fields[field] !== null) {
+              console.log(`Found exact match in custom_fields for "${field}":`, contact.custom_fields[field]);
+              return String(contact.custom_fields[field]);
+            }
+            
+            // Try case-insensitive match
+            const matchingKey = allCustomKeys.find(key => key.toLowerCase() === field.toLowerCase());
+            if (matchingKey && contact.custom_fields[matchingKey] !== undefined && contact.custom_fields[matchingKey] !== null) {
+              console.log(`Found case-insensitive match in custom_fields for "${field}" -> "${matchingKey}":`, contact.custom_fields[matchingKey]);
+              return String(contact.custom_fields[matchingKey]);
+            }
           }
           
           // Return the tag unchanged if no match found
@@ -427,6 +448,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         personalizedBody = personalizedBody.replace(/\{\{(\w+)\}\}/g, (match, field) => {
           console.log(`Template replacement - Body: Looking for field "${field}" in contact:`, contact);
+          console.log(`Custom fields:`, contact.custom_fields);
           
           // Check direct field match first
           if (contact[field] !== undefined && contact[field] !== null) {
@@ -460,12 +482,12 @@ const handler = async (req: Request): Promise<Response> => {
           
           // Legacy field mappings for backward compatibility
           if (field === 'firstName' || field === 'first_name') {
-            const value = contact.first_name || contact.firstName || fallbackTags.first_name;
+            const value = contact.first_name || contact.firstName || (contact.custom_fields && contact.custom_fields.firstName) || (contact.custom_fields && contact.custom_fields.first_name) || fallbackTags.first_name;
             console.log(`Legacy firstName mapping for "${field}":`, value);
             return value;
           }
           if (field === 'lastName' || field === 'last_name') {
-            const value = contact.last_name || contact.lastName || '';
+            const value = contact.last_name || contact.lastName || (contact.custom_fields && contact.custom_fields.lastName) || (contact.custom_fields && contact.custom_fields.last_name) || '';
             console.log(`Legacy lastName mapping for "${field}":`, value);
             return value;
           }
@@ -473,6 +495,26 @@ const handler = async (req: Request): Promise<Response> => {
             const value = contact.company || (contact.custom_fields && contact.custom_fields.company) || fallbackTags.company;
             console.log(`Legacy company mapping for "${field}":`, value);
             return value;
+          }
+          
+          // Additional check: if custom_fields exists, try to find any field that might match
+          if (contact.custom_fields && typeof contact.custom_fields === 'object') {
+            // Try to find any field in custom_fields that might be what we're looking for
+            const allCustomKeys = Object.keys(contact.custom_fields);
+            console.log(`Checking all custom fields for "${field}":`, allCustomKeys);
+            
+            // Try exact match first
+            if (contact.custom_fields[field] !== undefined && contact.custom_fields[field] !== null) {
+              console.log(`Found exact match in custom_fields for "${field}":`, contact.custom_fields[field]);
+              return String(contact.custom_fields[field]);
+            }
+            
+            // Try case-insensitive match
+            const matchingKey = allCustomKeys.find(key => key.toLowerCase() === field.toLowerCase());
+            if (matchingKey && contact.custom_fields[matchingKey] !== undefined && contact.custom_fields[matchingKey] !== null) {
+              console.log(`Found case-insensitive match in custom_fields for "${field}" -> "${matchingKey}":`, contact.custom_fields[matchingKey]);
+              return String(contact.custom_fields[matchingKey]);
+            }
           }
           
           // Return the tag unchanged if no match found
