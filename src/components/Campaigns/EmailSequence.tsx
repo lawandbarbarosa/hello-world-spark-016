@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import RichTextEditor from "@/components/ui/rich-text-editor";
 import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User, CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -41,6 +42,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   const [previewMode, setPreviewMode] = useState<boolean>(false);
   const [selectedContactIndex, setSelectedContactIndex] = useState<number>(0);
   const [cursorPositions, setCursorPositions] = useState<Record<string, { subject: number; body: number }>>({});
+  const [richTextMode, setRichTextMode] = useState<Record<string, boolean>>({});
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
@@ -124,6 +126,19 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     });
     
     console.log('Final result:', result);
+    return result;
+  };
+
+  const renderHtmlContent = (html: string) => {
+    if (!html) return '';
+    
+    // Replace variables in HTML content
+    let result = html;
+    availableMergeTags.forEach(tag => {
+      const regex = new RegExp(`{{${tag}}}`, 'g');
+      const value = previewContact[tag] || `[${tag}]`;
+      result = result.replace(regex, String(value));
+    });
     return result;
   };
 
@@ -282,9 +297,12 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                       To: {previewContact.email}
                     </div>
                     
-                    <div className="text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">
-                      {replaceVariables(step.body) || 'No content'}
-                    </div>
+                    <div 
+                      className="text-gray-900 dark:text-gray-100 leading-relaxed"
+                      dangerouslySetInnerHTML={{ 
+                        __html: renderHtmlContent(step.body) || 'No content' 
+                      }}
+                    />
                   </div>
                 </div>
               ))}
@@ -426,37 +444,83 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                    <div className="space-y-2">
                      <div className="flex items-center justify-between">
                        <Label className="text-sm font-medium text-foreground">Email Body</Label>
-                       <div className="flex items-center gap-1">
-                         <Tag className="w-3 h-3 text-muted-foreground" />
-                         <span className="text-xs text-muted-foreground">Drag tags or click to insert at cursor:</span>
+                       <div className="flex items-center gap-2">
+                         <span className="text-xs text-muted-foreground">
+                           {richTextMode[step.id] ? 'Rich Text' : 'Plain Text'}
+                         </span>
+                         <Switch
+                           checked={richTextMode[step.id] || false}
+                           onCheckedChange={(checked) => {
+                             setRichTextMode(prev => ({ ...prev, [step.id]: checked }));
+                             // If switching to plain text, convert HTML to plain text
+                             if (!checked && step.body) {
+                               const tempDiv = document.createElement('div');
+                               tempDiv.innerHTML = step.body;
+                               updateStep(step.id, { body: tempDiv.textContent || tempDiv.innerText || '' });
+                             }
+                           }}
+                         />
                        </div>
                      </div>
-                      <Textarea
-                        placeholder={`Hi {{firstName}},\n\nI hope this email finds you well. I noticed you're from {{city}} and work at {{company}} as a {{title}}.\n\nBest regards,\n[Your name]`}
-                        value={step.body}
-                        onChange={(e) => updateStep(step.id, { body: e.target.value })}
-                        onSelect={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
-                        onClick={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
-                        onKeyUp={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
-                        rows={8}
-                        className="bg-background border-border text-foreground font-mono text-sm"
-                        onDragOver={handleDragOver}
-                        onDrop={(e) => handleDrop(e, step.id, 'body')}
-                      />
-                     <div className="flex flex-wrap gap-1">
-                       {availableMergeTags.map(tag => (
-                         <Badge 
-                           key={tag}
-                           variant="outline" 
-                           className="text-xs cursor-move hover:bg-primary hover:text-primary-foreground transition-colors select-none"
-                           onClick={() => insertMergeTag(step.id, 'body', tag)}
-                           draggable
-                           onDragStart={(e) => handleDragStart(e, tag)}
-                         >
-                           {`{{${tag}}}`}
-                         </Badge>
-                       ))}
-                     </div>
+                     
+                     {richTextMode[step.id] ? (
+                       <RichTextEditor
+                         value={step.body}
+                         onChange={(value) => updateStep(step.id, { body: value })}
+                         placeholder="Hi {{firstName}},
+
+I hope this email finds you well. I noticed you're from {{city}} and work at {{company}} as a {{title}}.
+
+Best regards,
+[Your name]"
+                         mergeTags={availableMergeTags}
+                         onInsertMergeTag={(tag) => {
+                           console.log('Merge tag inserted:', tag);
+                         }}
+                         className="min-h-[300px]"
+                       />
+                     ) : (
+                       <div className="space-y-2">
+                         <div className="flex items-center justify-between">
+                           <div className="flex items-center gap-1">
+                             <Tag className="w-3 h-3 text-muted-foreground" />
+                             <span className="text-xs text-muted-foreground">Drag tags or click to insert at cursor:</span>
+                           </div>
+                         </div>
+                         <Textarea
+                           placeholder="Hi {{firstName}},
+
+I hope this email finds you well. I noticed you're from {{city}} and work at {{company}} as a {{title}}.
+
+Best regards,
+[Your name]"
+                           value={step.body}
+                           onChange={(e) => updateStep(step.id, { body: e.target.value })}
+                           onSelect={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                           onClick={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                           onKeyUp={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                           rows={8}
+                           className="bg-background border-border text-foreground font-mono text-sm"
+                           onDragOver={handleDragOver}
+                           onDrop={(e) => handleDrop(e, step.id, 'body')}
+                         />
+                         <div className="flex flex-wrap gap-1">
+                           {availableMergeTags.map(tag => (
+                             <Badge 
+                               key={tag}
+                               variant="outline" 
+                               className="text-xs cursor-move hover:bg-primary hover:text-primary-foreground transition-colors select-none"
+                               onClick={() => insertMergeTag(step.id, 'body', tag)}
+                               draggable
+                               onDragStart={(e) => handleDragStart(e, tag)}
+                             >
+                               {`{{${tag}}}`}
+                             </Badge>
+                           ))}
+                         </div>
+                       </div>
+                     )}
+                     
                      <div className="text-xs text-muted-foreground">
                        Available merge tags from your CSV: {availableMergeTags.join(', ')}
                      </div>
@@ -478,9 +542,12 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                         </div>
                         <div className="text-sm">
                           <strong className="text-foreground">Body:</strong>
-                          <div className="mt-1 p-2 bg-background rounded text-muted-foreground whitespace-pre-wrap text-xs">
-                            {replaceVariables(step.body) || 'No content'}
-                          </div>
+                          <div 
+                            className="mt-1 p-2 bg-background rounded text-muted-foreground text-xs"
+                            dangerouslySetInnerHTML={{ 
+                              __html: renderHtmlContent(step.body) || 'No content' 
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
