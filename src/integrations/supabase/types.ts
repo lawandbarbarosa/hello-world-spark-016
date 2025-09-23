@@ -332,6 +332,7 @@ export type Database = {
           created_at: string
           daily_limit: number | null
           email: string
+          gmail_sync_enabled: boolean | null
           id: string
           provider: string
           user_id: string
@@ -341,6 +342,7 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           email: string
+          gmail_sync_enabled?: boolean | null
           id?: string
           provider: string
           user_id: string
@@ -350,6 +352,7 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           email?: string
+          gmail_sync_enabled?: boolean | null
           id?: string
           provider?: string
           user_id?: string
@@ -476,6 +479,49 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      disable_gmail_sync: {
+        Args: { sender_account_id_param: string; user_id_param: string }
+        Returns: boolean
+      }
+      enable_gmail_sync: {
+        Args: { sender_account_id_param: string; user_id_param: string }
+        Returns: boolean
+      }
+      get_contact_replies: {
+        Args: { user_id_param: string }
+        Returns: {
+          campaign_name: string
+          contact_email: string
+          id: string
+          replied_at: string
+          reply_content: string
+          sender_email: string
+        }[]
+      }
+      get_email_failure_stats: {
+        Args: { user_id_param: string }
+        Returns: {
+          bounce_rate: number
+          failure_rate: number
+          spam_rate: number
+          total_failures: number
+        }[]
+      }
+      get_recent_failures_by_category: {
+        Args: { limit_count?: number; user_id_param: string }
+        Returns: {
+          bounce_type: string
+          campaign_name: string
+          contact_email: string
+          created_at: string
+          error_message: string
+          failure_category: string
+          failure_reason: string
+          id: string
+          rejection_reason: string
+          status: string
+        }[]
+      }
       is_valid_email: {
         Args: { email: string }
         Returns: boolean
