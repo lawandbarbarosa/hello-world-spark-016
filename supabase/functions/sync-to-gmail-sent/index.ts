@@ -28,7 +28,8 @@ const handler = async (req: Request): Promise<Response> => {
       emailSendId,
       senderEmail,
       recipientEmail,
-      subject: subject.substring(0, 50) + "..."
+      subject: subject.substring(0, 50) + "...",
+      bodyLength: body.length
     });
 
     // Initialize Supabase client
@@ -57,13 +58,35 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Check if Gmail sync is enabled for this sender
     if (!senderAccount.gmail_sync_enabled || !senderAccount.gmail_refresh_token) {
-      console.log("Gmail sync not enabled for sender:", senderEmail);
+      console.log("Gmail sync not enabled for sender:", senderEmail, {
+        gmail_sync_enabled: senderAccount.gmail_sync_enabled,
+        has_refresh_token: !!senderAccount.gmail_refresh_token
+      });
       return new Response(JSON.stringify({ 
         success: false,
         message: "Gmail sync not enabled for this sender account",
         senderEmail
       }), {
         status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check if Gmail API credentials are configured
+    const gmailClientId = Deno.env.get('GMAIL_CLIENT_ID');
+    const gmailClientSecret = Deno.env.get('GMAIL_CLIENT_SECRET');
+    
+    if (!gmailClientId || !gmailClientSecret) {
+      console.error("Gmail API credentials not configured:", {
+        hasClientId: !!gmailClientId,
+        hasClientSecret: !!gmailClientSecret
+      });
+      return new Response(JSON.stringify({ 
+        success: false,
+        message: "Gmail API credentials not configured",
+        senderEmail
+      }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -176,8 +199,8 @@ async function syncToGmail({ refreshToken, message, senderEmail }: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: Deno.env.get('GMAIL_CLIENT_ID') || '',
-        client_secret: Deno.env.get('GMAIL_CLIENT_SECRET') || '',
+        client_id: gmailClientId,
+        client_secret: gmailClientSecret,
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
       }),
@@ -192,22 +215,24 @@ async function syncToGmail({ refreshToken, message, senderEmail }: {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    // Send email to Gmail using Gmail API
-    const gmailResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    // Insert email into Gmail Sent folder using Gmail API
+    const gmailResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        raw: message
+        raw: message,
+        labelIds: ['SENT'] // Explicitly add to Sent folder
       }),
     });
 
     if (!gmailResponse.ok) {
       const error = await gmailResponse.text();
-      console.error('Failed to send to Gmail:', error);
-      return { success: false, error: 'Failed to send email to Gmail' };
+      console.error('Failed to insert email into Gmail Sent folder:', error);
+      console.error('Gmail API response status:', gmailResponse.status);
+      return { success: false, error: `Failed to insert email into Gmail Sent folder: ${error}` };
     }
 
     const gmailData = await gmailResponse.json();
