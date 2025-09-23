@@ -420,9 +420,10 @@ function personalizeText(text: string, contact: any, fallbackTags: any): string 
     return contact[field] || fallback;
   });
 
-  // Replace simple merge tags
+  // Replace simple merge tags with comprehensive field matching (same logic as initial emails)
   result = result.replace(/\{\{(\w+)\}\}/g, (match, field) => {
-    console.log(`Template replacement: Looking for field "${field}"`);
+    console.log(`Template replacement: Looking for field "${field}" in contact:`, contact);
+    console.log(`Available contact fields:`, Object.keys(contact));
     
     // Check direct field match first
     if (contact[field] !== undefined && contact[field] !== null) {
@@ -430,7 +431,23 @@ function personalizeText(text: string, contact: any, fallbackTags: any): string 
       return String(contact[field]);
     }
     
-    // Check case-insensitive match
+    // Check custom_fields JSON if it exists
+    if (contact.custom_fields && typeof contact.custom_fields === 'object') {
+      if (contact.custom_fields[field] !== undefined && contact.custom_fields[field] !== null) {
+        console.log(`Custom field match found for "${field}":`, contact.custom_fields[field]);
+        return String(contact.custom_fields[field]);
+      }
+      
+      // Check case-insensitive match in custom_fields
+      const fieldLower = field.toLowerCase();
+      const customFieldKey = Object.keys(contact.custom_fields).find(key => key.toLowerCase() === fieldLower);
+      if (customFieldKey && contact.custom_fields[customFieldKey] !== undefined && contact.custom_fields[customFieldKey] !== null) {
+        console.log(`Case-insensitive custom field match found for "${field}" -> "${customFieldKey}":`, contact.custom_fields[customFieldKey]);
+        return String(contact.custom_fields[customFieldKey]);
+      }
+    }
+    
+    // Check case-insensitive match in main contact object
     const fieldLower = field.toLowerCase();
     const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
     if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
@@ -438,7 +455,7 @@ function personalizeText(text: string, contact: any, fallbackTags: any): string 
       return String(contact[contactKey]);
     }
     
-    // Legacy field mappings
+    // Legacy field mappings for backward compatibility
     if (field === 'firstName' || field === 'first_name') {
       const value = contact.first_name || contact.firstName || fallbackTags.first_name;
       console.log(`Legacy firstName mapping for "${field}":`, value);
@@ -450,7 +467,7 @@ function personalizeText(text: string, contact: any, fallbackTags: any): string 
       return value;
     }
     if (field === 'company') {
-      const value = contact.company || fallbackTags.company;
+      const value = contact.company || (contact.custom_fields && contact.custom_fields.company) || fallbackTags.company;
       console.log(`Legacy company mapping for "${field}":`, value);
       return value;
     }
