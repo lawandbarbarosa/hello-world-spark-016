@@ -177,14 +177,17 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
     return "text-destructive";
   };
 
-  const getFailureRateBadge = (rate: number) => {
+  const getFailureRateBadge = (rate: number, totalEmails: number) => {
+    if (totalEmails === 0) return { variant: "secondary" as const, className: "bg-muted text-muted-foreground" };
     if (rate === 0) return { variant: "default" as const, className: "bg-success text-success-foreground" };
     if (rate <= 5) return { variant: "secondary" as const, className: "bg-warning text-warning-foreground" };
     if (rate <= 15) return { variant: "outline" as const, className: "bg-orange-100 text-orange-800 border-orange-300" };
     return { variant: "destructive" as const, className: "bg-destructive text-destructive-foreground" };
   };
 
-  const getFailureRateMessage = (rate: number) => {
+  const getFailureRateMessage = (rate: number, totalEmails: number) => {
+    // Don't show positive messages if no emails have been sent
+    if (totalEmails === 0) return "No emails sent yet";
     if (rate === 0) return "Perfect delivery rate!";
     if (rate <= 5) return "Good delivery rate";
     if (rate <= 15) return "Moderate failure rate - monitor closely";
@@ -399,10 +402,10 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
                   <div className="text-3xl font-bold text-foreground">{stats.failureRate}%</div>
                   <div className="text-sm text-muted-foreground">Overall Failure Rate</div>
                   <Badge 
-                    variant={getFailureRateBadge(stats.failureRate).variant}
-                    className={`mt-2 ${getFailureRateBadge(stats.failureRate).className}`}
+                    variant={getFailureRateBadge(stats.failureRate, stats.totalEmails).variant}
+                    className={`mt-2 ${getFailureRateBadge(stats.failureRate, stats.totalEmails).className}`}
                   >
-                    {getFailureRateMessage(stats.failureRate)}
+                    {getFailureRateMessage(stats.failureRate, stats.totalEmails)}
                   </Badge>
                 </div>
                 <div className="text-center">
@@ -555,12 +558,15 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
 
               {/* Status Message */}
               <div className={`p-4 rounded-lg border ${
+                stats.totalEmails === 0 ? 'bg-muted/10 border-muted/20' :
                 stats.failureRate === 0 ? 'bg-success/10 border-success/20' :
                 stats.failureRate <= 5 ? 'bg-warning/10 border-warning/20' :
                 stats.failureRate <= 15 ? 'bg-orange-100 border-orange-200' : 'bg-destructive/10 border-destructive/20'
               }`}>
                 <div className="flex items-center gap-2">
-                  {stats.failureRate === 0 ? (
+                  {stats.totalEmails === 0 ? (
+                    <Mail className="w-5 h-5 text-muted-foreground" />
+                  ) : stats.failureRate === 0 ? (
                     <CheckCircle className="w-5 h-5 text-success" />
                   ) : stats.failureRate <= 5 ? (
                     <Info className="w-5 h-5 text-warning" />
@@ -569,12 +575,13 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
                   )}
                   <div>
                     <div className="font-medium text-foreground">
-                      {stats.failureRate === 0 ? 'Excellent Delivery' :
+                      {stats.totalEmails === 0 ? 'No Email History' :
+                       stats.failureRate === 0 ? 'Excellent Delivery' :
                        stats.failureRate <= 5 ? 'Good Delivery' :
                        stats.failureRate <= 15 ? 'Monitor Delivery' : 'Delivery Issues Detected'}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {getFailureRateMessage(stats.failureRate)}
+                      {getFailureRateMessage(stats.failureRate, stats.totalEmails)}
                     </div>
                   </div>
                 </div>
