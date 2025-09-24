@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import CampaignDetails from "./CampaignDetails";
 import SenderAccounts from "./SenderAccounts";
 import ContactUpload from "./ContactUpload";
+import DetectEmails from "./DetectEmails";
 import EmailSequence from "./EmailSequence";
 import CampaignReview from "./CampaignReview";
 
@@ -27,6 +28,7 @@ interface CampaignData {
     company?: string;
     [key: string]: any;
   }>;
+  selectedColumns: string[];
   sequence: Array<{
     id: string;
     subject: string;
@@ -49,6 +51,7 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
     description: "",
     senderAccounts: [],
     contacts: [],
+    selectedColumns: ['email', 'firstName', 'lastName', 'company'],
     sequence: []
   });
 
@@ -56,6 +59,7 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
     { id: 'details', label: 'Campaign Details', component: CampaignDetails },
     { id: 'senders', label: 'Sender Accounts', component: SenderAccounts },
     { id: 'contacts', label: 'Upload Contacts', component: ContactUpload },
+    { id: 'detect', label: 'Detect Emails', component: DetectEmails },
     { id: 'sequence', label: 'Email Sequence', component: EmailSequence },
     { id: 'review', label: 'Review & Launch', component: CampaignReview },
   ];

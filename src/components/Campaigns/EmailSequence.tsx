@@ -31,6 +31,7 @@ interface CampaignData {
   description: string;
   senderAccounts: any[];
   contacts: any[];
+  selectedColumns?: string[];
   sequence: EmailStep[];
 }
 
@@ -49,11 +50,18 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
+    // Use selectedColumns if available, otherwise fallback to all contact keys
+    if (data.selectedColumns && data.selectedColumns.length > 0) {
+      const availableTags = data.selectedColumns.sort();
+      console.log('Available merge tags from selected columns:', availableTags);
+      return availableTags;
+    }
+    
     if (!data.contacts || data.contacts.length === 0) {
       return ['email']; // Only email is required
     }
     
-    // Get all unique keys from contacts
+    // Get all unique keys from contacts (fallback)
     const allKeys = new Set<string>();
     data.contacts.forEach(contact => {
       Object.keys(contact).forEach(key => {
