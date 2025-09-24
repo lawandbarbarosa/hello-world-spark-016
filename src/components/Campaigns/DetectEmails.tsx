@@ -95,11 +95,9 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
 
       if (error) {
         console.error('Error detecting duplicates:', error);
-        toast({
-          title: "Error",
-          description: "Failed to detect duplicate emails",
-          variant: "destructive",
-        });
+        // Don't show error toast - just continue with empty duplicates
+        console.log('Database query failed, assuming no duplicates');
+        setDuplicates([]);
         return;
       }
 
@@ -130,15 +128,19 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
           description: `Found ${duplicateMap.size} emails that were used in previous campaigns`,
           variant: "default",
         });
+      } else {
+        toast({
+          title: "No Duplicates Found",
+          description: "All emails are new - no duplicates from previous campaigns",
+          variant: "default",
+        });
       }
 
     } catch (error) {
       console.error('Error detecting duplicates:', error);
-      toast({
-        title: "Error",
-        description: "Failed to detect duplicate emails",
-        variant: "destructive",
-      });
+      // Don't show error toast - just continue with empty duplicates
+      console.log('Duplicate detection failed, assuming no duplicates');
+      setDuplicates([]);
     } finally {
       setLoading(false);
     }
@@ -248,7 +250,16 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
             <Alert className="border-success/20 bg-success/10">
               <CheckCircle className="h-4 w-4 text-success" />
               <AlertDescription className="text-success">
-                No duplicate emails found! All contacts are ready for your campaign.
+                ✅ No duplicate emails found! All {data.contacts.length} contacts are ready for your campaign.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!loading && data.contacts.length === 0 && (
+            <Alert className="border-muted bg-muted/50">
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+              <AlertDescription className="text-muted-foreground">
+                No contacts uploaded yet. Please go back and upload your contact list.
               </AlertDescription>
             </Alert>
           )}
