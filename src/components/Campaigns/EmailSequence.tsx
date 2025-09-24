@@ -11,6 +11,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import RichTextEditor from "@/components/ui/rich-text-editor";
 import EmailTemplateLibrary from "./EmailTemplateLibrary";
+import ErrorBoundary from "../ErrorBoundary";
 import { Plus, Mail, Trash2, Clock, ArrowDown, Eye, Tag, User, CalendarIcon, BookOpen } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -115,24 +116,35 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   };
 
   const handleSelectTemplate = (template: any) => {
-    if (template.template_data?.sequence) {
-      // Convert template data to our EmailStep format
-      const templateSequence = template.template_data.sequence.map((step: any) => ({
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9), // Generate new ID
-        subject: step.subject || '',
-        body: step.body || '',
-        scheduledDate: step.scheduledDate ? new Date(step.scheduledDate) : undefined,
-        scheduledTime: step.scheduledTime || undefined
-      }));
-      
-      setSequence(templateSequence);
-      setShowTemplateLibrary(false);
+    try {
+      if (template && template.template_data?.sequence && Array.isArray(template.template_data.sequence)) {
+        // Convert template data to our EmailStep format
+        const templateSequence = template.template_data.sequence.map((step: any) => ({
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9), // Generate new ID
+          subject: step.subject || '',
+          body: step.body || '',
+          scheduledDate: step.scheduledDate ? new Date(step.scheduledDate) : undefined,
+          scheduledTime: step.scheduledTime || undefined
+        }));
+        
+        setSequence(templateSequence);
+        setShowTemplateLibrary(false);
+      } else {
+        console.error('Invalid template data:', template);
+      }
+    } catch (error) {
+      console.error('Error selecting template:', error);
+      setShowTemplateLibrary(false); // Close the template library on error
     }
   };
 
   const handleSaveTemplate = (templateData: any) => {
-    // Template saved successfully, no action needed here
-    console.log('Template saved:', templateData);
+    try {
+      // Template saved successfully, no action needed here
+      console.log('Template saved:', templateData);
+    } catch (error) {
+      console.error('Error in save template callback:', error);
+    }
   };
 
   const replaceVariables = (text: string) => {
@@ -242,7 +254,15 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
           </div>
           <Button 
             variant="outline"
-            onClick={() => setShowTemplateLibrary(!showTemplateLibrary)}
+            onClick={() => {
+              try {
+                setShowTemplateLibrary(!showTemplateLibrary);
+              } catch (error) {
+                console.error('Error toggling template library:', error);
+                // If there's an error, just close it
+                setShowTemplateLibrary(false);
+              }
+            }}
             className="flex items-center gap-2"
           >
             <BookOpen className="w-4 h-4" />
@@ -262,12 +282,32 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
       {showTemplateLibrary && (
         <Card className="bg-gradient-card border-border">
           <CardContent className="pt-6">
-            <EmailTemplateLibrary
-              onSelectTemplate={handleSelectTemplate}
-              onSaveTemplate={handleSaveTemplate}
-              currentSequence={sequence}
-              currentCampaignName={data.name || ''}
-            />
+            <ErrorBoundary
+              fallback={
+                <div className="text-center py-8">
+                  <div className="text-muted-foreground mb-4">
+                    <BookOpen className="w-12 h-12 mx-auto mb-2" />
+                    <h3 className="text-lg font-semibold mb-2">Template Library Unavailable</h3>
+                    <p className="text-sm">
+                      The template library is currently unavailable. You can still create your email sequence manually.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowTemplateLibrary(false)}
+                  >
+                    Close Templates
+                  </Button>
+                </div>
+              }
+            >
+              <EmailTemplateLibrary
+                onSelectTemplate={handleSelectTemplate}
+                onSaveTemplate={handleSaveTemplate}
+                currentSequence={sequence}
+                currentCampaignName={data.name || ''}
+              />
+            </ErrorBoundary>
           </CardContent>
         </Card>
       )}
