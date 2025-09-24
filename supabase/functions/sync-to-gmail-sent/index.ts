@@ -199,8 +199,8 @@ async function syncToGmail({ refreshToken, message, senderEmail }: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: gmailClientId,
-        client_secret: gmailClientSecret,
+        client_id: Deno.env.get('GMAIL_CLIENT_ID')!,
+        client_secret: Deno.env.get('GMAIL_CLIENT_SECRET')!,
         refresh_token: refreshToken,
         grant_type: 'refresh_token',
       }),

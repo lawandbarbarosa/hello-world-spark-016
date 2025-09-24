@@ -132,16 +132,15 @@ const GmailSyncSettings = () => {
         await handleGmailAuth(senderEmail);
       } else {
         // Disable Gmail sync
-        try {
-          const account = senderAccounts.find(acc => acc.email === senderEmail);
-          if (!account) {
-            throw new Error('Account not found');
-          }
+        const account = senderAccounts.find(acc => acc.email === senderEmail);
+        if (!account) {
+          throw new Error('Account not found');
+        }
 
-          const { error } = await supabase.rpc('disable_gmail_sync' as any, {
-            sender_account_id_param: account.id,
-            user_id_param: user?.id
-          }) as { error: any };
+        const { error } = await supabase.rpc('disable_gmail_sync' as any, {
+          sender_account_id_param: account.id,
+          user_id_param: user?.id
+        }) as { error: any };
 
         if (error) {
           // If function doesn't exist yet, just update the database directly
@@ -180,7 +179,7 @@ const GmailSyncSettings = () => {
         variant: "destructive",
       });
     } finally {
-      setUpdating('');
+      setUpdating(null);
     }
   };
 
