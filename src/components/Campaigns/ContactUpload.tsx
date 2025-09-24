@@ -516,19 +516,28 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Financ
         </Button>
       </div>
 
-      {!showPreview && contacts.length === 0 && (
+      {!showPreview && (contacts.length === 0 || isUploading) && (
         <Card className="bg-gradient-card border-border border-dashed">
           <CardContent className="pt-12 pb-12">
             <div className="text-center">
               <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
-                <Upload className="w-8 h-8 text-primary" />
+                {isUploading ? (
+                  <div className="w-8 h-8 animate-spin rounded-full border-2 border-primary border-t-transparent"></div>
+                ) : (
+                  <Upload className="w-8 h-8 text-primary" />
+                )}
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">Upload Your Contact List</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                {isUploading ? "Uploading Your Contact List..." : "Upload Your Contact List"}
+              </h3>
               <p className="text-muted-foreground mb-6">
-                Choose a CSV or Excel file containing your email contacts
+                {isUploading 
+                  ? "Please wait while we process your CSV file and validate the data..."
+                  : "Choose a CSV or Excel file containing your email contacts"
+                }
               </p>
               
-              {uploadError && (
+              {uploadError && !isUploading && (
                 <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                   <div className="flex items-center gap-2 text-destructive">
                     <AlertCircle className="w-4 h-4" />
@@ -537,40 +546,33 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Financ
                 </div>
               )}
               
-              <div className="flex flex-col items-center gap-4">
-                <Button 
-                  disabled={isUploading}
-                  onClick={() => fileInputRef.current?.click()}
-                  className="bg-gradient-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
-                >
-                  {isUploading ? (
-                    <>
-                      <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <FileText className="w-4 h-4 mr-2" />
-                      Choose File
-                    </>
-                  )}
-                </Button>
-                
-                <div className="text-sm text-muted-foreground">
-                  <p>Supported formats: CSV, Excel (.xlsx, .xls)</p>
-                  <p>Required field: email</p>
-                  <p>ALL columns automatically imported - no mapping needed</p>
-                  <p>Maximum file size: 5MB</p>
+              {!isUploading && (
+                <div className="flex flex-col items-center gap-4">
+                  <Button 
+                    disabled={isUploading}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="bg-gradient-primary text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Choose File
+                  </Button>
+                  
+                  <div className="text-sm text-muted-foreground">
+                    <p>Supported formats: CSV, Excel (.xlsx, .xls)</p>
+                    <p>Required field: email</p>
+                    <p>ALL columns automatically imported - no mapping needed</p>
+                    <p>Maximum file size: 5MB</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
 
 
-      {/* Imported Contacts */}
-      {contacts.length > 0 && (
+      {/* Imported Contacts - Hidden during upload process */}
+      {contacts.length > 0 && !isUploading && (
         <Card className="bg-gradient-card border-border">
           <CardHeader>
             <CardTitle className="text-base text-foreground flex items-center justify-between">
@@ -678,8 +680,8 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Financ
         </Card>
       )}
 
-      {/* Invalid Emails Section */}
-      {invalidEmails.length > 0 && (
+      {/* Invalid Emails Section - Hidden during upload process */}
+      {invalidEmails.length > 0 && !isUploading && (
         <Card className="border-orange-200 dark:border-orange-900">
           <CardHeader>
             <div className="flex items-center justify-between">
