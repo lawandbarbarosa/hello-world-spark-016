@@ -85,7 +85,7 @@ const EmailTemplateLibrary: React.FC<EmailTemplateLibraryProps> = ({
   const fetchTemplates = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.rpc('get_user_email_templates');
+      const { data, error } = await supabase.rpc('get_user_email_templates' as any) as { data: any, error: any };
       
       if (error) {
         console.error('Error fetching templates:', error);
@@ -97,13 +97,15 @@ const EmailTemplateLibrary: React.FC<EmailTemplateLibraryProps> = ({
         return;
       }
 
-      setTemplates(data || []);
+      setTemplates((data || []) as EmailTemplate[]);
       
       // Extract unique tags
       const allTags = new Set<string>();
-      (data || []).forEach(template => {
-        template.tags?.forEach(tag => allTags.add(tag));
-      });
+      if (Array.isArray(data)) {
+        data.forEach((template: any) => {
+          template.tags?.forEach((tag: string) => allTags.add(tag));
+        });
+      }
       setAvailableTags(Array.from(allTags));
       
     } catch (error) {
@@ -138,7 +140,7 @@ const EmailTemplateLibrary: React.FC<EmailTemplateLibraryProps> = ({
     }
 
     try {
-      const { data, error } = await supabase.rpc('save_email_template', {
+      const { data, error } = await supabase.rpc('save_email_template' as any, {
         template_name_param: saveForm.name,
         template_description_param: saveForm.description,
         campaign_name_param: currentCampaignName,
@@ -182,7 +184,7 @@ const EmailTemplateLibrary: React.FC<EmailTemplateLibraryProps> = ({
     }
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('email_templates')
         .delete()
         .eq('id', templateId);
