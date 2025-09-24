@@ -9,7 +9,62 @@ import { Upload, FileText, Users, X, Download, Eye, AlertCircle, CheckCircle2 } 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { validateEmailList } from "@/utils/emailValidation";
-import * as XLSX from 'xlsx';
+
+// Simple email validation function
+const isValidEmail = (email: string): boolean => {
+  if (!email || typeof email !== 'string') return false;
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail) return false;
+  
+  // Basic email validation - must have @ and at least one dot after @
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(trimmedEmail);
+};
+
+// Lenient email validation that accepts more emails
+const validateEmailListLenient = (emails: string[]): {
+  validEmails: string[];
+  invalidEmails: { email: string; error: string }[];
+  statistics: {
+    total: number;
+    valid: number;
+    invalid: number;
+    duplicates: number;
+  };
+} => {
+  const validEmails: string[] = [];
+  const invalidEmails: { email: string; error: string }[] = [];
+  const seenEmails = new Set<string>();
+  let duplicateCount = 0;
+
+  for (const email of emails) {
+    if (isValidEmail(email)) {
+      const normalizedEmail = email.trim().toLowerCase();
+      if (seenEmails.has(normalizedEmail)) {
+        duplicateCount++;
+      } else {
+        seenEmails.add(normalizedEmail);
+        validEmails.push(normalizedEmail);
+      }
+    } else {
+      invalidEmails.push({
+        email: email,
+        error: 'Invalid email format'
+      });
+    }
+  }
+
+  return {
+    validEmails,
+    invalidEmails,
+    statistics: {
+      total: emails.length,
+      valid: validEmails.length,
+      invalid: invalidEmails.length,
+      duplicates: duplicateCount
+    }
+  };
+};
 
 interface Contact {
   email: string;
@@ -130,12 +185,15 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
 
       // Automatically import ALL columns without user interaction
       const mapping: Record<string, string> = {};
+      let emailColumnFound = false;
+      
       headers.forEach((header, index) => {
         const lowerHeader = (header ?? '').toString().toLowerCase().replace(/[^a-z]/g, '');
         
-        // Only auto-map email field as required
-        if (lowerHeader.includes('email') || lowerHeader === 'email') {
+        // More flexible email field detection
+        if (lowerHeader.includes('email') || lowerHeader === 'email' || lowerHeader === 'mail' || lowerHeader === 'e_mail') {
           mapping[index.toString()] = 'email';
+          emailColumnFound = true;
         } else {
           // For ALL other columns, use the original header name as the field name
           // Clean the header name to be a valid field name
@@ -150,6 +208,12 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
           }
         }
       });
+      
+      // If no email column was found, assume the first column is email
+      if (!emailColumnFound && headers.length > 0) {
+        console.log('No email column detected, using first column as email');
+        mapping['0'] = 'email';
+      }
       setFieldMapping(mapping);
 
       // Automatically import contacts without showing preview
@@ -171,8 +235,21 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       // Extract just the emails for validation
       const emails = potentialContacts.map(contact => contact.email).filter(email => email);
       
-      // Validate all emails using our comprehensive validation
-      const validationResult = validateEmailList(emails);
+      console.log('=== EMAIL VALIDATION DEBUG ===');
+      console.log('Potential contacts count:', potentialContacts.length);
+      console.log('First few potential contacts:', potentialContacts.slice(0, 3));
+      console.log('Extracted emails count:', emails.length);
+      console.log('First few emails:', emails.slice(0, 5));
+      console.log('Field mapping:', mapping);
+      console.log('CSV headers:', headers);
+      
+      // Use a more lenient validation for now
+      const validationResult = validateEmailListLenient(emails);
+      
+      console.log('Validation result:', validationResult);
+      console.log('Valid emails count:', validationResult.validEmails.length);
+      console.log('Invalid emails count:', validationResult.invalidEmails.length);
+      console.log('=== END DEBUG ===');
       
       // Create valid contacts only from emails that passed validation
       const validEmailSet = new Set(validationResult.validEmails);
