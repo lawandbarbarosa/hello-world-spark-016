@@ -8,63 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, Users, X, Download, Eye, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { validateEmailList } from "@/utils/emailValidation";
-
-// Simple email validation function
-const isValidEmail = (email: string): boolean => {
-  if (!email || typeof email !== 'string') return false;
-  const trimmedEmail = email.trim().toLowerCase();
-  if (!trimmedEmail) return false;
-  
-  // Basic email validation - must have @ and at least one dot after @
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(trimmedEmail);
-};
-
-// Lenient email validation that accepts more emails
-const validateEmailListLenient = (emails: string[]): {
-  validEmails: string[];
-  invalidEmails: { email: string; error: string }[];
-  statistics: {
-    total: number;
-    valid: number;
-    invalid: number;
-    duplicates: number;
-  };
-} => {
-  const validEmails: string[] = [];
-  const invalidEmails: { email: string; error: string }[] = [];
-  const seenEmails = new Set<string>();
-  let duplicateCount = 0;
-
-  for (const email of emails) {
-    if (isValidEmail(email)) {
-      const normalizedEmail = email.trim().toLowerCase();
-      if (seenEmails.has(normalizedEmail)) {
-        duplicateCount++;
-      } else {
-        seenEmails.add(normalizedEmail);
-        validEmails.push(normalizedEmail);
-      }
-    } else {
-      invalidEmails.push({
-        email: email,
-        error: 'Invalid email format'
-      });
-    }
-  }
-
-  return {
-    validEmails,
-    invalidEmails,
-    statistics: {
-      total: emails.length,
-      valid: validEmails.length,
-      invalid: invalidEmails.length,
-      duplicates: duplicateCount
-    }
-  };
-};
 
 interface Contact {
   email: string;
@@ -190,8 +133,11 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       headers.forEach((header, index) => {
         const lowerHeader = (header ?? '').toString().toLowerCase().replace(/[^a-z]/g, '');
         
-        // More flexible email field detection
-        if (lowerHeader.includes('email') || lowerHeader === 'email' || lowerHeader === 'mail' || lowerHeader === 'e_mail') {
+        // Very flexible email field detection - look for any email-related terms
+        if (lowerHeader.includes('email') || lowerHeader === 'email' || 
+            lowerHeader === 'mail' || lowerHeader === 'e_mail' || 
+            lowerHeader.includes('mail') || lowerHeader === 'address' ||
+            lowerHeader === 'contact' || lowerHeader === 'person') {
           mapping[index.toString()] = 'email';
           emailColumnFound = true;
         } else {
@@ -209,10 +155,28 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         }
       });
       
-      // If no email column was found, assume the first column is email
+      // If still no email column found, try to find a column that looks like emails
       if (!emailColumnFound && headers.length > 0) {
-        console.log('No email column detected, using first column as email');
-        mapping['0'] = 'email';
+        // Check if any column contains @ symbols (likely email column)
+        let emailIndex = -1;
+        for (let i = 0; i < validData.length && emailIndex === -1; i++) {
+          for (let j = 0; j < validData[i].length; j++) {
+            if (validData[i][j] && validData[i][j].includes('@')) {
+              emailIndex = j;
+              break;
+            }
+          }
+        }
+        
+        if (emailIndex !== -1) {
+          console.log(`Found email column at index ${emailIndex} by detecting @ symbols`);
+          mapping[emailIndex.toString()] = 'email';
+          emailColumnFound = true;
+        } else {
+          // Last resort: use first column as email
+          console.log('No email column detected, using first column as email');
+          mapping['0'] = 'email';
+        }
       }
       setFieldMapping(mapping);
 
@@ -232,37 +196,20 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         return contact;
       });
 
-      // Extract just the emails for validation
-      const emails = potentialContacts.map(contact => contact.email).filter(email => email);
-      
-      console.log('=== EMAIL VALIDATION DEBUG ===');
-      console.log('Potential contacts count:', potentialContacts.length);
-      console.log('First few potential contacts:', potentialContacts.slice(0, 3));
-      console.log('Extracted emails count:', emails.length);
-      console.log('First few emails:', emails.slice(0, 5));
+      // Import ALL contacts without any validation - no filtering!
+      console.log('=== IMPORTING ALL CONTACTS ===');
+      console.log('Total contacts to import:', potentialContacts.length);
+      console.log('First few contacts:', potentialContacts.slice(0, 3));
       console.log('Field mapping:', mapping);
       console.log('CSV headers:', headers);
       
-      // Use a more lenient validation for now
-      const validationResult = validateEmailListLenient(emails);
+      // Import ALL contacts without any filtering whatsoever
+      const allContacts = potentialContacts;
       
-      console.log('Validation result:', validationResult);
-      console.log('Valid emails count:', validationResult.validEmails.length);
-      console.log('Invalid emails count:', validationResult.invalidEmails.length);
-      console.log('=== END DEBUG ===');
-      
-      // Create valid contacts only from emails that passed validation
-      const validEmailSet = new Set(validationResult.validEmails);
-      const validContacts = potentialContacts.filter(contact => 
-        contact.email && validEmailSet.has(contact.email.toLowerCase())
-      );
-
-      // Invalid emails are silently filtered out - no UI display needed
-
-      if (validContacts.length === 0) {
+      if (allContacts.length === 0) {
         toast({
-          title: "No valid contacts found",
-          description: "Please check your CSV file contains valid email addresses",
+          title: "No contacts found",
+          description: "Please check your CSV file contains data",
           variant: "destructive",
         });
         setIsUploading(false);
@@ -270,21 +217,15 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         return false;
       }
 
-      console.log('ContactUpload - Setting contacts:', validContacts);
-      console.log('ContactUpload - First valid contact:', validContacts[0]);
-      setContacts(validContacts);
+      console.log('ContactUpload - Setting all contacts:', allContacts.length);
+      setContacts(allContacts);
       setShowPreview(false);
       
-      // Simple success message - only show valid contacts count
+      // Success message - show all imported contacts
       toast({
         title: "Contacts imported successfully",
-        description: `Imported ${validContacts.length} contact${validContacts.length > 1 ? 's' : ''}`,
+        description: `Imported ${allContacts.length} contact${allContacts.length > 1 ? 's' : ''}`,
       });
-
-      // Silently handle invalid emails without showing validation errors to user
-      if (validationResult.statistics.invalid > 0) {
-        console.log('Invalid emails detected and filtered out:', validationResult.invalidEmails);
-      }
 
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
