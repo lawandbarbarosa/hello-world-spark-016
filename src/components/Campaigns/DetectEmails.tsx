@@ -55,7 +55,7 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
   const [duplicates, setDuplicates] = useState<DuplicateEmail[]>([]);
   const [removedDuplicates, setRemovedDuplicates] = useState<Set<string>>(new Set());
   const [showDetails, setShowDetails] = useState(false);
-  const [selectedColumns, setSelectedColumns] = useState<string[]>(['email', 'firstName', 'lastName', 'company']);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(['email']);
 
   // Get all available columns from contacts
   const availableColumns = data.contacts.length > 0 

@@ -184,12 +184,22 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       const potentialContacts: Contact[] = validData.map(row => {
         const contact: Contact = { email: '' };
         
+        // First, set the email field from mapping
         Object.entries(mapping).forEach(([csvIndex, field]) => {
-          if (field && row[parseInt(csvIndex)]) {
+          if (field === 'email' && row[parseInt(csvIndex)]) {
             const value = row[parseInt(csvIndex)].trim();
             if (value) {
               contact[field] = value;
             }
+          }
+        });
+        
+        // Then, preserve ALL original column names from CSV headers
+        headers.forEach((header, index) => {
+          if (row[index] && row[index].trim()) {
+            // Use original header name as the field name
+            const fieldName = header.trim();
+            contact[fieldName] = row[index].trim();
           }
         });
         
@@ -450,10 +460,10 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
   };
 
   const downloadSampleCSV = () => {
-    const sampleData = `email,firstName,lastName,company,phone,title,department,city,country,industry,website,notes
-john@example.com,John,Doe,Example Corp,+1-555-0123,Manager,Marketing,New York,USA,Technology,example.com,Interested in our services
-jane@sample.com,Jane,Smith,Sample Inc,+1-555-0124,Director,Sales,Los Angeles,USA,Healthcare,sample.com,Previous customer
-mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Finance,test.org,Potential partnership`;
+    const sampleData = `email,full_name,company,phone,title,department,city,country,industry,website,notes
+john@example.com,John Doe,Example Corp,+1-555-0123,Manager,Marketing,New York,USA,Technology,example.com,Interested in our services
+jane@sample.com,Jane Smith,Sample Inc,+1-555-0124,Director,Sales,Los Angeles,USA,Healthcare,sample.com,Previous customer
+mike@test.org,Mike Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Finance,test.org,Potential partnership`;
     
     const blob = new Blob([sampleData], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
@@ -564,38 +574,25 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Financ
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-foreground">Email</TableHead>
-                    <TableHead className="text-foreground">First Name</TableHead>
-                    <TableHead className="text-foreground">Last Name</TableHead>
-                    <TableHead className="text-foreground">Company</TableHead>
-                    {/* Dynamically add headers for custom fields */}
-                    {contacts.length > 0 && Object.keys(contacts[0])
-                      .filter(key => !['email', 'firstName', 'lastName', 'company'].includes(key))
-                      .map(key => (
-                        <TableHead key={key} className="text-foreground capitalize">
-                          {key.replace(/_/g, ' ')}
-                        </TableHead>
-                      ))
-                    }
+                    {/* Dynamically show all actual columns from CSV */}
+                    {contacts.length > 0 && Object.keys(contacts[0]).map(key => (
+                      <TableHead key={key} className="text-foreground capitalize">
+                        {key === 'email' ? 'Email' : 
+                         key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </TableHead>
+                    ))}
                     <TableHead className="text-foreground">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {contacts.slice(0, 10).map((contact, index) => (
                     <TableRow key={index}>
-                      <TableCell className="text-foreground">{contact.email}</TableCell>
-                      <TableCell className="text-foreground">{contact.firstName || '-'}</TableCell>
-                      <TableCell className="text-foreground">{contact.lastName || '-'}</TableCell>
-                      <TableCell className="text-foreground">{contact.company || '-'}</TableCell>
-                      {/* Dynamically add cells for custom fields */}
-                      {Object.keys(contact)
-                        .filter(key => !['email', 'firstName', 'lastName', 'company'].includes(key))
-                        .map(key => (
-                          <TableCell key={key} className="text-foreground">
-                            {contact[key] || '-'}
-                          </TableCell>
-                        ))
-                      }
+                      {/* Dynamically show all actual columns from CSV */}
+                      {Object.keys(contact).map(key => (
+                        <TableCell key={key} className="text-foreground">
+                          {contact[key] || '-'}
+                        </TableCell>
+                      ))}
                       <TableCell>
                         <Button 
                           variant="ghost" 
@@ -623,23 +620,12 @@ mike@test.org,Mike,Johnson,Test LLC,+1-555-0125,CEO,Executive,Houston,USA,Financ
               <div className="mt-4 p-3 bg-muted/50 rounded-lg">
                 <h4 className="text-sm font-medium text-foreground mb-2">Imported Fields:</h4>
                 <div className="flex flex-wrap gap-2">
-                  {['email', 'firstName', 'lastName', 'company'].map(field => (
-                    contacts[0][field] !== undefined && (
-                      <Badge key={field} variant="secondary" className="text-xs">
-                        {field === 'firstName' ? 'First Name' : 
-                         field === 'lastName' ? 'Last Name' : 
-                         field.charAt(0).toUpperCase() + field.slice(1)}
-                      </Badge>
-                    )
+                  {Object.keys(contacts[0]).map(key => (
+                    <Badge key={key} variant="secondary" className="text-xs">
+                      {key === 'email' ? 'Email' : 
+                       key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </Badge>
                   ))}
-                  {Object.keys(contacts[0])
-                    .filter(key => !['email', 'firstName', 'lastName', 'company'].includes(key))
-                    .map(key => (
-                      <Badge key={key} variant="outline" className="text-xs">
-                        {key.replace(/_/g, ' ')}
-                      </Badge>
-                    ))
-                  }
                 </div>
               </div>
             )}

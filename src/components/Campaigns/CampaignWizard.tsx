@@ -51,7 +51,7 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
     description: "",
     senderAccounts: [],
     contacts: [],
-    selectedColumns: ['email', 'firstName', 'lastName', 'company'],
+    selectedColumns: ['email'],
     sequence: []
   });
 
