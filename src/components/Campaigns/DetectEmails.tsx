@@ -81,15 +81,19 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
         .from('email_sends')
         .select(`
           id,
-          contact_email,
           created_at,
+          contacts!inner(
+            email,
+            first_name,
+            last_name
+          ),
           campaigns!inner(
             id,
             name,
             user_id
           )
         `)
-        .in('contact_email', currentEmails)
+        .in('contacts.email', currentEmails)
         .eq('campaigns.user_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -105,13 +109,13 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
       const duplicateMap = new Map<string, DuplicateEmail>();
       
       emailSends?.forEach(send => {
-        const email = send.contact_email.toLowerCase();
-        if (currentEmails.includes(email) && !duplicateMap.has(email)) {
+        const email = send.contacts?.email?.toLowerCase();
+        if (email && currentEmails.includes(email) && !duplicateMap.has(email)) {
           const originalContact = data.contacts.find(c => c.email.toLowerCase() === email);
           duplicateMap.set(email, {
-            email: send.contact_email,
-            firstName: originalContact?.firstName,
-            lastName: originalContact?.lastName,
+            email: send.contacts.email,
+            firstName: originalContact?.firstName || send.contacts.first_name,
+            lastName: originalContact?.lastName || send.contacts.last_name,
             company: originalContact?.company,
             campaignName: send.campaigns?.name || 'Unknown Campaign',
             campaignId: send.campaigns?.id || '',
