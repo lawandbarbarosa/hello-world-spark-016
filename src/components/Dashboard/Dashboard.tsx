@@ -90,6 +90,8 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
       }
 
       setCampaigns(campaignData || []);
+      console.log('📊 Dashboard: Found campaigns:', campaignData?.length || 0);
+      console.log('📊 Dashboard: Campaign IDs:', campaignData?.map(c => c.id) || []);
 
       // Fetch campaign statistics
       const { data: contactsData, error: contactsError } = await supabase
@@ -100,12 +102,15 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
 
       const { data: emailSendsData, error: emailSendsError } = await supabase
         .from('email_sends')
-        .select('id, status, opened_at')
+        .select('id, status, opened_at, campaign_id')
         .in('campaign_id', campaignData?.map(c => c.id) || []);
 
       if (contactsError || emailSendsError) {
         console.error('Error fetching stats:', { contactsError, emailSendsError });
       }
+
+      console.log('📊 Dashboard: Email sends data:', emailSendsData?.length || 0);
+      console.log('📊 Dashboard: Email sends details:', emailSendsData);
 
       const totalSent = emailSendsData?.filter(e => e.status === 'sent').length || 0;
       const totalOpened = emailSendsData?.filter(e => e.opened_at).length || 0;
