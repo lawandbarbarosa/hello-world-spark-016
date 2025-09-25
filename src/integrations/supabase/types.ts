@@ -91,6 +91,60 @@ export type Database = {
           },
         ]
       }
+      email_replies: {
+        Row: {
+          campaign_id: string
+          contact_id: string
+          content: string
+          created_at: string
+          email_send_id: string | null
+          from_email: string
+          id: string
+          in_reply_to: string | null
+          message_id: string | null
+          received_at: string
+          reference_headers: string | null
+          subject: string
+          to_email: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          contact_id: string
+          content: string
+          created_at?: string
+          email_send_id?: string | null
+          from_email: string
+          id?: string
+          in_reply_to?: string | null
+          message_id?: string | null
+          received_at?: string
+          reference_headers?: string | null
+          subject: string
+          to_email: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string
+          content?: string
+          created_at?: string
+          email_send_id?: string | null
+          from_email?: string
+          id?: string
+          in_reply_to?: string | null
+          message_id?: string | null
+          received_at?: string
+          reference_headers?: string | null
+          subject?: string
+          to_email?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       email_sends: {
         Row: {
           campaign_id: string
@@ -529,6 +583,21 @@ export type Database = {
       mark_contact_replied: {
         Args: { campaign_id_param: string; contact_email: string }
         Returns: undefined
+      }
+      store_email_reply: {
+        Args: {
+          campaign_id_param: string
+          contact_email_param: string
+          content_param: string
+          email_send_id_param?: string
+          from_email_param: string
+          in_reply_to_param?: string
+          message_id_param?: string
+          references_param?: string
+          subject_param: string
+          to_email_param: string
+        }
+        Returns: string
       }
     }
     Enums: {

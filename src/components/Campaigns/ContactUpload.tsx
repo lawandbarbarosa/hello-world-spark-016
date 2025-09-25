@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, Users, X, Download, Eye, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import * as XLSX from 'xlsx';
 
 interface Contact {
   email: string;

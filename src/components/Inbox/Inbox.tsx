@@ -282,28 +282,38 @@ const Inbox = () => {
 
   const fetchRepliesForContact = async (contactEmail: string, campaignId: string): Promise<EmailReply[]> => {
     try {
+      // Fetch replies directly from the email_replies table
       const { data, error } = await supabase
-        .rpc('get_contact_replies' as any, {
-          user_id_param: user?.id
-        }) as { data: any, error: any };
+        .from('email_replies')
+        .select(`
+          id,
+          from_email,
+          to_email,
+          subject,
+          content,
+          received_at,
+          message_id
+        `)
+        .eq('user_id', user?.id)
+        .eq('campaign_id', campaignId)
+        .ilike('from_email', contactEmail)
+        .order('received_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching replies for contact:', contactEmail, error);
         return [];
       }
 
-      // Transform the data to match EmailReply interface and filter by contact email
-      const transformedReplies = (data || [])
-        .filter((reply: any) => reply.contact_email.toLowerCase() === contactEmail.toLowerCase())
-        .map((reply: any) => ({
-          id: reply.id,
-          from_email: reply.contact_email,
-          to_email: reply.sender_email,
-          subject: 'Re: Your Email',
-          content: reply.reply_content,
-          received_at: reply.replied_at,
-          processed: true
-        }));
+      // Transform the data to match EmailReply interface
+      const transformedReplies = (data || []).map((reply: any) => ({
+        id: reply.id,
+        from_email: reply.from_email,
+        to_email: reply.to_email,
+        subject: reply.subject,
+        content: reply.content,
+        received_at: reply.received_at,
+        message_id: reply.message_id
+      }));
 
       return transformedReplies;
     } catch (error) {
