@@ -17,7 +17,7 @@ WITH CHECK (
     AND campaigns.user_id = auth.uid()
   ))
   OR
-  -- Allow direct emails (campaign_id is null)
+  -- Allow direct emails (campaign_id is null) - no additional checks needed
   (campaign_id IS NULL)
 );
 
