@@ -560,14 +560,23 @@ const handler = async (req: Request): Promise<Response> => {
         const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
         const emailBodyWithTracking = finalBody.replace(/\n/g, '<br>') + trackingPixel;
 
+        // Generate unique Message-ID for reply tracking
+        const messageId = `<${insertedEmailSend.id}@${currentSender.email.split('@')[1]}>`;
+        
         // Send email using Resend with current sender
         console.log(`Attempting to send email to ${contact.email} from ${currentSender.email} (${currentSender.remainingCapacity} remaining capacity)`);
+        console.log(`Generated Message-ID: ${messageId}`);
         
         const emailResponse = await resend.emails.send({
           from: `${currentSender.email}`,
           to: [contact.email],
           subject: personalizedSubject,
           html: emailBodyWithTracking,
+          headers: {
+            'Message-ID': messageId,
+            'X-Campaign-ID': campaignId,
+            'X-Contact-ID': contact.id
+          }
         });
 
         console.log("Resend API response:", emailResponse);
@@ -601,12 +610,13 @@ const handler = async (req: Request): Promise<Response> => {
           
           const sentTime = new Date();
           
-          // Update the email send record with sent status
+          // Update the email send record with sent status and Message-ID
           await supabase
             .from("email_sends")
             .update({
               status: "sent",
               sent_at: sentTime.toISOString(),
+              message_id: messageId
             })
             .eq("id", insertedEmailSend.id);
 
