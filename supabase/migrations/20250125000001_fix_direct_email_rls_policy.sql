@@ -1,8 +1,9 @@
 -- Fix RLS policy for direct emails (non-campaign emails)
 -- Allow users to create email sends for direct emails (campaign_id = null)
 
--- Drop the existing restrictive INSERT policy
+-- Drop the existing restrictive policies
 DROP POLICY IF EXISTS "Users can create email sends for their campaigns" ON public.email_sends;
+DROP POLICY IF EXISTS "Users can view email sends for their campaigns" ON public.email_sends;
 
 -- Create a new INSERT policy that allows both campaign emails and direct emails
 CREATE POLICY "Users can create email sends for their campaigns and direct emails" 
@@ -53,5 +54,21 @@ USING (
   ))
   OR
   -- Allow deletes for direct emails (campaign_id is null)
+  (campaign_id IS NULL)
+);
+
+-- Create a new SELECT policy that allows both campaign emails and direct emails
+CREATE POLICY "Users can view email sends for their campaigns and direct emails" 
+ON public.email_sends 
+FOR SELECT 
+USING (
+  -- Allow viewing campaign emails
+  (campaign_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.campaigns 
+    WHERE campaigns.id = email_sends.campaign_id 
+    AND campaigns.user_id = auth.uid()
+  ))
+  OR
+  -- Allow viewing direct emails (campaign_id is null)
   (campaign_id IS NULL)
 );
