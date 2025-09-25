@@ -301,23 +301,14 @@ const handler = async (req: Request): Promise<Response> => {
         const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${emailSendRecord.id}" width="1" height="1" style="display:none;" alt="" />`;
         const emailBodyWithTracking = finalBody.replace(/\n/g, '<br>') + trackingPixel;
 
-        // Generate unique Message-ID for reply tracking
-        const messageId = `<${emailSendRecord.id}@${senderAccount.email.split('@')[1]}>`;
-        
         // Send email
         console.log(`Sending follow-up email step ${sequence.step_number} to ${contact.email}`);
-        console.log(`Generated Message-ID: ${messageId}`);
         
         const emailResponse = await resend.emails.send({
           from: senderAccount.email,
           to: [contact.email],
           subject: personalizedSubject,
           html: emailBodyWithTracking,
-          headers: {
-            'Message-ID': messageId,
-            'X-Campaign-ID': campaign.id,
-            'X-Contact-ID': contact.id
-          }
         });
 
         if (emailResponse.error) {
@@ -354,7 +345,6 @@ const handler = async (req: Request): Promise<Response> => {
             supabase.from("email_sends").update({
               status: "sent",
               sent_at: now.toISOString(),
-              message_id: messageId
             }).eq("id", emailSendRecord.id),
             
             supabase.from("scheduled_emails").update({

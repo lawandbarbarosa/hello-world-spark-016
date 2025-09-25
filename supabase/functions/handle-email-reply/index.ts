@@ -189,34 +189,16 @@ const handler = async (req: Request): Promise<Response> => {
         // Try to find the original email_send_id if possible
         let emailSendId = null;
         if (inReplyTo || references) {
-          // Extract Message-ID from In-Reply-To or References header
-          const messageIdToSearch = inReplyTo || references;
-          console.log('Searching for original email with Message-ID:', messageIdToSearch);
-          
           // Look for the original email send based on message ID
-          const { data: originalEmailSend, error: emailSendError } = await supabase
+          const { data: originalEmailSend } = await supabase
             .from('email_sends')
-            .select('id, campaign_id, contact_id')
-            .eq('message_id', messageIdToSearch)
-            .single();
+            .select('id')
+            .eq('contact_id', contact.id)
+            .eq('campaign_id', matchedCampaignId)
+            .order('created_at', { ascending: false })
+            .limit(1);
           
-          if (originalEmailSend) {
-            emailSendId = originalEmailSend.id;
-            console.log('Found original email send:', emailSendId);
-          } else {
-            console.log('No original email send found for Message-ID:', messageIdToSearch, 'Error:', emailSendError);
-            // Fallback: find the most recent email send for this contact and campaign
-            const { data: fallbackEmailSend } = await supabase
-              .from('email_sends')
-              .select('id')
-              .eq('contact_id', contact.id)
-              .eq('campaign_id', matchedCampaignId)
-              .order('created_at', { ascending: false })
-              .limit(1);
-            
-            emailSendId = fallbackEmailSend?.[0]?.id || null;
-            console.log('Using fallback email send:', emailSendId);
-          }
+          emailSendId = originalEmailSend?.[0]?.id || null;
         }
 
         // Store the reply using the database function
