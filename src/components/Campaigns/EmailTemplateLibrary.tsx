@@ -216,21 +216,12 @@ const EmailTemplateLibrary: React.FC<EmailTemplateLibraryProps> = ({
     }
 
     try {
-      const { error } = await supabase
-        .from('email_templates')
-        .delete()
-        .eq('id', templateId)
-        .eq('user_id', user.id); // Add user_id check for security
-
-      if (error) {
-        console.error('Error deleting template:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete template. Template functionality may not be available.",
-          variant: "destructive",
-        });
-        return;
-      }
+      // Email templates functionality not implemented yet
+      toast({
+        title: "Feature Coming Soon",
+        description: "Email templates functionality will be available in a future update.",
+        variant: "default",
+      });
 
       toast({
         title: "Success",
