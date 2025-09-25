@@ -98,11 +98,9 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         .eq('user_id', user?.id)
         .eq('status', 'active');
 
-      // Get email sends for campaigns (only campaign emails, not direct emails)
       const { data: emailSendsData, error: emailSendsError } = await supabase
         .from('email_sends')
-        .select('id, status, opened_at, campaign_id')
-        .not('campaign_id', 'is', null)
+        .select('id, status, opened_at')
         .in('campaign_id', campaignData?.map(c => c.id) || []);
 
       if (contactsError || emailSendsError) {

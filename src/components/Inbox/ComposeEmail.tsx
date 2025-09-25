@@ -155,21 +155,22 @@ const ComposeEmail = ({
       // Use the entered email address directly
       const senderEmail = selectedSender.trim();
 
-      // Create a direct email send record
-      const { data: emailSendRecord, error: insertError } = await supabase
-        .from("email_sends")
+      // Create a direct email record
+      const { data: directEmailRecord, error: insertError } = await supabase
+        .from("direct_emails")
         .insert({
-          campaign_id: null, // Direct email, not part of a campaign
-          contact_id: null, // Direct email, not from contact list
-          sequence_id: null, // Direct email, not part of sequence
-          sender_account_id: null, // Direct email, not from configured account
+          user_id: user.id,
+          to_email: to,
+          from_email: senderEmail,
+          subject: subject,
+          body: body,
           status: "pending",
         })
         .select()
         .single();
 
       if (insertError) {
-        console.error('Error creating email send record:', insertError);
+        console.error('Error creating direct email record:', insertError);
         throw insertError;
       }
 
@@ -180,7 +181,7 @@ const ComposeEmail = ({
           from: senderEmail,
           subject: subject,
           html: body.replace(/\n/g, '<br>'),
-          emailSendId: emailSendRecord.id
+          directEmailId: directEmailRecord.id
         }
       });
 

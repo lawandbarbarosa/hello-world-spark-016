@@ -27,12 +27,12 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { to, from, subject, html, emailSendId } = await req.json();
+    const { to, from, subject, html, directEmailId } = await req.json();
 
-    if (!to || !from || !subject || !html) {
+    if (!to || !from || !subject || !html || !directEmailId) {
       return new Response(
         JSON.stringify({
-          error: "Missing required fields: to, from, subject, html",
+          error: "Missing required fields: to, from, subject, html, directEmailId",
           result: 'error'
         }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -43,7 +43,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`📝 Subject: ${subject}`);
 
     // Generate unique Message-ID for reply tracking
-    const messageId = `<${emailSendId}@${from.split('@')[1]}>`;
+    const messageId = `<${directEmailId}@${from.split('@')[1]}>`;
     console.log(`📧 Generated Message-ID: ${messageId}`);
 
     // Send email using Resend
@@ -54,7 +54,7 @@ const handler = async (req: Request): Promise<Response> => {
       html: html,
       headers: {
         'Message-ID': messageId,
-        'X-Email-Send-ID': emailSendId
+        'X-Direct-Email-ID': directEmailId
       }
     });
 
@@ -94,16 +94,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("✅ Email sent successfully:", emailResponse.data?.id);
 
-    // Update email send record with success and Message-ID
-    if (emailSendId) {
+    // Update direct email record with success and Message-ID
+    if (directEmailId) {
       await supabase
-        .from("email_sends")
+        .from("direct_emails")
         .update({
           status: "sent",
           sent_at: new Date().toISOString(),
           message_id: messageId
         })
-        .eq("id", emailSendId);
+        .eq("id", directEmailId);
     }
 
     return new Response(
