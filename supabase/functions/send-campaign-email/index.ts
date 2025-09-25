@@ -75,27 +75,11 @@ async function scheduleFollowUpEmails(
   firstEmailSentTime: Date
 ) {
   try {
-    console.log(`📅 scheduleFollowUpEmails called with:`, {
-      campaignId,
-      contactId,
-      senderAccountId,
-      sequencesCount: sequences?.length || 0,
-      firstEmailSentTime: firstEmailSentTime.toISOString()
-    });
-
-    if (!sequences || sequences.length === 0) {
-      console.log("❌ No sequences provided to scheduleFollowUpEmails");
-      return;
-    }
-
     // Get follow-up sequences (skip step 1 as it's already sent)
     const followUpSequences = sequences.filter(seq => seq.step_number > 1).sort((a, b) => a.step_number - b.step_number);
     
-    console.log(`📅 Follow-up sequences found:`, followUpSequences.length);
-    console.log(`📅 Follow-up sequences data:`, followUpSequences);
-    
     if (followUpSequences.length === 0) {
-      console.log("❌ No follow-up sequences to schedule (only step 1 exists)");
+      console.log("No follow-up sequences to schedule");
       return;
     }
 
@@ -137,16 +121,7 @@ async function scheduleFollowUpEmails(
       }
 
       // Create scheduled email record
-      console.log(`📅 Creating scheduled email record for step ${sequence.step_number}:`, {
-        campaign_id: campaignId,
-        contact_id: contactId,
-        sequence_id: sequence.id,
-        sender_account_id: senderAccountId,
-        scheduled_for: scheduledTime.toISOString(),
-        status: "scheduled"
-      });
-
-      const { data: scheduledEmailData, error: scheduleError } = await supabase
+      const { error: scheduleError } = await supabase
         .from("scheduled_emails")
         .insert({
           campaign_id: campaignId,
@@ -155,16 +130,12 @@ async function scheduleFollowUpEmails(
           sender_account_id: senderAccountId,
           scheduled_for: scheduledTime.toISOString(),
           status: "scheduled"
-        })
-        .select()
-        .single();
+        });
 
       if (scheduleError) {
-        console.error("❌ Error scheduling follow-up email:", scheduleError);
-        console.error("❌ Schedule error details:", JSON.stringify(scheduleError, null, 2));
+        console.error("Error scheduling follow-up email:", scheduleError);
       } else {
-        console.log(`✅ Scheduled follow-up email step ${sequence.step_number} for ${scheduledTime.toISOString()}`);
-        console.log(`✅ Scheduled email ID:`, scheduledEmailData?.id);
+        console.log(`Scheduled follow-up email step ${sequence.step_number} for ${scheduledTime.toISOString()}`);
       }
     }
   } catch (error) {
@@ -672,9 +643,6 @@ const handler = async (req: Request): Promise<Response> => {
           }
 
           // Schedule follow-up emails using the actual sent time
-          console.log(`📅 Scheduling follow-up emails for contact ${contact.email}`);
-          console.log(`📅 Available sequences:`, sequences?.length || 0);
-          console.log(`📅 Sequences data:`, sequences);
           await scheduleFollowUpEmails(supabase, campaignId, contact.id, currentSender.id, sequences, sentTime);
         }
 

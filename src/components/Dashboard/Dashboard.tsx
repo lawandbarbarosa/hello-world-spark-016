@@ -90,8 +90,6 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
       }
 
       setCampaigns(campaignData || []);
-      console.log('📊 Dashboard: Found campaigns:', campaignData?.length || 0);
-      console.log('📊 Dashboard: Campaign IDs:', campaignData?.map(c => c.id) || []);
 
       // Fetch campaign statistics
       const { data: contactsData, error: contactsError } = await supabase
@@ -100,46 +98,20 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         .eq('user_id', user?.id)
         .eq('status', 'active');
 
-      // Get email sends for campaigns - handle empty campaign list
-      let emailSendsData = [];
-      let emailSendsError = null;
-      
-      if (campaignData && campaignData.length > 0) {
-        const { data, error } = await supabase
-          .from('email_sends')
-          .select('id, status, opened_at, campaign_id')
-          .in('campaign_id', campaignData.map(c => c.id));
-        
-        emailSendsData = data || [];
-        emailSendsError = error;
-      } else {
-        console.log('📊 Dashboard: No campaigns found, skipping email sends query');
-      }
+      const { data: emailSendsData, error: emailSendsError } = await supabase
+        .from('email_sends')
+        .select('id, status, opened_at')
+        .in('campaign_id', campaignData?.map(c => c.id) || []);
 
       if (contactsError || emailSendsError) {
         console.error('Error fetching stats:', { contactsError, emailSendsError });
       }
-
-      console.log('📊 Dashboard: Email sends data:', emailSendsData?.length || 0);
-      console.log('📊 Dashboard: Email sends details:', emailSendsData);
 
       const totalSent = emailSendsData?.filter(e => e.status === 'sent').length || 0;
       const totalOpened = emailSendsData?.filter(e => e.opened_at).length || 0;
       const totalFailed = emailSendsData?.filter(e => e.status === 'failed').length || 0;
       const totalContacted = contactsData?.length || 0;
       const totalReplied = contactsData?.filter(c => c.replied_at).length || 0;
-
-      console.log('📊 Dashboard: Calculated stats:', {
-        totalSent,
-        totalOpened,
-        totalFailed,
-        totalContacted,
-        totalReplied,
-        emailSendsByStatus: emailSendsData?.reduce((acc, e) => {
-          acc[e.status] = (acc[e.status] || 0) + 1;
-          return acc;
-        }, {}) || {}
-      });
       
       const openRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
       const replyRate = totalContacted > 0 ? Math.round((totalReplied / totalContacted) * 100) : 0;
