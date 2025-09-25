@@ -168,7 +168,10 @@ const ComposeEmail = ({
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error('Error creating email send record:', insertError);
+        throw insertError;
+      }
 
       // Send email using Resend
       const { data: emailResponse, error: emailError } = await supabase.functions.invoke('send-direct-email', {

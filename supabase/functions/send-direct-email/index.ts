@@ -42,12 +42,20 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`📤 Sending email from ${from} to ${to}`);
     console.log(`📝 Subject: ${subject}`);
 
+    // Generate unique Message-ID for reply tracking
+    const messageId = `<${emailSendId}@${from.split('@')[1]}>`;
+    console.log(`📧 Generated Message-ID: ${messageId}`);
+
     // Send email using Resend
     const emailResponse = await resend.emails.send({
       from: from,
       to: [to],
       subject: subject,
       html: html,
+      headers: {
+        'Message-ID': messageId,
+        'X-Email-Send-ID': emailSendId
+      }
     });
 
     if (emailResponse.error) {
@@ -86,13 +94,14 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("✅ Email sent successfully:", emailResponse.data?.id);
 
-    // Update email send record with success
+    // Update email send record with success and Message-ID
     if (emailSendId) {
       await supabase
         .from("email_sends")
         .update({
           status: "sent",
           sent_at: new Date().toISOString(),
+          message_id: messageId
         })
         .eq("id", emailSendId);
     }
