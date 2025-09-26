@@ -346,6 +346,11 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                   <div className="flex items-center gap-2 text-sm text-green-600">
                     <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                     Selected: <strong>{data.emailColumn}</strong>
+                    {data.contacts?.[0] && (
+                      <span className="text-xs text-muted-foreground">
+                        (Value: {data.contacts[0][data.emailColumn] || 'NULL'})
+                      </span>
+                    )}
                   </div>
                 )}
                 {!data.emailColumn && (

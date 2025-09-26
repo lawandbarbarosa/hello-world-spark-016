@@ -51,6 +51,7 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       
       // Get available columns from the first contact
       const availableColumns = Object.keys(contacts[0]).filter(key => key && key.trim());
+      console.log('ContactUpload - Available columns from contact:', availableColumns);
       onUpdate({ 
         contacts,
         selectedColumns: availableColumns
@@ -141,16 +142,11 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       const mapping: Record<string, string> = {};
       
       headers.forEach((header, index) => {
-        // Use the original header name as the field name
-        // Clean the header name to be a valid field name
-        const cleanHeader = (header ?? '').toString()
-          .replace(/[^a-zA-Z0-9]/g, '_') // Replace special chars with underscore
-          .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
-          .replace(/_+/g, '_') // Replace multiple underscores with single
-          .toLowerCase();
+        // Use the original header name as the field name (no cleaning)
+        const originalHeader = (header ?? '').toString().trim();
         
-        if (cleanHeader) {
-          mapping[index.toString()] = cleanHeader;
+        if (originalHeader) {
+          mapping[index.toString()] = originalHeader;
         }
       });
       setFieldMapping(mapping);
@@ -159,11 +155,10 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       const potentialContacts: Contact[] = validData.map(row => {
         const contact: Contact = { email: '' }; // Default empty email, will be set later
         
-        // Preserve ALL original column names from CSV headers
-        headers.forEach((header, index) => {
+        // Use the mapping to ensure consistent field names
+        Object.entries(mapping).forEach(([csvIndex, fieldName]) => {
+          const index = parseInt(csvIndex);
           if (row[index] && row[index].trim()) {
-            // Use original header name as the field name
-            const fieldName = header.trim();
             contact[fieldName] = row[index].trim();
           }
         });
