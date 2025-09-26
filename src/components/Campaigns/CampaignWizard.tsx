@@ -83,7 +83,12 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
   };
 
   const handleDataUpdate = useCallback((stepData: Partial<CampaignData>) => {
-    setCampaignData(prev => ({ ...prev, ...stepData }));
+    console.log('CampaignWizard - Data update received:', stepData);
+    setCampaignData(prev => {
+      const newData = { ...prev, ...stepData };
+      console.log('CampaignWizard - New campaign data:', newData);
+      return newData;
+    });
   }, []);
 
   const handleLaunch = async () => {
@@ -174,6 +179,30 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
       if (!campaignData.emailColumn) {
         toast.error('Please select an email column in the Email Sequence step before launching the campaign.');
         return;
+      }
+
+      // Debug: Test email extraction on first contact
+      if (campaignData.contacts && campaignData.contacts.length > 0) {
+        const testContact = campaignData.contacts[0];
+        console.log('=== EMAIL EXTRACTION TEST ===');
+        console.log('Test contact:', testContact);
+        console.log('Selected email column:', campaignData.emailColumn);
+        console.log('Email value from selected column:', testContact[campaignData.emailColumn]);
+        console.log('All contact keys:', Object.keys(testContact));
+        
+        // Test the extraction logic
+        let testEmail = testContact[campaignData.emailColumn];
+        if (!testEmail) {
+          const contactKeys = Object.keys(testContact);
+          const matchingKey = contactKeys.find(key => 
+            key.toLowerCase() === campaignData.emailColumn!.toLowerCase()
+          );
+          if (matchingKey) {
+            testEmail = testContact[matchingKey];
+            console.log('Found email using case-insensitive match:', matchingKey, '=', testEmail);
+          }
+        }
+        console.log('Final test email:', testEmail);
       }
 
       // Create contacts with detailed logging - preserve ALL CSV columns

@@ -48,8 +48,16 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     if (contacts.length > 0) {
       console.log('ContactUpload - First contact:', contacts[0]);
       console.log('ContactUpload - Available fields:', Object.keys(contacts[0]));
+      
+      // Get available columns from the first contact
+      const availableColumns = Object.keys(contacts[0]).filter(key => key && key.trim());
+      onUpdate({ 
+        contacts,
+        selectedColumns: availableColumns
+      });
+    } else {
+      onUpdate({ contacts });
     }
-    onUpdate({ contacts });
   }, [contacts]); // Removed onUpdate from dependencies to prevent infinite loop
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -183,6 +191,13 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       console.log('ContactUpload - Setting all contacts:', potentialContacts.length);
       setContacts(potentialContacts);
       setShowPreview(false);
+      
+      // Update the campaign data with contacts and available columns
+      const availableColumns = headers.map(header => header.trim()).filter(header => header);
+      onUpdate({ 
+        contacts: potentialContacts,
+        selectedColumns: availableColumns
+      });
       
       // Success message
       toast({
