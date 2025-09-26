@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { Resend } from "npm:resend@2.0.0";
-import { toZonedTime, format } from "npm:date-fns-tz@3.0.0";
 
 // Security enhancement: Validate required environment variables
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -284,22 +283,48 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Format final email body
+        // Format final email body with proper HTML preservation
         let finalBody = personalizedBody;
+        
+        // Check if the content already contains HTML tags
+        const isHtmlContent = /<[a-z][\s\S]*>/i.test(finalBody);
 
         // Add signature
         if (userSettings?.default_signature && userSettings.default_signature.trim()) {
-          finalBody += '\n\n' + userSettings.default_signature;
+          const signature = userSettings.default_signature;
+          if (isHtmlContent) {
+            finalBody += `<br><br><div class="signature">${signature.replace(/\n/g, '<br>')}</div>`;
+          } else {
+            finalBody += '\n\n' + signature;
+          }
         }
 
         // Add legal disclaimer
         if (userSettings?.legal_disclaimer && userSettings.legal_disclaimer.trim()) {
-          finalBody += '\n\n' + userSettings.legal_disclaimer;
+          const disclaimer = userSettings.legal_disclaimer;
+          if (isHtmlContent) {
+            finalBody += `<br><br><div style="font-size: 11px; color: #999; margin-top: 15px;">${disclaimer.replace(/\n/g, '<br>')}</div>`;
+          } else {
+            finalBody += '\n\n' + disclaimer;
+          }
         }
 
-        // Add tracking pixel
-        const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${emailSendRecord.id}" width="1" height="1" style="display:none;" alt="" />`;
-        const emailBodyWithTracking = finalBody.replace(/\n/g, '<br>') + trackingPixel;
+        // Convert to HTML format and add tracking
+        let emailBodyWithTracking: string;
+        if (isHtmlContent) {
+          // Already HTML - preserve formatting
+          const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${emailSendRecord.id}" width="1" height="1" style="display:none;" alt="" />`;
+          emailBodyWithTracking = finalBody + trackingPixel;
+        } else {
+          // Convert plain text to HTML
+          const htmlBody = finalBody
+            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n/g, '<br>')
+            .replace(/^(.*)$/, '<p>$1</p>');
+          
+          const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${emailSendRecord.id}" width="1" height="1" style="display:none;" alt="" />`;
+          emailBodyWithTracking = htmlBody + trackingPixel;
+        }
 
         // Send email
         console.log(`Sending follow-up email step ${sequence.step_number} to ${contact.email}`);

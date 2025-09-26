@@ -541,24 +541,52 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Format email body with user settings
+        // Format email body with proper HTML preservation
         let finalBody = personalizedBody;
-
+        
+        // Check if the content already contains HTML tags
+        const isHtmlContent = /<[a-z][\s\S]*>/i.test(finalBody);
+        
         // Add signature if provided
         if (userSettings?.default_signature && userSettings.default_signature.trim()) {
-          finalBody += '\n\n' + userSettings.default_signature;
+          const signature = userSettings.default_signature;
+          if (isHtmlContent) {
+            // For HTML content, add signature as HTML
+            finalBody += `<br><br><div class="signature">${signature.replace(/\n/g, '<br>')}</div>`;
+          } else {
+            // For plain text, add as text (will be converted to HTML later)
+            finalBody += '\n\n' + signature;
+          }
         }
 
-        // Unsubscribe link removed per user request
-
-        // Add legal disclaimer if provided
+        // Add legal disclaimer if provided  
         if (userSettings?.legal_disclaimer && userSettings.legal_disclaimer.trim()) {
-          finalBody += '\n\n' + userSettings.legal_disclaimer;
+          const disclaimer = userSettings.legal_disclaimer;
+          if (isHtmlContent) {
+            // For HTML content, add disclaimer as HTML
+            finalBody += `<br><br><div style="font-size: 11px; color: #999; margin-top: 15px;">${disclaimer.replace(/\n/g, '<br>')}</div>`;
+          } else {
+            // For plain text, add as text (will be converted to HTML later)
+            finalBody += '\n\n' + disclaimer;
+          }
         }
 
-        // Add tracking pixel to email body with the email send ID
-        const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
-        const emailBodyWithTracking = finalBody.replace(/\n/g, '<br>') + trackingPixel;
+        // Convert to HTML format if needed and add tracking
+        let emailBodyWithTracking: string;
+        if (isHtmlContent) {
+          // Already HTML - preserve formatting and add tracking pixel
+          const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
+          emailBodyWithTracking = finalBody + trackingPixel;
+        } else {
+          // Convert plain text to HTML with proper paragraph and line break formatting
+          const htmlBody = finalBody
+            .replace(/\n\n/g, '</p><p>')  // Double line breaks become paragraph breaks
+            .replace(/\n/g, '<br>')       // Single line breaks become <br>
+            .replace(/^(.*)$/, '<p>$1</p>'); // Wrap entire content in paragraph tags
+          
+          const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
+          emailBodyWithTracking = htmlBody + trackingPixel;
+        }
 
         // Send email using Resend with current sender
         console.log(`Attempting to send email to ${contact.email} from ${currentSender.email} (${currentSender.remainingCapacity} remaining capacity)`);

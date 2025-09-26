@@ -246,17 +246,18 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     if (isExcel) {
       // Handle Excel files
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
+          const { read, utils } = await import('xlsx');
           const arrayBuffer = new Uint8Array(e.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+          const workbook = read(arrayBuffer, { type: 'array' });
           
           // Get the first worksheet
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           
           // Convert to JSON with headers
-          const jsonData: string[][] = XLSX.utils.sheet_to_json(worksheet, { 
+          const jsonData: string[][] = utils.sheet_to_json(worksheet, { 
             header: 1,
             raw: false,
             defval: '',
