@@ -90,15 +90,18 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   };
   
   const availableMergeTags = getAvailableMergeTags();
-  const previewContact = data.contacts?.[selectedContactIndex] || {
-    email: 'john@example.com',
-    firstName: 'John',
-    lastName: 'Doe', 
-    company: 'Example Corp',
-    city: 'New York',
-    phone: '+1-555-0123',
-    title: 'Manager'
-  };
+  // Use actual contact data for preview, with fallback only if no contacts available
+  const previewContact = data.contacts && data.contacts.length > 0 
+    ? data.contacts[selectedContactIndex] || data.contacts[0]
+    : {
+        email: 'john@example.com',
+        firstName: 'John',
+        lastName: 'Doe', 
+        company: 'Example Corp',
+        city: 'New York',
+        phone: '+1-555-0123',
+        title: 'Manager'
+      };
 
   useEffect(() => {
     onUpdate({ sequence });
@@ -178,9 +181,37 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     let result = text;
     availableMergeTags.forEach(tag => {
       const regex = new RegExp(`{{${tag}}}`, 'g');
-      const value = previewContact[tag];
+      
+      // Try multiple ways to find the value
+      let value = previewContact[tag];
+      
+      // If not found, try case-insensitive match
+      if (!value) {
+        const contactKeys = Object.keys(previewContact);
+        const matchingKey = contactKeys.find(key => 
+          key.toLowerCase() === tag.toLowerCase()
+        );
+        if (matchingKey) {
+          value = previewContact[matchingKey];
+          console.log(`Found value using case-insensitive match: ${matchingKey} = ${value}`);
+        }
+      }
+      
+      // If still not found, try partial match (for columns with spaces/special chars)
+      if (!value) {
+        const contactKeys = Object.keys(previewContact);
+        const matchingKey = contactKeys.find(key => 
+          key.toLowerCase().includes(tag.toLowerCase()) || 
+          tag.toLowerCase().includes(key.toLowerCase())
+        );
+        if (matchingKey) {
+          value = previewContact[matchingKey];
+          console.log(`Found value using partial match: ${matchingKey} = ${value}`);
+        }
+      }
+      
       console.log(`Looking for tag: ${tag}`);
-      console.log(`Value in previewContact[${tag}]:`, value);
+      console.log(`Value found:`, value);
       console.log(`Type of value:`, typeof value);
       
       if (value !== undefined && value !== null && value !== '') {
@@ -341,6 +372,53 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                 currentCampaignName={data.name || ''}
               />
             </ErrorBoundary>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Placeholder Test Section */}
+      {data.contacts && data.contacts.length > 0 && availableMergeTags.length > 0 && (
+        <Card className="bg-gradient-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Placeholder Test
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Test how your placeholders will look with real data
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Available Placeholders:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {availableMergeTags.map((tag) => (
+                    <div key={tag} className="flex items-center gap-2 bg-background px-3 py-1 rounded border">
+                      <code className="text-sm">{`{{${tag}}}`}</code>
+                      <span className="text-xs text-muted-foreground">→</span>
+                      <span className="text-sm font-medium">
+                        {previewContact[tag] || '[No data]'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-muted rounded-lg">
+                <h4 className="font-medium mb-2">Test Email Preview:</h4>
+                <div className="bg-background p-3 rounded border">
+                  <p className="text-sm">
+                    <strong>Subject:</strong> Hello {replaceVariables('{{firstName}}')}, welcome to {replaceVariables('{{company}}')}!
+                  </p>
+                  <p className="text-sm mt-2">
+                    <strong>Body:</strong> Hi {replaceVariables('{{firstName}}')} {replaceVariables('{{lastName}}')}, 
+                    we're excited to have you at {replaceVariables('{{company}}')}. 
+                    Your email is {replaceVariables('{{email}}')}.
+                  </p>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
