@@ -64,7 +64,10 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     
     // Get all unique keys from contacts (fallback)
     const allKeys = new Set<string>();
-    data.contacts.forEach(contact => {
+    data.contacts.forEach((contact, index) => {
+      if (index < 3) {
+        console.log(`Contact ${index} keys:`, Object.keys(contact));
+      }
       Object.keys(contact).forEach(key => {
         if (key && key.trim()) { // Only add non-empty keys
           allKeys.add(key);
@@ -74,6 +77,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     
     const availableTags = Array.from(allKeys).sort();
     console.log('Available merge tags from CSV:', availableTags);
+    console.log('Sample contact data:', data.contacts[0]);
     return availableTags;
   };
   
@@ -307,7 +311,11 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                 </p>
                 <Select
                   value={data.emailColumn || ''}
-                  onValueChange={(value) => onUpdate({ emailColumn: value })}
+                  onValueChange={(value) => {
+                    console.log('Email column selected:', value);
+                    console.log('Available columns:', availableMergeTags);
+                    onUpdate({ emailColumn: value });
+                  }}
                 >
                   <SelectTrigger className="bg-background border-border">
                     <SelectValue placeholder="Select email column..." />
@@ -332,6 +340,23 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                     Please select an email column before launching the campaign
                   </div>
                 )}
+                
+                {/* Debug info - show available columns */}
+                <div className="text-xs text-muted-foreground">
+                  <details>
+                    <summary className="cursor-pointer">Available columns ({availableMergeTags.length})</summary>
+                    <div className="mt-2 p-2 bg-muted rounded text-xs">
+                      {availableMergeTags.map((column, index) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <span className="font-mono">{column}</span>
+                          {data.contacts?.[0]?.[column] && (
+                            <span className="text-green-600">✓</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                </div>
               </div>
             </div>
           </CardContent>

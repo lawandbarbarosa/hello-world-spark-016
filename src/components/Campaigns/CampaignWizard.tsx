@@ -185,14 +185,52 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         const validContacts: any[] = [];
         const invalidContacts: { email: string; error: string }[] = [];
         
-        campaignData.contacts.forEach(contact => {
+        campaignData.contacts.forEach((contact, index) => {
+          // Debug: Log the contact structure for the first few contacts
+          if (index < 3) {
+            console.log(`Contact ${index}:`, contact);
+            console.log(`Available keys:`, Object.keys(contact));
+            console.log(`Looking for column:`, campaignData.emailColumn);
+          }
+          
           // Use the selected email column or fallback to 'email' field
-          const emailValue = campaignData.emailColumn ? contact[campaignData.emailColumn] : contact.email;
+          let emailValue = campaignData.emailColumn ? contact[campaignData.emailColumn] : contact.email;
+          
+          // If no email found with exact match, try case-insensitive search
+          if (!emailValue && campaignData.emailColumn) {
+            const contactKeys = Object.keys(contact);
+            const matchingKey = contactKeys.find(key => 
+              key.toLowerCase() === campaignData.emailColumn!.toLowerCase()
+            );
+            if (matchingKey) {
+              emailValue = contact[matchingKey];
+              console.log(`Found email using case-insensitive match: ${matchingKey} = ${emailValue}`);
+            }
+          }
+          
+          // If still no email found, try to find any column that looks like an email
+          if (!emailValue && campaignData.emailColumn) {
+            const contactKeys = Object.keys(contact);
+            const emailLikeKeys = contactKeys.filter(key => {
+              const value = contact[key];
+              return value && typeof value === 'string' && value.includes('@');
+            });
+            
+            if (emailLikeKeys.length > 0) {
+              // Use the first email-like column found
+              emailValue = contact[emailLikeKeys[0]];
+              console.log(`Found email in email-like column: ${emailLikeKeys[0]} = ${emailValue}`);
+            }
+          }
+          
+          if (index < 3) {
+            console.log(`Email value found:`, emailValue);
+          }
           
           if (!emailValue) {
             invalidContacts.push({
               email: '(empty)',
-              error: `No email found in selected column: ${campaignData.emailColumn || 'email'}`
+              error: `No email found in selected column: ${campaignData.emailColumn || 'email'}. Available columns: ${Object.keys(contact).join(', ')}`
             });
             return;
           }
