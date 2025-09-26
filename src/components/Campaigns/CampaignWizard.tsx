@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { validateEmail } from "@/utils/emailValidation";
 import CampaignDetails from "./CampaignDetails";
 import SenderAccounts from "./SenderAccounts";
 import ContactUpload from "./ContactUpload";
@@ -29,6 +30,7 @@ interface CampaignData {
     [key: string]: any;
   }>;
   selectedColumns: string[];
+  emailColumn?: string; // The column name that contains email addresses
   sequence: Array<{
     id: string;
     subject: string;
@@ -52,6 +54,7 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
     senderAccounts: [],
     contacts: [],
     selectedColumns: ['email'],
+    emailColumn: undefined,
     sequence: []
   });
 
@@ -167,11 +170,69 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         return;
       }
 
+      // Check if email column is selected
+      if (!campaignData.emailColumn) {
+        toast.error('Please select an email column in the Email Sequence step before launching the campaign.');
+        return;
+      }
+
       // Create contacts with detailed logging - preserve ALL CSV columns
       if (campaignData.contacts && campaignData.contacts.length > 0) {
         console.log("Creating contacts for campaign:", campaign.id, "Contacts data:", campaignData.contacts);
+        console.log("Using email column:", campaignData.emailColumn);
         
-        const contactsData = campaignData.contacts.map(contact => {
+        // Validate emails before insertion
+        const validContacts: any[] = [];
+        const invalidContacts: { email: string; error: string }[] = [];
+        
+        campaignData.contacts.forEach(contact => {
+          // Use the selected email column or fallback to 'email' field
+          const emailValue = campaignData.emailColumn ? contact[campaignData.emailColumn] : contact.email;
+          
+          if (!emailValue) {
+            invalidContacts.push({
+              email: '(empty)',
+              error: `No email found in selected column: ${campaignData.emailColumn || 'email'}`
+            });
+            return;
+          }
+          
+          const emailValidation = validateEmail(emailValue);
+          if (emailValidation.isValid) {
+            // Create a contact object with the validated email in the 'email' field
+            const validContact = {
+              ...contact,
+              email: emailValue // Ensure the email field contains the correct value
+            };
+            validContacts.push(validContact);
+          } else {
+            invalidContacts.push({
+              email: emailValue,
+              error: emailValidation.error || 'Invalid email format'
+            });
+          }
+        });
+
+        // Show validation results
+        if (invalidContacts.length > 0) {
+          console.warn('Invalid contacts found:', invalidContacts);
+          toast.error(`Found ${invalidContacts.length} invalid email(s). Please fix them before launching.`);
+          
+          // Show details of invalid emails
+          const invalidEmailsList = invalidContacts.slice(0, 5).map(c => `${c.email} (${c.error})`).join(', ');
+          const moreText = invalidContacts.length > 5 ? ` and ${invalidContacts.length - 5} more...` : '';
+          toast.error(`Invalid emails: ${invalidEmailsList}${moreText}`);
+          return;
+        }
+
+        if (validContacts.length === 0) {
+          toast.error('No valid contacts found. Please check your email addresses.');
+          return;
+        }
+
+        console.log(`Validated ${validContacts.length} contacts, ${invalidContacts.length} invalid contacts skipped`);
+        
+        const contactsData = validContacts.map(contact => {
           // Extract standard fields
           const standardFields = {
             campaign_id: campaign.id,
@@ -205,11 +266,12 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
 
         if (contactsError) {
           console.error('Error creating contacts:', contactsError);
-          toast.error('Failed to create contacts. Please try again.');
+          toast.error(`Failed to create contacts: ${contactsError.message || 'Database error'}`);
           return;
         }
 
         console.log("Successfully inserted contacts:", insertedContacts);
+        toast.success(`Successfully created ${insertedContacts?.length || 0} contacts`);
       } else {
         console.log("No contacts to create - contacts array is empty or undefined");
         toast.error('No contacts found. Please upload contacts before launching the campaign.');

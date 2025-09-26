@@ -32,6 +32,7 @@ interface CampaignData {
   senderAccounts: any[];
   contacts: any[];
   selectedColumns?: string[];
+  emailColumn?: string; // The column name that contains email addresses
   sequence: EmailStep[];
 }
 
@@ -285,6 +286,57 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
           </Button>
         </div>
       </div>
+
+      {/* Email Column Selection */}
+      {data.contacts && data.contacts.length > 0 && (
+        <Card className="bg-gradient-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5" />
+              Email Configuration
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email-column" className="text-sm font-medium text-foreground">
+                  Email To: <span className="text-red-500">*</span>
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Select which column contains the email addresses to send emails to. This is critical for campaign delivery.
+                </p>
+                <Select
+                  value={data.emailColumn || ''}
+                  onValueChange={(value) => onUpdate({ emailColumn: value })}
+                >
+                  <SelectTrigger className="bg-background border-border">
+                    <SelectValue placeholder="Select email column..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableMergeTags.map((column) => (
+                      <SelectItem key={column} value={column}>
+                        {column}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {data.emailColumn && (
+                  <div className="flex items-center gap-2 text-sm text-green-600">
+                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                    Selected: <strong>{data.emailColumn}</strong>
+                  </div>
+                )}
+                {!data.emailColumn && (
+                  <div className="flex items-center gap-2 text-sm text-amber-600">
+                    <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
+                    Please select an email column before launching the campaign
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Template Library */}
       {showTemplateLibrary && (
