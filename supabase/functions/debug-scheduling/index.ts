@@ -158,7 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
           name: campaign.name,
           status: campaign.status,
           sequenceCount: campaign.email_sequences?.length || 0,
-          hasScheduledSequences: campaign.email_sequences?.some(seq => seq.scheduled_date) || false
+          hasScheduledSequences: campaign.email_sequences?.some((seq: any) => seq.scheduled_date) || false
         })) || []
       },
       cronJob: {
@@ -186,7 +186,7 @@ const handler = async (req: Request): Promise<Response> => {
         })) || []
       },
       environment: envCheck,
-      recommendations: []
+      recommendations: [] as string[]
     };
 
     // Generate recommendations
@@ -242,7 +242,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error("❌ Error in debug-scheduling function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

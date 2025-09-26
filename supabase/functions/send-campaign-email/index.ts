@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { toZonedTime, format, fromZonedTime } from "https://esm.sh/date-fns-tz@3.0.0";
+import { toZonedTime, fromZonedTime } from "https://esm.sh/date-fns-tz@3.0.0";
+import { format } from "https://esm.sh/date-fns@3.6.0";
 
 // Security enhancement: Validate required environment variables
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -361,15 +362,15 @@ const handler = async (req: Request): Promise<Response> => {
         let personalizedBody = firstSequence.body;
 
         // Replace with fallback support {{field|fallback}}
-        personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match, field, fallback) => {
+        personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match: string, field: string, fallback: string) => {
           return contact[field] || fallback;
         });
-        personalizedBody = personalizedBody.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match, field, fallback) => {
+        personalizedBody = personalizedBody.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match: string, field: string, fallback: string) => {
           return contact[field] || fallback;
         });
 
         // Replace simple merge tags with dynamic field matching
-        personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\}\}/g, (match, field) => {
+        personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\}\}/g, (match: string, field: string) => {
           console.log(`Template replacement - Subject: Looking for field "${field}" in contact:`, contact);
           console.log(`Available contact fields:`, Object.keys(contact));
           console.log(`Custom fields:`, contact.custom_fields);
@@ -446,7 +447,7 @@ const handler = async (req: Request): Promise<Response> => {
           return match;
         });
 
-        personalizedBody = personalizedBody.replace(/\{\{(\w+)\}\}/g, (match, field) => {
+        personalizedBody = personalizedBody.replace(/\{\{(\w+)\}\}/g, (match: string, field: string) => {
           console.log(`Template replacement - Body: Looking for field "${field}" in contact:`, contact);
           console.log(`Custom fields:`, contact.custom_fields);
           
@@ -677,7 +678,7 @@ const handler = async (req: Request): Promise<Response> => {
             sequence_id: firstSequence.id,
             sender_account_id: currentSender.id,
             status: "failed",
-            error_message: error.message,
+            error_message: (error as Error).message,
           });
         }
       }
@@ -711,7 +712,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error("Error in send-campaign-email function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

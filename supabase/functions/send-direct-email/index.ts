@@ -111,7 +111,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.error("❌ Error in send-direct-email function:", error);
     return new Response(
       JSON.stringify({
-        error: error.message,
+        error: (error as Error).message,
         result: 'error'
       }),
       {

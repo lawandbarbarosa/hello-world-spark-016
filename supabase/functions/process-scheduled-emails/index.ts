@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.4";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { toZonedTime } from "https://esm.sh/date-fns-tz@3.0.0";
+import { format } from "https://esm.sh/date-fns@3.6.0";
 
 // Security enhancement: Validate required environment variables
 const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -214,7 +216,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         if (!isSpecificScheduled) {
           // Only apply time window restrictions for delay-based emails, not specifically scheduled ones
-          const currentTime = format(zonedTime, 'HH:mm', { timeZone: userTimezone });
+          const currentTime = format(zonedTime, 'HH:mm');
           
           const startTime = userSettings?.send_time_start || '08:00';
           const endTime = userSettings?.send_time_end || '18:00';
@@ -402,7 +404,7 @@ const handler = async (req: Request): Promise<Response> => {
           .from("scheduled_emails")
           .update({
             status: "failed",
-            error_message: error.message,
+            error_message: (error as Error).message,
           })
           .eq("id", scheduledEmail.id);
       }
@@ -422,7 +424,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error("Error in process-scheduled-emails function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -240,7 +240,7 @@ async function syncToGmail({ refreshToken, message, senderEmail }: {
 
   } catch (error) {
     console.error('Error syncing to Gmail:', error);
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
