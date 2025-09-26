@@ -51,14 +51,21 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
+    console.log('=== GET AVAILABLE MERGE TAGS DEBUG ===');
+    console.log('data.selectedColumns:', data.selectedColumns);
+    console.log('data.contacts length:', data.contacts?.length);
+    
     // Use selectedColumns if available, otherwise fallback to all contact keys
     if (data.selectedColumns && data.selectedColumns.length > 0) {
       const availableTags = data.selectedColumns.sort();
-      console.log('Available merge tags from selected columns:', availableTags);
+      console.log('✅ Using selectedColumns:', availableTags);
+      console.log('=== END GET AVAILABLE MERGE TAGS DEBUG ===');
       return availableTags;
     }
     
     if (!data.contacts || data.contacts.length === 0) {
+      console.log('❌ No contacts available, returning default email');
+      console.log('=== END GET AVAILABLE MERGE TAGS DEBUG ===');
       return ['email']; // Only email is required
     }
     
@@ -67,6 +74,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     data.contacts.forEach((contact, index) => {
       if (index < 3) {
         console.log(`Contact ${index} keys:`, Object.keys(contact));
+        console.log(`Contact ${index} data:`, contact);
       }
       Object.keys(contact).forEach(key => {
         if (key && key.trim()) { // Only add non-empty keys
@@ -76,8 +84,9 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     });
     
     const availableTags = Array.from(allKeys).sort();
-    console.log('Available merge tags from CSV:', availableTags);
+    console.log('✅ Using fallback - Available merge tags from CSV:', availableTags);
     console.log('Sample contact data:', data.contacts[0]);
+    console.log('=== END GET AVAILABLE MERGE TAGS DEBUG ===');
     return availableTags;
   };
   
@@ -173,19 +182,31 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   };
 
   const replaceVariables = (text: string) => {
+    console.log('=== PLACEHOLDER REPLACEMENT DEBUG ===');
     console.log('replaceVariables called with text:', text);
     console.log('availableMergeTags:', availableMergeTags);
     console.log('previewContact:', previewContact);
+    console.log('previewContact keys:', Object.keys(previewContact));
     
     let result = text;
     availableMergeTags.forEach(tag => {
       const regex = new RegExp(`{{${tag}}}`, 'g');
-      const value = previewContact[tag] || `[${tag}]`;
-      console.log(`Replacing {{${tag}}} with:`, value);
-      result = result.replace(regex, String(value));
+      const value = previewContact[tag];
+      console.log(`Looking for tag: ${tag}`);
+      console.log(`Value in previewContact[${tag}]:`, value);
+      console.log(`Type of value:`, typeof value);
+      
+      if (value !== undefined && value !== null && value !== '') {
+        console.log(`✅ Replacing {{${tag}}} with:`, value);
+        result = result.replace(regex, String(value));
+      } else {
+        console.log(`❌ No value found for {{${tag}}}, showing placeholder`);
+        result = result.replace(regex, `[${tag}]`);
+      }
     });
     
     console.log('Final result:', result);
+    console.log('=== END PLACEHOLDER REPLACEMENT DEBUG ===');
     return result;
   };
 

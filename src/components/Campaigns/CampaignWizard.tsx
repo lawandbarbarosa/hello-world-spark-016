@@ -83,7 +83,14 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
   };
 
   const handleDataUpdate = useCallback((stepData: Partial<CampaignData>) => {
+    console.log('=== CAMPAIGN WIZARD DATA UPDATE ===');
     console.log('CampaignWizard - Data update received:', stepData);
+    console.log('CampaignWizard - Current step:', steps[currentStep].label);
+    
+    if (stepData.selectedColumns) {
+      console.log('CampaignWizard - Selected columns updated:', stepData.selectedColumns);
+    }
+    
     if (stepData.emailColumn) {
       console.log('CampaignWizard - Email column selected:', stepData.emailColumn);
       console.log('CampaignWizard - Current contacts:', campaignData.contacts);
@@ -92,12 +99,15 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         console.log('CampaignWizard - Email value in selected column:', campaignData.contacts[0][stepData.emailColumn]);
       }
     }
+    
     setCampaignData(prev => {
       const newData = { ...prev, ...stepData };
       console.log('CampaignWizard - New campaign data:', newData);
+      console.log('CampaignWizard - New selectedColumns:', newData.selectedColumns);
+      console.log('=== END CAMPAIGN WIZARD DATA UPDATE ===');
       return newData;
     });
-  }, [campaignData.contacts]);
+  }, [campaignData.contacts, currentStep]);
 
   const handleLaunch = async () => {
     try {
@@ -445,6 +455,17 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
           <CardTitle className="text-xl text-foreground">{steps[currentStep].label}</CardTitle>
         </CardHeader>
         <CardContent>
+          {(() => {
+            console.log(`=== RENDERING ${steps[currentStep].label} ===`);
+            console.log('Data being passed to component:', campaignData);
+            console.log('selectedColumns:', campaignData.selectedColumns);
+            console.log('contacts length:', campaignData.contacts?.length);
+            if (campaignData.contacts?.length > 0) {
+              console.log('First contact keys:', Object.keys(campaignData.contacts[0]));
+            }
+            console.log('=== END RENDERING DEBUG ===');
+            return null;
+          })()}
           {currentStep === steps.length - 1 ? (
             <CampaignReview 
               data={campaignData}
