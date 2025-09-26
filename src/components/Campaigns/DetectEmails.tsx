@@ -55,7 +55,7 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
   const [duplicates, setDuplicates] = useState<DuplicateEmail[]>([]);
   const [removedDuplicates, setRemovedDuplicates] = useState<Set<string>>(new Set());
   const [showDetails, setShowDetails] = useState(false);
-  const [selectedColumns, setSelectedColumns] = useState<string[]>([]);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(['email']);
 
   // Get all available columns from contacts
   const availableColumns = data.contacts.length > 0 
@@ -65,11 +65,6 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
   useEffect(() => {
     if (data.contacts.length > 0) {
       detectDuplicateEmails();
-      
-      // Initialize selected columns with all available columns from CSV
-      const csvColumns = Object.keys(data.contacts[0]).filter(key => key.trim());
-      setSelectedColumns(csvColumns);
-      console.log('DetectEmails - Initialized selected columns with CSV columns:', csvColumns);
     }
   }, [data.contacts, user]);
 
@@ -78,12 +73,72 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
 
     setLoading(true);
     try {
-      // Skip duplicate detection since we don't know which column contains emails yet
-      // This will be handled in the Email Sequence step when the email column is selected
-      console.log('DetectEmails - Skipping duplicate detection (email column not selected yet)');
-      setDuplicates([]);
-      setLoading(false);
-      return;
+      // Get all email addresses from current contacts
+      const currentEmails = data.contacts.map(contact => contact.email.toLowerCase());
+      
+      // Query previous campaigns for these emails
+      const { data: emailSends, error } = await supabase
+        .from('email_sends')
+        .select(`
+          id,
+          created_at,
+          contacts!inner(
+            email,
+            first_name,
+            last_name
+          ),
+          campaigns!inner(
+            id,
+            name,
+            user_id
+          )
+        `)
+        .in('contacts.email', currentEmails)
+        .eq('campaigns.user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error detecting duplicates:', error);
+        // Don't show error toast - just continue with empty duplicates
+        console.log('Database query failed, assuming no duplicates');
+        setDuplicates([]);
+        return;
+      }
+
+      // Process duplicates
+      const duplicateMap = new Map<string, DuplicateEmail>();
+      
+      emailSends?.forEach(send => {
+        const email = send.contacts?.email?.toLowerCase();
+        if (email && currentEmails.includes(email) && !duplicateMap.has(email)) {
+          const originalContact = data.contacts.find(c => c.email.toLowerCase() === email);
+          duplicateMap.set(email, {
+            email: send.contacts.email,
+            firstName: originalContact?.firstName || send.contacts.first_name,
+            lastName: originalContact?.lastName || send.contacts.last_name,
+            company: originalContact?.company,
+            campaignName: send.campaigns?.name || 'Unknown Campaign',
+            campaignId: send.campaigns?.id || '',
+            sentAt: send.created_at
+          });
+        }
+      });
+
+      setDuplicates(Array.from(duplicateMap.values()));
+      
+      if (duplicateMap.size > 0) {
+        toast({
+          title: "Duplicates Found",
+          description: `Found ${duplicateMap.size} emails that were used in previous campaigns`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "No Duplicates Found",
+          description: "All emails are new - no duplicates from previous campaigns",
+          variant: "default",
+        });
+      }
 
     } catch (error) {
       console.error('Error detecting duplicates:', error);
@@ -148,9 +203,9 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-foreground">Select Columns</h3>
+        <h3 className="text-lg font-semibold text-foreground">Detect Emails</h3>
         <p className="text-sm text-muted-foreground">
-          Select which columns from your contact list will be available in email templates
+          Check for duplicate emails and select columns for your email sequence
         </p>
       </div>
 
@@ -158,8 +213,8 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
       <Card className="bg-gradient-card border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Contact Import Results
+            <Mail className="w-5 h-5" />
+            Email Detection Results
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -195,11 +250,11 @@ const DetectEmails = ({ data, onUpdate }: DetectEmailsProps) => {
             </Alert>
           )}
 
-          {!loading && data.contacts.length > 0 && (
-            <Alert className="border-blue-200 bg-blue-50">
-              <CheckCircle className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800">
-                ✅ {data.contacts.length} contacts imported successfully! Please select the columns you want to use in your email templates below.
+          {!loading && duplicates.length === 0 && data.contacts.length > 0 && (
+            <Alert className="border-success/20 bg-success/10">
+              <CheckCircle className="h-4 w-4 text-success" />
+              <AlertDescription className="text-success">
+                ✅ No duplicate emails found! All {data.contacts.length} contacts are ready for your campaign.
               </AlertDescription>
             </Alert>
           )}

@@ -8,8 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, FileText, Users, X, Download, Eye, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { validateEmail } from "@/utils/emailValidation";
-import * as XLSX from 'xlsx';
 
 interface Contact {
   email: string;
@@ -48,17 +46,8 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
     if (contacts.length > 0) {
       console.log('ContactUpload - First contact:', contacts[0]);
       console.log('ContactUpload - Available fields:', Object.keys(contacts[0]));
-      
-      // Get available columns from the first contact
-      const availableColumns = Object.keys(contacts[0]).filter(key => key && key.trim());
-      console.log('ContactUpload - Available columns from contact:', availableColumns);
-      onUpdate({ 
-        contacts,
-        selectedColumns: availableColumns
-      });
-    } else {
-      onUpdate({ contacts });
     }
+    onUpdate({ contacts });
   }, [contacts]); // Removed onUpdate from dependencies to prevent infinite loop
 
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,28 +126,79 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
       setCsvData(validData);
       setShowPreview(true);
 
-      // Import ALL columns without automatic email detection
-      // Users will select the email column manually in the Email Sequence step
+      // Automatically import ALL columns without user interaction
       const mapping: Record<string, string> = {};
+      let emailColumnFound = false;
       
       headers.forEach((header, index) => {
-        // Use the original header name as the field name (no cleaning)
-        const originalHeader = (header ?? '').toString().trim();
+        const lowerHeader = (header ?? '').toString().toLowerCase().replace(/[^a-z]/g, '');
         
-        if (originalHeader) {
-          mapping[index.toString()] = originalHeader;
+        // Very flexible email field detection - look for any email-related terms
+        if (lowerHeader.includes('email') || lowerHeader === 'email' || 
+            lowerHeader === 'mail' || lowerHeader === 'e_mail' || 
+            lowerHeader.includes('mail') || lowerHeader === 'address' ||
+            lowerHeader === 'contact' || lowerHeader === 'person') {
+          mapping[index.toString()] = 'email';
+          emailColumnFound = true;
+        } else {
+          // For ALL other columns, use the original header name as the field name
+          // Clean the header name to be a valid field name
+          const cleanHeader = (header ?? '').toString()
+            .replace(/[^a-zA-Z0-9]/g, '_') // Replace special chars with underscore
+            .replace(/^_+|_+$/g, '') // Remove leading/trailing underscores
+            .replace(/_+/g, '_') // Replace multiple underscores with single
+            .toLowerCase();
+          
+          if (cleanHeader && cleanHeader !== 'email') {
+            mapping[index.toString()] = cleanHeader;
+          }
         }
       });
+      
+      // If still no email column found, try to find a column that looks like emails
+      if (!emailColumnFound && headers.length > 0) {
+        // Check if any column contains @ symbols (likely email column)
+        let emailIndex = -1;
+        for (let i = 0; i < validData.length && emailIndex === -1; i++) {
+          for (let j = 0; j < validData[i].length; j++) {
+            if (validData[i][j] && validData[i][j].includes('@')) {
+              emailIndex = j;
+              break;
+            }
+          }
+        }
+        
+        if (emailIndex !== -1) {
+          console.log(`Found email column at index ${emailIndex} by detecting @ symbols`);
+          mapping[emailIndex.toString()] = 'email';
+          emailColumnFound = true;
+        } else {
+          // Last resort: use first column as email
+          console.log('No email column detected, using first column as email');
+          mapping['0'] = 'email';
+        }
+      }
       setFieldMapping(mapping);
 
       // Automatically import contacts without showing preview
       const potentialContacts: Contact[] = validData.map(row => {
-        const contact: Contact = { email: '' }; // Default empty email, will be set later
+        const contact: Contact = { email: '' };
         
-        // Use the mapping to ensure consistent field names
-        Object.entries(mapping).forEach(([csvIndex, fieldName]) => {
-          const index = parseInt(csvIndex);
+        // First, set the email field from mapping
+        Object.entries(mapping).forEach(([csvIndex, field]) => {
+          if (field === 'email' && row[parseInt(csvIndex)]) {
+            const value = row[parseInt(csvIndex)].trim();
+            if (value) {
+              contact[field] = value;
+            }
+          }
+        });
+        
+        // Then, preserve ALL original column names from CSV headers
+        headers.forEach((header, index) => {
           if (row[index] && row[index].trim()) {
+            // Use original header name as the field name
+            const fieldName = header.trim();
             contact[fieldName] = row[index].trim();
           }
         });
@@ -166,13 +206,17 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         return contact;
       });
 
-      // Import all contacts without email validation
-      // Email validation will happen later when the user selects the email column
+      // Import ALL contacts without any validation - no filtering!
       console.log('=== IMPORTING ALL CONTACTS ===');
       console.log('Total contacts to import:', potentialContacts.length);
-      console.log('Available columns:', headers);
+      console.log('First few contacts:', potentialContacts.slice(0, 3));
+      console.log('Field mapping:', mapping);
+      console.log('CSV headers:', headers);
       
-      if (potentialContacts.length === 0) {
+      // Import ALL contacts without any filtering whatsoever
+      const allContacts = potentialContacts;
+      
+      if (allContacts.length === 0) {
         toast({
           title: "No contacts found",
           description: "Please check your CSV file contains data",
@@ -182,22 +226,15 @@ const ContactUpload = ({ data, onUpdate }: ContactUploadProps) => {
         if (fileInputRef.current) fileInputRef.current.value = "";
         return false;
       }
-      
-      console.log('ContactUpload - Setting all contacts:', potentialContacts.length);
-      setContacts(potentialContacts);
+
+      console.log('ContactUpload - Setting all contacts:', allContacts.length);
+      setContacts(allContacts);
       setShowPreview(false);
       
-      // Update the campaign data with contacts and available columns
-      const availableColumns = headers.map(header => header.trim()).filter(header => header);
-      onUpdate({ 
-        contacts: potentialContacts,
-        selectedColumns: availableColumns
-      });
-      
-      // Success message
+      // Success message - show all imported contacts
       toast({
         title: "Contacts imported successfully",
-        description: `Imported ${potentialContacts.length} contact${potentialContacts.length > 1 ? 's' : ''}. Please select the email column in the Email Sequence step.`,
+        description: `Imported ${allContacts.length} contact${allContacts.length > 1 ? 's' : ''}`,
       });
 
       setIsUploading(false);

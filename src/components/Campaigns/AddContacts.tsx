@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
-import { validateEmail } from "@/utils/emailValidation";
 import { Plus, Upload, UserPlus } from "lucide-react";
 
 interface AddContactsProps {
@@ -37,17 +36,6 @@ const AddContacts = ({ campaignId, onContactsAdded, onClose }: AddContactsProps)
       toast({
         title: "Error",
         description: "Email is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate email format
-    const emailValidation = validateEmail(singleContact.email);
-    if (!emailValidation.isValid) {
-      toast({
-        title: "Invalid email",
-        description: emailValidation.error || "Please enter a valid email address",
         variant: "destructive",
       });
       return;
@@ -107,55 +95,35 @@ const AddContacts = ({ campaignId, onContactsAdded, onClose }: AddContactsProps)
 
       // Parse CSV data (simple implementation)
       const lines = bulkContacts.trim().split('\n');
-      const validContacts = [];
-      const invalidContacts = [];
+      const contacts = [];
 
       for (const line of lines) {
         const parts = line.split(',').map(part => part.trim());
         if (parts.length >= 1 && parts[0]) { // At least email is required
-          const email = parts[0];
-          
-          // Validate email format
-          const emailValidation = validateEmail(email);
-          if (emailValidation.isValid) {
-            validContacts.push({
-              user_id: user.id,
-              campaign_id: campaignId,
-              email: email,
-              first_name: parts[1] || '',
-              last_name: parts[2] || '',
-              company: parts[3] || '',
-              status: 'active'
-            });
-          } else {
-            invalidContacts.push({
-              email: email,
-              error: emailValidation.error || 'Invalid email format'
-            });
-          }
+          contacts.push({
+            user_id: user.id,
+            campaign_id: campaignId,
+            email: parts[0],
+            first_name: parts[1] || '',
+            last_name: parts[2] || '',
+            company: parts[3] || '',
+            status: 'active'
+          });
         }
       }
 
-      if (validContacts.length === 0) {
+      if (contacts.length === 0) {
         toast({
           title: "Error",
-          description: "No valid contacts found. Please check email addresses.",
+          description: "No valid contacts found",
           variant: "destructive",
         });
         return;
       }
 
-      if (invalidContacts.length > 0) {
-        toast({
-          title: "Some contacts have invalid emails",
-          description: `Adding ${validContacts.length} valid contacts, ${invalidContacts.length} invalid contacts skipped`,
-          variant: "destructive",
-        });
-      }
-
       const { data, error } = await supabase
         .from('contacts')
-        .insert(validContacts)
+        .insert(contacts)
         .select();
 
       if (error) throw error;
@@ -165,7 +133,7 @@ const AddContacts = ({ campaignId, onContactsAdded, onClose }: AddContactsProps)
       
       toast({
         title: "Success",
-        description: `Added ${data.length} contacts successfully${invalidContacts.length > 0 ? ` (${invalidContacts.length} invalid skipped)` : ''}`,
+        description: `Added ${data.length} contacts successfully`,
       });
 
     } catch (error) {

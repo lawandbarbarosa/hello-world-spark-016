@@ -32,7 +32,6 @@ interface CampaignData {
   senderAccounts: any[];
   contacts: any[];
   selectedColumns?: string[];
-  emailColumn?: string; // The column name that contains email addresses
   sequence: EmailStep[];
 }
 
@@ -64,10 +63,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     
     // Get all unique keys from contacts (fallback)
     const allKeys = new Set<string>();
-    data.contacts.forEach((contact, index) => {
-      if (index < 3) {
-        console.log(`Contact ${index} keys:`, Object.keys(contact));
-      }
+    data.contacts.forEach(contact => {
       Object.keys(contact).forEach(key => {
         if (key && key.trim()) { // Only add non-empty keys
           allKeys.add(key);
@@ -77,21 +73,10 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     
     const availableTags = Array.from(allKeys).sort();
     console.log('Available merge tags from CSV:', availableTags);
-    console.log('Sample contact data:', data.contacts[0]);
     return availableTags;
   };
   
   const availableMergeTags = getAvailableMergeTags();
-  
-  // Debug: Log the actual contact data
-  console.log('EmailSequence - Data received:', data);
-  console.log('EmailSequence - Contacts:', data.contacts);
-  console.log('EmailSequence - Selected contact index:', selectedContactIndex);
-  if (data.contacts && data.contacts.length > 0) {
-    console.log('EmailSequence - First contact:', data.contacts[0]);
-    console.log('EmailSequence - First contact keys:', Object.keys(data.contacts[0]));
-  }
-  
   const previewContact = data.contacts?.[selectedContactIndex] || {
     email: 'john@example.com',
     firstName: 'John',
@@ -101,8 +86,6 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     phone: '+1-555-0123',
     title: 'Manager'
   };
-  
-  console.log('EmailSequence - Preview contact:', previewContact);
 
   useEffect(() => {
     onUpdate({ sequence });
@@ -302,85 +285,6 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
           </Button>
         </div>
       </div>
-
-      {/* Email Column Selection */}
-      {data.contacts && data.contacts.length > 0 && (
-        <Card className="bg-gradient-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Email Configuration
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email-column" className="text-sm font-medium text-foreground">
-                  Email To: <span className="text-red-500">*</span>
-                </Label>
-                <p className="text-xs text-muted-foreground">
-                  Select which column contains the email addresses to send emails to. This is critical for campaign delivery.
-                </p>
-                <Select
-                  value={data.emailColumn || ''}
-                  onValueChange={(value) => {
-                    console.log('Email column selected:', value);
-                    console.log('Available columns:', availableMergeTags);
-                    console.log('Sample contact data when selecting email column:', data.contacts?.[0]);
-                    console.log('Value in selected column:', data.contacts?.[0]?.[value]);
-                    onUpdate({ emailColumn: value });
-                  }}
-                >
-                  <SelectTrigger className="bg-background border-border">
-                    <SelectValue placeholder="Select email column..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableMergeTags.map((column) => (
-                      <SelectItem key={column} value={column}>
-                        {column}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {data.emailColumn && (
-                  <div className="flex items-center gap-2 text-sm text-green-600">
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                    Selected: <strong>{data.emailColumn}</strong>
-                    {data.contacts?.[0] && (
-                      <span className="text-xs text-muted-foreground">
-                        (Value: {data.contacts[0][data.emailColumn] || 'NULL'})
-                      </span>
-                    )}
-                  </div>
-                )}
-                {!data.emailColumn && (
-                  <div className="flex items-center gap-2 text-sm text-amber-600">
-                    <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                    Please select an email column before launching the campaign
-                  </div>
-                )}
-                
-                {/* Debug info - show available columns */}
-                <div className="text-xs text-muted-foreground">
-                  <details>
-                    <summary className="cursor-pointer">Available columns ({availableMergeTags.length})</summary>
-                    <div className="mt-2 p-2 bg-muted rounded text-xs">
-                      {availableMergeTags.map((column, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <span className="font-mono">{column}</span>
-                          {data.contacts?.[0]?.[column] && (
-                            <span className="text-green-600">✓</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Template Library */}
       {showTemplateLibrary && (
