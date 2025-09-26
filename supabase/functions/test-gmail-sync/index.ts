@@ -77,8 +77,8 @@ const handler = async (req: Request): Promise<Response> => {
         gmailSynced: email.gmail_synced,
         gmailMessageId: email.gmail_message_id,
         gmailSyncedAt: email.gmail_synced_at,
-        senderEmail: email.sender_accounts?.email,
-        recipientEmail: email.contacts?.email
+        senderEmail: (email.sender_accounts as any)?.email || 'Unknown',
+        recipientEmail: (email.contacts as any)?.email || 'Unknown'
       })) || [],
       summary: {
         totalSenderAccounts: senderAccounts?.length || 0,

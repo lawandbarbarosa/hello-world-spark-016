@@ -49,7 +49,17 @@ const handler = async (req: Request): Promise<Response> => {
       suspiciousOpens: 0,
       legitimateOpens: 0,
       quickOpens: 0, // Opens within 5 minutes
-      details: []
+      details: [] as Array<{
+        id: any;
+        contactEmail: any;
+        campaignName: any;
+        subject: any;
+        sentAt: any;
+        openedAt: any;
+        minutesToOpen: number;
+        isQuickOpen: boolean;
+        isSuspicious: boolean;
+      }>
     };
 
     if (openAnalysis.sentEmails > 0) {
@@ -152,7 +162,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error) {
     console.error("❌ Error in test-email-tracking function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: (error as Error).message }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
