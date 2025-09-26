@@ -82,6 +82,16 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   };
   
   const availableMergeTags = getAvailableMergeTags();
+  
+  // Debug: Log the actual contact data
+  console.log('EmailSequence - Data received:', data);
+  console.log('EmailSequence - Contacts:', data.contacts);
+  console.log('EmailSequence - Selected contact index:', selectedContactIndex);
+  if (data.contacts && data.contacts.length > 0) {
+    console.log('EmailSequence - First contact:', data.contacts[0]);
+    console.log('EmailSequence - First contact keys:', Object.keys(data.contacts[0]));
+  }
+  
   const previewContact = data.contacts?.[selectedContactIndex] || {
     email: 'john@example.com',
     firstName: 'John',
@@ -91,6 +101,8 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     phone: '+1-555-0123',
     title: 'Manager'
   };
+  
+  console.log('EmailSequence - Preview contact:', previewContact);
 
   useEffect(() => {
     onUpdate({ sequence });
@@ -314,6 +326,8 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                   onValueChange={(value) => {
                     console.log('Email column selected:', value);
                     console.log('Available columns:', availableMergeTags);
+                    console.log('Sample contact data when selecting email column:', data.contacts?.[0]);
+                    console.log('Value in selected column:', data.contacts?.[0]?.[value]);
                     onUpdate({ emailColumn: value });
                   }}
                 >
