@@ -552,8 +552,8 @@ const handler = async (req: Request): Promise<Response> => {
         if (userSettings?.default_signature && userSettings.default_signature.trim()) {
           const signature = userSettings.default_signature;
           if (isHtmlContent) {
-            // For HTML content, add signature as HTML
-            finalBody += `<br><br><div class="signature">${signature.replace(/\n/g, '<br>')}</div>`;
+            // For HTML content, add signature as HTML with black color
+            finalBody += `<br><br><div class="signature" style="color: #000000 !important;">${signature.replace(/\n/g, '<br>')}</div>`;
           } else {
             // For plain text, add as text (will be converted to HTML later)
             finalBody += '\n\n' + signature;
@@ -564,8 +564,8 @@ const handler = async (req: Request): Promise<Response> => {
         if (userSettings?.legal_disclaimer && userSettings.legal_disclaimer.trim()) {
           const disclaimer = userSettings.legal_disclaimer;
           if (isHtmlContent) {
-            // For HTML content, add disclaimer as HTML
-            finalBody += `<br><br><div style="font-size: 11px; color: #999; margin-top: 15px;">${disclaimer.replace(/\n/g, '<br>')}</div>`;
+            // For HTML content, add disclaimer as HTML with black color
+            finalBody += `<br><br><div style="font-size: 11px; color: #000000 !important; margin-top: 15px;">${disclaimer.replace(/\n/g, '<br>')}</div>`;
           } else {
             // For plain text, add as text (will be converted to HTML later)
             finalBody += '\n\n' + disclaimer;
@@ -575,18 +575,28 @@ const handler = async (req: Request): Promise<Response> => {
         // Convert to HTML format if needed and add tracking
         let emailBodyWithTracking: string;
         if (isHtmlContent) {
-          // Already HTML - preserve formatting and add tracking pixel
+          // Already HTML - wrap in container with black text color and add tracking pixel
           const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
-          emailBodyWithTracking = finalBody + trackingPixel;
+          emailBodyWithTracking = `
+            <div style="color: #000000 !important; font-family: Arial, sans-serif; line-height: 1.5;">
+              ${finalBody}
+            </div>
+            ${trackingPixel}
+          `;
         } else {
-          // Convert plain text to HTML with proper paragraph and line break formatting
+          // Convert plain text to HTML with black text color and proper formatting
           const htmlBody = finalBody
-            .replace(/\n\n/g, '</p><p>')  // Double line breaks become paragraph breaks
+            .replace(/\n\n/g, '</p><p style="color: #000000 !important; margin: 1em 0;">')  // Double line breaks become paragraph breaks
             .replace(/\n/g, '<br>')       // Single line breaks become <br>
-            .replace(/^(.*)$/, '<p>$1</p>'); // Wrap entire content in paragraph tags
+            .replace(/^(.*)$/, '<p style="color: #000000 !important; margin: 1em 0;">$1</p>'); // Wrap entire content in paragraph tags
           
           const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${insertedEmailSend.id}" width="1" height="1" style="display:none;" alt="" />`;
-          emailBodyWithTracking = htmlBody + trackingPixel;
+          emailBodyWithTracking = `
+            <div style="color: #000000 !important; font-family: Arial, sans-serif; line-height: 1.5;">
+              ${htmlBody}
+            </div>
+            ${trackingPixel}
+          `;
         }
 
         // Send email using Resend with current sender

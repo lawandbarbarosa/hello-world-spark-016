@@ -295,7 +295,7 @@ const handler = async (req: Request): Promise<Response> => {
         if (userSettings?.default_signature && userSettings.default_signature.trim()) {
           const signature = userSettings.default_signature;
           if (isHtmlContent) {
-            finalBody += `<br><br><div class="signature">${signature.replace(/\n/g, '<br>')}</div>`;
+            finalBody += `<br><br><div class="signature" style="color: #000000 !important;">${signature.replace(/\n/g, '<br>')}</div>`;
           } else {
             finalBody += '\n\n' + signature;
           }
@@ -305,7 +305,7 @@ const handler = async (req: Request): Promise<Response> => {
         if (userSettings?.legal_disclaimer && userSettings.legal_disclaimer.trim()) {
           const disclaimer = userSettings.legal_disclaimer;
           if (isHtmlContent) {
-            finalBody += `<br><br><div style="font-size: 11px; color: #999; margin-top: 15px;">${disclaimer.replace(/\n/g, '<br>')}</div>`;
+            finalBody += `<br><br><div style="font-size: 11px; color: #000000 !important; margin-top: 15px;">${disclaimer.replace(/\n/g, '<br>')}</div>`;
           } else {
             finalBody += '\n\n' + disclaimer;
           }
@@ -314,18 +314,28 @@ const handler = async (req: Request): Promise<Response> => {
         // Convert to HTML format and add tracking
         let emailBodyWithTracking: string;
         if (isHtmlContent) {
-          // Already HTML - preserve formatting
+          // Already HTML - wrap in container with black text color and add tracking pixel
           const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${emailSendRecord.id}" width="1" height="1" style="display:none;" alt="" />`;
-          emailBodyWithTracking = finalBody + trackingPixel;
+          emailBodyWithTracking = `
+            <div style="color: #000000 !important; font-family: Arial, sans-serif; line-height: 1.5;">
+              ${finalBody}
+            </div>
+            ${trackingPixel}
+          `;
         } else {
-          // Convert plain text to HTML
+          // Convert plain text to HTML with black text color
           const htmlBody = finalBody
-            .replace(/\n\n/g, '</p><p>')
+            .replace(/\n\n/g, '</p><p style="color: #000000 !important; margin: 1em 0;">')
             .replace(/\n/g, '<br>')
-            .replace(/^(.*)$/, '<p>$1</p>');
+            .replace(/^(.*)$/, '<p style="color: #000000 !important; margin: 1em 0;">$1</p>');
           
           const trackingPixel = `<img src="${supabaseUrl}/functions/v1/track-email-open?id=${emailSendRecord.id}" width="1" height="1" style="display:none;" alt="" />`;
-          emailBodyWithTracking = htmlBody + trackingPixel;
+          emailBodyWithTracking = `
+            <div style="color: #000000 !important; font-family: Arial, sans-serif; line-height: 1.5;">
+              ${htmlBody}
+            </div>
+            ${trackingPixel}
+          `;
         }
 
         // Send email
