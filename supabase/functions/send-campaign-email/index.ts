@@ -362,15 +362,15 @@ const handler = async (req: Request): Promise<Response> => {
         let personalizedBody = firstSequence.body;
 
         // Replace with fallback support {{field|fallback}}
-        personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match: string, field: string, fallback: string) => {
+        personalizedSubject = personalizedSubject.replace(/\{\{\s*([^}|]+)\|([^}]+)\s*\}\}/g, (match: string, field: string, fallback: string) => {
           return contact[field] || fallback;
         });
-        personalizedBody = personalizedBody.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match: string, field: string, fallback: string) => {
+        personalizedBody = personalizedBody.replace(/\{\{\s*([^}|]+)\|([^}]+)\s*\}\}/g, (match: string, field: string, fallback: string) => {
           return contact[field] || fallback;
         });
 
         // Replace simple merge tags with dynamic field matching
-        personalizedSubject = personalizedSubject.replace(/\{\{(\w+)\}\}/g, (match: string, field: string) => {
+        personalizedSubject = personalizedSubject.replace(/\{\{\s*([^}|]+)\s*\}\}/g, (match: string, field: string) => {
           console.log(`Template replacement - Subject: Looking for field "${field}" in contact:`, contact);
           console.log(`Available contact fields:`, Object.keys(contact));
           console.log(`Custom fields:`, contact.custom_fields);
@@ -389,7 +389,7 @@ const handler = async (req: Request): Promise<Response> => {
             }
             
             // Check case-insensitive match in custom_fields
-            const fieldLower = field.toLowerCase();
+            const fieldLower = field.toLowerCase().trim();
             const customFieldKey = Object.keys(contact.custom_fields).find(key => key.toLowerCase() === fieldLower);
             if (customFieldKey && contact.custom_fields[customFieldKey] !== undefined && contact.custom_fields[customFieldKey] !== null) {
               console.log(`Case-insensitive custom field match found for "${field}" -> "${customFieldKey}":`, contact.custom_fields[customFieldKey]);
@@ -398,7 +398,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
           
           // Check case-insensitive match in main contact object
-          const fieldLower = field.toLowerCase();
+          const fieldLower = field.toLowerCase().trim();
           const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
           if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
             console.log(`Case-insensitive match found for "${field}" -> "${contactKey}":`, contact[contactKey]);
@@ -465,7 +465,7 @@ const handler = async (req: Request): Promise<Response> => {
             }
             
             // Check case-insensitive match in custom_fields
-            const fieldLower = field.toLowerCase();
+          const fieldLower = field.toLowerCase().trim();
             const customFieldKey = Object.keys(contact.custom_fields).find(key => key.toLowerCase() === fieldLower);
             if (customFieldKey && contact.custom_fields[customFieldKey] !== undefined && contact.custom_fields[customFieldKey] !== null) {
               console.log(`Case-insensitive custom field match found for "${field}" -> "${customFieldKey}":`, contact.custom_fields[customFieldKey]);
@@ -474,7 +474,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
           
           // Check case-insensitive match in main contact object
-          const fieldLower = field.toLowerCase();
+          const fieldLower = field.toLowerCase().trim();
           const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
           if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
             console.log(`Case-insensitive match found for "${field}" -> "${contactKey}":`, contact[contactKey]);

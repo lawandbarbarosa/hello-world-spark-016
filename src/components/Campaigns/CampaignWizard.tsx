@@ -88,14 +88,6 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
       console.log('CampaignWizard - Selected columns updated:', stepData.selectedColumns);
     }
     
-    if (stepData.emailColumn) {
-      console.log('CampaignWizard - Email column selected:', stepData.emailColumn);
-      console.log('CampaignWizard - Current contacts:', campaignData.contacts);
-      if (campaignData.contacts && campaignData.contacts.length > 0) {
-        console.log('CampaignWizard - First contact:', campaignData.contacts[0]);
-        console.log('CampaignWizard - Email value in selected column:', campaignData.contacts[0][stepData.emailColumn]);
-      }
-    }
     
     setCampaignData(prev => {
       const newData = { ...prev, ...stepData };
