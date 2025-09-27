@@ -266,15 +266,33 @@ const handler = async (req: Request): Promise<Response> => {
         let personalizedSubject = personalizeText(sequence.subject, contact, fallbackTags);
         let personalizedBody = personalizeText(sequence.body, contact, fallbackTags);
 
+        // Block send if unresolved tags remain and mark scheduled email failed
+        const unresolved = Array.from(
+          new Set(
+            (personalizedSubject + ' ' + personalizedBody)
+              .match(/\{\{[^}]+\}\}/g) || []
+          )
+        );
+        if (unresolved.length > 0) {
+          const errorMsg = `Unmapped merge tags: ${unresolved.join(', ')}`;
+          console.warn(errorMsg, { contact: contact.email, scheduledId: scheduledEmail.id });
+          await supabase
+            .from('scheduled_emails')
+            .update({ status: 'failed', error_message: errorMsg })
+            .eq('id', scheduledEmail.id);
+          failedCount++;
+          continue;
+        }
+
         // Create email send record
         const { data: emailSendRecord, error: insertError } = await supabase
-          .from("email_sends")
+          .from('email_sends')
           .insert({
             campaign_id: scheduledEmail.campaign_id,
             contact_id: scheduledEmail.contact_id,
             sequence_id: scheduledEmail.sequence_id,
             sender_account_id: scheduledEmail.sender_account_id,
-            status: "pending",
+            status: 'pending',
           })
           .select()
           .single();
