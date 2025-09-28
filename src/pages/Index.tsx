@@ -12,6 +12,7 @@ import SenderAccounts from '@/components/Senders/SenderAccounts';
 import Settings from '@/components/Settings/Settings';
 import ContactsList from '@/components/Contacts/ContactsList';
 import ReplyTracker from '@/components/Replies/ReplyTracker';
+import Calendar from '@/components/Calendar/Calendar';
 import SessionDebugger from '@/components/SessionDebugger';
 
 const Index = () => {
@@ -33,6 +34,8 @@ const Index = () => {
     } else if (path.startsWith('/campaigns/edit/')) {
       setActiveTab('edit-campaign');
       setSelectedCampaignId(params.id || null);
+    } else if (path === '/calendar') {
+      setActiveTab('calendar');
     } else if (path === '/delivery') {
       setActiveTab('delivery');
     } else if (path === '/inbox') {
@@ -67,6 +70,9 @@ const Index = () => {
         if (campaignId) {
           navigate(`/campaigns/edit/${campaignId}`);
         }
+        break;
+      case 'calendar':
+        navigate('/calendar');
         break;
       case 'delivery':
         navigate('/delivery');
@@ -111,6 +117,8 @@ const Index = () => {
         ) : (
           <Dashboard onNavigate={handleNavigation} />
         );
+      case 'calendar':
+        return <Calendar />;
       case 'delivery':
         return <Delivery />;
       case 'inbox':
