@@ -298,13 +298,13 @@ const Calendar = () => {
 
   const getEventColor = (type: string, status: string) => {
     if (type === 'scheduled') {
-      return 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-all duration-200';
+      return 'bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 text-indigo-900 border-l-4 border-indigo-500 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-indigo-100';
     } else if (type === 'sent') {
-      return 'bg-gradient-to-r from-green-50 to-green-100 text-green-900 border-l-4 border-green-500 shadow-sm hover:shadow-md transition-all duration-200';
+      return 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 text-emerald-900 border-l-4 border-emerald-500 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-emerald-100';
     } else if (type === 'failed') {
-      return 'bg-gradient-to-r from-red-50 to-red-100 text-red-900 border-l-4 border-red-500 shadow-sm hover:shadow-md transition-all duration-200';
+      return 'bg-gradient-to-br from-rose-50 via-red-50 to-pink-50 text-rose-900 border-l-4 border-rose-500 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-rose-100';
     }
-    return 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border-l-4 border-gray-400 shadow-sm hover:shadow-md transition-all duration-200';
+    return 'bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 text-slate-900 border-l-4 border-slate-400 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-slate-100';
   };
 
   const formatTime = (date: Date) => {
@@ -372,92 +372,127 @@ const Calendar = () => {
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Email Status Legend</h3>
-          <div className="flex flex-wrap items-center gap-6">
-            <div className="flex items-center gap-3">
-              <div className="w-4 h-4 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 rounded-sm shadow-sm"></div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-600" />
-                <span className="font-medium text-gray-700">Scheduled</span>
+        {/* Enhanced Legend */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+              <Mail className="w-4 h-4 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900">Email Status Legend</h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Scheduled */}
+            <div className="group p-6 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 hover:shadow-lg transition-all duration-300">
+              <div className="flex items-center gap-4 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-indigo-900">Scheduled</h4>
+                  <p className="text-sm text-indigo-600">Emails waiting to be sent</p>
+                </div>
+              </div>
+              <div className="w-full h-3 bg-gradient-to-r from-indigo-200 to-blue-200 rounded-full overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-r from-indigo-500 to-blue-600 rounded-full"></div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-4 h-4 bg-gradient-to-r from-green-50 to-green-100 border-l-4 border-green-500 rounded-sm shadow-sm"></div>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-green-600" />
-                <span className="font-medium text-gray-700">Sent</span>
+
+            {/* Sent */}
+            <div className="group p-6 rounded-xl bg-gradient-to-br from-emerald-50 to-green-50 border border-emerald-100 hover:shadow-lg transition-all duration-300">
+              <div className="flex items-center gap-4 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <CheckCircle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-emerald-900">Sent</h4>
+                  <p className="text-sm text-emerald-600">Successfully delivered</p>
+                </div>
+              </div>
+              <div className="w-full h-3 bg-gradient-to-r from-emerald-200 to-green-200 rounded-full overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-r from-emerald-500 to-green-600 rounded-full"></div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-4 h-4 bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500 rounded-sm shadow-sm"></div>
-              <div className="flex items-center gap-2">
-                <XCircle className="w-4 h-4 text-red-600" />
-                <span className="font-medium text-gray-700">Failed</span>
+
+            {/* Failed */}
+            <div className="group p-6 rounded-xl bg-gradient-to-br from-rose-50 to-red-50 border border-rose-100 hover:shadow-lg transition-all duration-300">
+              <div className="flex items-center gap-4 mb-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-rose-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <XCircle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-bold text-rose-900">Failed</h4>
+                  <p className="text-sm text-rose-600">Delivery unsuccessful</p>
+                </div>
+              </div>
+              <div className="w-full h-3 bg-gradient-to-r from-rose-200 to-red-200 rounded-full overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-r from-rose-500 to-red-600 rounded-full"></div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Calendar Grid */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        {/* Enhanced Calendar Grid */}
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
           {/* Calendar Header */}
-          <div className="grid grid-cols-7 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+          <div className="grid grid-cols-7 bg-gradient-to-r from-slate-50 via-gray-50 to-slate-50 border-b-2 border-gray-200">
             {dayNames.map(day => (
-              <div key={day} className="p-4 text-center font-semibold text-gray-700 border-r border-gray-200 last:border-r-0">
+              <div key={day} className="p-6 text-center font-bold text-gray-800 border-r border-gray-200 last:border-r-0 text-lg">
                 {day}
               </div>
             ))}
           </div>
           
-          {/* Calendar Body */}
+          {/* Enhanced Calendar Body */}
           <div className="grid grid-cols-7">
             {getDaysInMonth(currentDate).map((day, index) => {
               const isToday = day && day.toDateString() === new Date().toDateString();
               const isCurrentMonth = day && day.getMonth() === currentDate.getMonth();
+              const hasEvents = day && getEventsForDay(day).length > 0;
               
               return (
                 <div
                   key={index}
-                  className={`min-h-[140px] border-r border-b border-gray-200 last:border-r-0 p-3 relative transition-colors duration-200 ${
+                  className={`min-h-[160px] border-r border-b border-gray-200 last:border-r-0 p-4 relative transition-all duration-300 group ${
                     isCurrentMonth 
-                      ? 'bg-white hover:bg-gray-50' 
-                      : 'bg-gray-50 text-gray-400'
+                      ? hasEvents
+                        ? 'bg-gradient-to-br from-white to-gray-50 hover:from-gray-50 hover:to-gray-100' 
+                        : 'bg-white hover:bg-gradient-to-br hover:from-gray-50 hover:to-gray-100'
+                      : 'bg-gradient-to-br from-gray-50 to-gray-100 text-gray-400'
                   }`}
                 >
                   {day && (
                     <>
-                      <div className={`text-sm font-semibold mb-2 ${
+                      <div className={`text-lg font-bold mb-3 transition-all duration-300 ${
                         isToday 
-                          ? 'bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs' 
+                          ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl w-8 h-8 flex items-center justify-center shadow-lg transform scale-110' 
                           : isCurrentMonth 
-                            ? 'text-gray-900' 
+                            ? 'text-gray-900 group-hover:text-blue-600' 
                             : 'text-gray-400'
                       }`}>
                         {day.getDate()}
                       </div>
                       
-                      <div className="space-y-1.5">
+                      <div className="space-y-2">
                         {getEventsForDay(day).slice(0, 3).map(event => (
                           <div
                             key={event.id}
-                            className={`text-xs p-2 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md ${getEventColor(event.type, event.status)}`}
+                            className={`text-xs p-3 rounded-xl cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg hover:-translate-y-1 ${getEventColor(event.type, event.status)}`}
                             onClick={() => setSelectedEvent(event)}
                           >
-                            <div className="flex items-center gap-1.5 mb-1">
+                            <div className="flex items-center gap-2 mb-1">
                               {getEventIcon(event.type, event.status)}
-                              <span className="font-medium text-xs">{formatTime(event.date)}</span>
+                              <span className="font-semibold text-xs">{formatTime(event.date)}</span>
                             </div>
-                            <div className="truncate font-semibold text-xs leading-tight">
+                            <div className="truncate font-bold text-xs leading-tight">
                               {event.title}
                             </div>
                           </div>
                         ))}
                         
                         {getEventsForDay(day).length > 3 && (
-                          <div className="text-xs text-gray-500 font-medium bg-gray-100 rounded px-2 py-1 text-center">
-                            +{getEventsForDay(day).length - 3} more
+                          <div className="text-xs text-gray-600 font-bold bg-gradient-to-r from-gray-100 to-gray-200 rounded-lg px-3 py-2 text-center hover:from-gray-200 hover:to-gray-300 transition-all duration-200">
+                            +{getEventsForDay(day).length - 3} more emails
                           </div>
                         )}
                       </div>
@@ -475,13 +510,13 @@ const Calendar = () => {
         {selectedEvent && (
           <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
-              {/* Modal Header */}
-              <div className={`p-6 text-white ${
+              {/* Enhanced Modal Header */}
+              <div className={`p-8 text-white ${
                 selectedEvent.type === 'scheduled' 
-                  ? 'bg-gradient-to-r from-blue-500 to-blue-600' 
+                  ? 'bg-gradient-to-br from-indigo-500 via-blue-600 to-cyan-600' 
                   : selectedEvent.type === 'sent'
-                    ? 'bg-gradient-to-r from-green-500 to-green-600'
-                    : 'bg-gradient-to-r from-red-500 to-red-600'
+                    ? 'bg-gradient-to-br from-emerald-500 via-green-600 to-teal-600'
+                    : 'bg-gradient-to-br from-rose-500 via-red-600 to-pink-600'
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -499,27 +534,39 @@ const Calendar = () => {
                 </div>
               </div>
               
-              {/* Modal Content */}
-              <div className="p-6 space-y-6">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Subject</label>
-                    <p className="text-gray-900 font-medium mt-1">{selectedEvent.subject}</p>
+              {/* Enhanced Modal Content */}
+              <div className="p-8 space-y-6">
+                <div className="grid grid-cols-1 gap-6">
+                  <div className={`rounded-xl p-6 border-2 ${
+                    selectedEvent.type === 'scheduled' 
+                      ? 'bg-gradient-to-br from-indigo-50 to-blue-50 border-indigo-200' 
+                      : selectedEvent.type === 'sent'
+                        ? 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200'
+                        : 'bg-gradient-to-br from-rose-50 to-red-50 border-rose-200'
+                  }`}>
+                    <label className={`text-sm font-bold uppercase tracking-wider ${
+                      selectedEvent.type === 'scheduled' 
+                        ? 'text-indigo-700' 
+                        : selectedEvent.type === 'sent'
+                          ? 'text-emerald-700'
+                          : 'text-rose-700'
+                    }`}>Subject</label>
+                    <p className="text-gray-900 font-bold text-lg mt-2">{selectedEvent.subject}</p>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Campaign</label>
-                    <p className="text-gray-900 font-medium mt-1">{selectedEvent.campaignName}</p>
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-gray-200">
+                    <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Campaign</label>
+                    <p className="text-gray-900 font-bold text-lg mt-2">{selectedEvent.campaignName}</p>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Contact</label>
-                    <p className="text-gray-900 font-medium mt-1">{selectedEvent.contactEmail}</p>
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-gray-200">
+                    <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Contact</label>
+                    <p className="text-gray-900 font-bold text-lg mt-2">{selectedEvent.contactEmail}</p>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Date & Time</label>
-                    <p className="text-gray-900 font-medium mt-1">
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border-2 border-gray-200">
+                    <label className="text-sm font-bold text-gray-700 uppercase tracking-wider">Date & Time</label>
+                    <p className="text-gray-900 font-bold text-lg mt-2">
                       {selectedEvent.date.toLocaleDateString('en-US', { 
                         weekday: 'long', 
                         year: 'numeric', 
@@ -529,15 +576,27 @@ const Calendar = () => {
                     </p>
                   </div>
                   
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Status</label>
-                    <div className="mt-2">
-                      <Badge className={`px-3 py-1 text-sm font-semibold ${
+                  <div className={`rounded-xl p-6 border-2 ${
+                    selectedEvent.type === 'scheduled' 
+                      ? 'bg-gradient-to-br from-indigo-50 to-blue-50 border-indigo-200' 
+                      : selectedEvent.type === 'sent'
+                        ? 'bg-gradient-to-br from-emerald-50 to-green-50 border-emerald-200'
+                        : 'bg-gradient-to-br from-rose-50 to-red-50 border-rose-200'
+                  }`}>
+                    <label className={`text-sm font-bold uppercase tracking-wider ${
+                      selectedEvent.type === 'scheduled' 
+                        ? 'text-indigo-700' 
+                        : selectedEvent.type === 'sent'
+                          ? 'text-emerald-700'
+                          : 'text-rose-700'
+                    }`}>Status</label>
+                    <div className="mt-3">
+                      <Badge className={`px-4 py-2 text-sm font-bold rounded-lg ${
                         selectedEvent.type === 'scheduled' 
-                          ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                          ? 'bg-indigo-100 text-indigo-800 border-2 border-indigo-300' 
                           : selectedEvent.type === 'sent'
-                            ? 'bg-green-100 text-green-800 border-green-200'
-                            : 'bg-red-100 text-red-800 border-red-200'
+                            ? 'bg-emerald-100 text-emerald-800 border-2 border-emerald-300'
+                            : 'bg-rose-100 text-rose-800 border-2 border-rose-300'
                       }`}>
                         {selectedEvent.status}
                       </Badge>
