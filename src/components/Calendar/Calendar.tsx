@@ -503,8 +503,6 @@ const Calendar = () => {
             })}
           </div>
         </div>
-      </div>
-    </div>
 
         {/* Event Details Modal */}
         {selectedEvent && (
@@ -631,6 +629,8 @@ const Calendar = () => {
             </div>
           </div>
         )}
+      </div>
+    </div>
   );
 };
 
