@@ -109,30 +109,35 @@ const Calendar = () => {
         userId: user?.id
       });
 
-      // First, let's check if there's any data at all
+      // First, let's check if there's any data at all - try without any filters
+      console.log('Testing basic table access...');
+      
       const { data: allScheduled, error: allScheduledError } = await supabase
         .from('scheduled_emails')
-        .select('id, scheduled_for, status')
+        .select('*')
         .limit(5);
       
       const { data: allSent, error: allSentError } = await supabase
         .from('email_sends')
-        .select('id, sent_at, status')
+        .select('*')
         .limit(5);
 
       console.log('Sample scheduled emails (any user):', { allScheduled, allScheduledError });
       console.log('Sample sent emails (any user):', { allSent, allSentError });
+
+      // Also check campaigns table
+      const { data: allCampaigns, error: allCampaignsError } = await supabase
+        .from('campaigns')
+        .select('*')
+        .limit(5);
+
+      console.log('Sample campaigns (any user):', { allCampaigns, allCampaignsError });
       
-      // Fetch scheduled emails - use left join to avoid RLS issues
+      // Try a simpler approach - fetch basic data first
+      console.log('Fetching scheduled emails with simple query...');
       const { data: scheduledEmails, error: scheduledError } = await supabase
         .from('scheduled_emails')
-        .select(`
-          *,
-          campaigns(name, description, user_id),
-          contacts(email, first_name, last_name),
-          email_sequences(subject, body, step_number),
-          sender_accounts(email)
-        `)
+        .select('*')
         .gte('scheduled_for', startOfMonth.toISOString())
         .lte('scheduled_for', endOfMonth.toISOString())
         .order('scheduled_for', { ascending: true });
@@ -145,16 +150,11 @@ const Calendar = () => {
         return;
       }
 
-      // Fetch sent emails for the current month (only those that have been sent)
+      // Try a simpler approach for sent emails too
+      console.log('Fetching sent emails with simple query...');
       const { data: sentEmails, error: sentError } = await supabase
         .from('email_sends')
-        .select(`
-          *,
-          campaigns(name, description, user_id),
-          contacts(email, first_name, last_name),
-          email_sequences(subject, body, step_number),
-          sender_accounts(email)
-        `)
+        .select('*')
         .not('sent_at', 'is', null)
         .gte('sent_at', startOfMonth.toISOString())
         .lte('sent_at', endOfMonth.toISOString())
@@ -171,41 +171,38 @@ const Calendar = () => {
       // Transform data into calendar events
       const calendarEvents: CalendarEvent[] = [];
 
-      // Add scheduled emails (filter by user on client side)
-      (scheduledEmails || [])
-        .filter(email => email.campaigns?.user_id === user?.id)
-        .forEach(email => {
-          calendarEvents.push({
-            id: `scheduled-${email.id}`,
-            title: email.email_sequences?.subject || 'Scheduled Email',
-            date: new Date(email.scheduled_for),
-            type: 'scheduled',
-            status: email.status,
-            campaignName: email.campaigns?.name || 'Unknown Campaign',
-            contactEmail: email.contacts?.email || 'Unknown Contact',
-            subject: email.email_sequences?.subject || '',
-            stepNumber: email.email_sequences?.step_number,
-            originalData: email
-          });
+      // Process scheduled emails - we'll fetch related data separately if needed
+      for (const email of scheduledEmails || []) {
+        // For now, create basic events without related data
+        calendarEvents.push({
+          id: `scheduled-${email.id}`,
+          title: 'Scheduled Email',
+          date: new Date(email.scheduled_for),
+          type: 'scheduled',
+          status: email.status,
+          campaignName: `Campaign ${email.campaign_id.slice(0, 8)}`,
+          contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
+          subject: 'Scheduled Email',
+          stepNumber: 1,
+          originalData: email
         });
+      }
 
-      // Add sent emails (filter by user on client side)
-      (sentEmails || [])
-        .filter(email => email.campaigns?.user_id === user?.id)
-        .forEach(email => {
-          calendarEvents.push({
-            id: `sent-${email.id}`,
-            title: email.email_sequences?.subject || 'Sent Email',
-            date: new Date(email.sent_at),
-            type: email.status === 'failed' ? 'failed' : 'sent',
-            status: email.status,
-            campaignName: email.campaigns?.name || 'Unknown Campaign',
-            contactEmail: email.contacts?.email || 'Unknown Contact',
-            subject: email.email_sequences?.subject || '',
-            stepNumber: email.email_sequences?.step_number,
-            originalData: email
-          });
+      // Process sent emails - we'll fetch related data separately if needed
+      for (const email of sentEmails || []) {
+        calendarEvents.push({
+          id: `sent-${email.id}`,
+          title: 'Sent Email',
+          date: new Date(email.sent_at),
+          type: email.status === 'failed' ? 'failed' : 'sent',
+          status: email.status,
+          campaignName: `Campaign ${email.campaign_id.slice(0, 8)}`,
+          contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
+          subject: 'Sent Email',
+          stepNumber: 1,
+          originalData: email
         });
+      }
 
       console.log('Total calendar events created:', calendarEvents.length);
       console.log('Calendar events:', calendarEvents);
@@ -220,26 +217,14 @@ const Calendar = () => {
         
         const { data: recentScheduled } = await supabase
           .from('scheduled_emails')
-          .select(`
-            *,
-            campaigns(name, description, user_id),
-            contacts(email, first_name, last_name),
-            email_sequences(subject, body, step_number),
-            sender_accounts(email)
-          `)
+          .select('*')
           .gte('scheduled_for', threeMonthsAgo.toISOString())
           .order('scheduled_for', { ascending: true })
           .limit(10);
 
         const { data: recentSent } = await supabase
           .from('email_sends')
-          .select(`
-            *,
-            campaigns(name, description, user_id),
-            contacts(email, first_name, last_name),
-            email_sequences(subject, body, step_number),
-            sender_accounts(email)
-          `)
+          .select('*')
           .not('sent_at', 'is', null)
           .gte('sent_at', threeMonthsAgo.toISOString())
           .order('sent_at', { ascending: true })
