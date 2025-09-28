@@ -123,17 +123,16 @@ const Calendar = () => {
       console.log('Sample scheduled emails (any user):', { allScheduled, allScheduledError });
       console.log('Sample sent emails (any user):', { allSent, allSentError });
       
-      // Fetch scheduled emails
+      // Fetch scheduled emails - use left join to avoid RLS issues
       const { data: scheduledEmails, error: scheduledError } = await supabase
         .from('scheduled_emails')
         .select(`
           *,
-          campaigns!inner(name, description, user_id),
+          campaigns(name, description, user_id),
           contacts(email, first_name, last_name),
           email_sequences(subject, body, step_number),
           sender_accounts(email)
         `)
-        .eq('campaigns.user_id', user?.id)
         .gte('scheduled_for', startOfMonth.toISOString())
         .lte('scheduled_for', endOfMonth.toISOString())
         .order('scheduled_for', { ascending: true });
@@ -151,12 +150,11 @@ const Calendar = () => {
         .from('email_sends')
         .select(`
           *,
-          campaigns!inner(name, description, user_id),
+          campaigns(name, description, user_id),
           contacts(email, first_name, last_name),
           email_sequences(subject, body, step_number),
           sender_accounts(email)
         `)
-        .eq('campaigns.user_id', user?.id)
         .not('sent_at', 'is', null)
         .gte('sent_at', startOfMonth.toISOString())
         .lte('sent_at', endOfMonth.toISOString())
@@ -173,37 +171,41 @@ const Calendar = () => {
       // Transform data into calendar events
       const calendarEvents: CalendarEvent[] = [];
 
-      // Add scheduled emails
-      (scheduledEmails || []).forEach(email => {
-        calendarEvents.push({
-          id: `scheduled-${email.id}`,
-          title: email.email_sequences?.subject || 'Scheduled Email',
-          date: new Date(email.scheduled_for),
-          type: 'scheduled',
-          status: email.status,
-          campaignName: email.campaigns?.name || 'Unknown Campaign',
-          contactEmail: email.contacts?.email || 'Unknown Contact',
-          subject: email.email_sequences?.subject || '',
-          stepNumber: email.email_sequences?.step_number,
-          originalData: email
+      // Add scheduled emails (filter by user on client side)
+      (scheduledEmails || [])
+        .filter(email => email.campaigns?.user_id === user?.id)
+        .forEach(email => {
+          calendarEvents.push({
+            id: `scheduled-${email.id}`,
+            title: email.email_sequences?.subject || 'Scheduled Email',
+            date: new Date(email.scheduled_for),
+            type: 'scheduled',
+            status: email.status,
+            campaignName: email.campaigns?.name || 'Unknown Campaign',
+            contactEmail: email.contacts?.email || 'Unknown Contact',
+            subject: email.email_sequences?.subject || '',
+            stepNumber: email.email_sequences?.step_number,
+            originalData: email
+          });
         });
-      });
 
-      // Add sent emails
-      (sentEmails || []).forEach(email => {
-        calendarEvents.push({
-          id: `sent-${email.id}`,
-          title: email.email_sequences?.subject || 'Sent Email',
-          date: new Date(email.sent_at),
-          type: email.status === 'failed' ? 'failed' : 'sent',
-          status: email.status,
-          campaignName: email.campaigns?.name || 'Unknown Campaign',
-          contactEmail: email.contacts?.email || 'Unknown Contact',
-          subject: email.email_sequences?.subject || '',
-          stepNumber: email.email_sequences?.step_number,
-          originalData: email
+      // Add sent emails (filter by user on client side)
+      (sentEmails || [])
+        .filter(email => email.campaigns?.user_id === user?.id)
+        .forEach(email => {
+          calendarEvents.push({
+            id: `sent-${email.id}`,
+            title: email.email_sequences?.subject || 'Sent Email',
+            date: new Date(email.sent_at),
+            type: email.status === 'failed' ? 'failed' : 'sent',
+            status: email.status,
+            campaignName: email.campaigns?.name || 'Unknown Campaign',
+            contactEmail: email.contacts?.email || 'Unknown Contact',
+            subject: email.email_sequences?.subject || '',
+            stepNumber: email.email_sequences?.step_number,
+            originalData: email
+          });
         });
-      });
 
       console.log('Total calendar events created:', calendarEvents.length);
       console.log('Calendar events:', calendarEvents);
@@ -220,12 +222,11 @@ const Calendar = () => {
           .from('scheduled_emails')
           .select(`
             *,
-            campaigns!inner(name, description, user_id),
+            campaigns(name, description, user_id),
             contacts(email, first_name, last_name),
             email_sequences(subject, body, step_number),
             sender_accounts(email)
           `)
-          .eq('campaigns.user_id', user?.id)
           .gte('scheduled_for', threeMonthsAgo.toISOString())
           .order('scheduled_for', { ascending: true })
           .limit(10);
@@ -234,12 +235,11 @@ const Calendar = () => {
           .from('email_sends')
           .select(`
             *,
-            campaigns!inner(name, description, user_id),
+            campaigns(name, description, user_id),
             contacts(email, first_name, last_name),
             email_sequences(subject, body, step_number),
             sender_accounts(email)
           `)
-          .eq('campaigns.user_id', user?.id)
           .not('sent_at', 'is', null)
           .gte('sent_at', threeMonthsAgo.toISOString())
           .order('sent_at', { ascending: true })
