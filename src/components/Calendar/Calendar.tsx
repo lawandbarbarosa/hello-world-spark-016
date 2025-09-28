@@ -143,6 +143,21 @@ const Calendar = () => {
         .order('scheduled_for', { ascending: true });
 
       console.log('Scheduled emails result:', { scheduledEmails, scheduledError });
+      console.log('Scheduled emails count:', scheduledEmails?.length || 0);
+      
+      // Log individual scheduled emails for debugging
+      if (scheduledEmails && scheduledEmails.length > 0) {
+        console.log('Individual scheduled emails:');
+        scheduledEmails.forEach((email, index) => {
+          console.log(`Scheduled ${index + 1}:`, {
+            id: email.id,
+            campaign_id: email.campaign_id,
+            contact_id: email.contact_id,
+            scheduled_for: email.scheduled_for,
+            status: email.status
+          });
+        });
+      }
 
       if (scheduledError) {
         console.error('Error fetching scheduled emails:', scheduledError);
@@ -161,6 +176,21 @@ const Calendar = () => {
         .order('sent_at', { ascending: true });
 
       console.log('Sent emails result:', { sentEmails, sentError });
+      console.log('Sent emails count:', sentEmails?.length || 0);
+      
+      // Log individual sent emails for debugging
+      if (sentEmails && sentEmails.length > 0) {
+        console.log('Individual sent emails:');
+        sentEmails.forEach((email, index) => {
+          console.log(`Sent ${index + 1}:`, {
+            id: email.id,
+            campaign_id: email.campaign_id,
+            contact_id: email.contact_id,
+            sent_at: email.sent_at,
+            status: email.status
+          });
+        });
+      }
 
       if (sentError) {
         console.error('Error fetching sent emails:', sentError);
@@ -168,12 +198,22 @@ const Calendar = () => {
         return;
       }
 
-      // Transform data into calendar events
+      // Transform data into calendar events with deduplication
       const calendarEvents: CalendarEvent[] = [];
+      const processedEmails = new Set<string>(); // Track processed emails to avoid duplicates
 
-      // Process scheduled emails - we'll fetch related data separately if needed
+      // Process scheduled emails first
       for (const email of scheduledEmails || []) {
-        // For now, create basic events without related data
+        const emailKey = `${email.campaign_id}-${email.contact_id}-${email.scheduled_for}`;
+        
+        // Skip if we've already processed this email
+        if (processedEmails.has(emailKey)) {
+          console.log('Skipping duplicate scheduled email:', emailKey);
+          continue;
+        }
+        
+        processedEmails.add(emailKey);
+        
         calendarEvents.push({
           id: `scheduled-${email.id}`,
           title: 'Scheduled Email',
@@ -188,8 +228,18 @@ const Calendar = () => {
         });
       }
 
-      // Process sent emails - we'll fetch related data separately if needed
+      // Process sent emails, but check for duplicates
       for (const email of sentEmails || []) {
+        const emailKey = `${email.campaign_id}-${email.contact_id}-${email.sent_at}`;
+        
+        // Skip if we've already processed this email
+        if (processedEmails.has(emailKey)) {
+          console.log('Skipping duplicate sent email:', emailKey);
+          continue;
+        }
+        
+        processedEmails.add(emailKey);
+        
         calendarEvents.push({
           id: `sent-${email.id}`,
           title: 'Sent Email',
@@ -204,11 +254,27 @@ const Calendar = () => {
         });
       }
 
-      console.log('Total calendar events created:', calendarEvents.length);
-      console.log('Calendar events:', calendarEvents);
+      // Additional deduplication: Remove any remaining duplicates based on date, campaign, and contact
+      const finalEvents: CalendarEvent[] = [];
+      const seenEvents = new Set<string>();
+      
+      for (const event of calendarEvents) {
+        // Create a unique key based on date, campaign, contact, and type
+        const eventKey = `${event.date.toISOString().split('T')[0]}-${event.campaignName}-${event.contactEmail}-${event.type}`;
+        
+        if (!seenEvents.has(eventKey)) {
+          seenEvents.add(eventKey);
+          finalEvents.push(event);
+        } else {
+          console.log('Removing duplicate event:', eventKey);
+        }
+      }
+      
+      console.log('Total calendar events after deduplication:', finalEvents.length);
+      console.log('Final calendar events:', finalEvents);
 
       // If no events found for current month, try to get some recent data for context
-      if (calendarEvents.length === 0) {
+      if (finalEvents.length === 0) {
         console.log('No events found for current month, fetching recent data...');
         
         // Get recent scheduled emails (last 3 months)
@@ -234,7 +300,7 @@ const Calendar = () => {
         console.log('Recent sent emails:', recentSent);
       }
 
-      setEvents(calendarEvents);
+      setEvents(finalEvents);
     } catch (error) {
       console.error('Error fetching calendar data:', error);
       toast.error('Failed to load calendar data');
