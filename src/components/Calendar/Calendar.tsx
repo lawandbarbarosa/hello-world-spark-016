@@ -103,6 +103,26 @@ const Calendar = () => {
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
       
+      console.log('Fetching calendar data for:', {
+        startOfMonth: startOfMonth.toISOString(),
+        endOfMonth: endOfMonth.toISOString(),
+        userId: user?.id
+      });
+
+      // First, let's check if there's any data at all
+      const { data: allScheduled, error: allScheduledError } = await supabase
+        .from('scheduled_emails')
+        .select('id, scheduled_for, status')
+        .limit(5);
+      
+      const { data: allSent, error: allSentError } = await supabase
+        .from('email_sends')
+        .select('id, sent_at, status')
+        .limit(5);
+
+      console.log('Sample scheduled emails (any user):', { allScheduled, allScheduledError });
+      console.log('Sample sent emails (any user):', { allSent, allSentError });
+      
       // Fetch scheduled emails
       const { data: scheduledEmails, error: scheduledError } = await supabase
         .from('scheduled_emails')
@@ -118,13 +138,15 @@ const Calendar = () => {
         .lte('scheduled_for', endOfMonth.toISOString())
         .order('scheduled_for', { ascending: true });
 
+      console.log('Scheduled emails result:', { scheduledEmails, scheduledError });
+
       if (scheduledError) {
         console.error('Error fetching scheduled emails:', scheduledError);
         toast.error('Failed to fetch scheduled emails');
         return;
       }
 
-      // Fetch sent emails for the current month
+      // Fetch sent emails for the current month (only those that have been sent)
       const { data: sentEmails, error: sentError } = await supabase
         .from('email_sends')
         .select(`
@@ -135,9 +157,12 @@ const Calendar = () => {
           sender_accounts(email)
         `)
         .eq('campaigns.user_id', user?.id)
+        .not('sent_at', 'is', null)
         .gte('sent_at', startOfMonth.toISOString())
         .lte('sent_at', endOfMonth.toISOString())
         .order('sent_at', { ascending: true });
+
+      console.log('Sent emails result:', { sentEmails, sentError });
 
       if (sentError) {
         console.error('Error fetching sent emails:', sentError);
@@ -179,6 +204,50 @@ const Calendar = () => {
           originalData: email
         });
       });
+
+      console.log('Total calendar events created:', calendarEvents.length);
+      console.log('Calendar events:', calendarEvents);
+
+      // If no events found for current month, try to get some recent data for context
+      if (calendarEvents.length === 0) {
+        console.log('No events found for current month, fetching recent data...');
+        
+        // Get recent scheduled emails (last 3 months)
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+        
+        const { data: recentScheduled } = await supabase
+          .from('scheduled_emails')
+          .select(`
+            *,
+            campaigns!inner(name, description, user_id),
+            contacts(email, first_name, last_name),
+            email_sequences(subject, body, step_number),
+            sender_accounts(email)
+          `)
+          .eq('campaigns.user_id', user?.id)
+          .gte('scheduled_for', threeMonthsAgo.toISOString())
+          .order('scheduled_for', { ascending: true })
+          .limit(10);
+
+        const { data: recentSent } = await supabase
+          .from('email_sends')
+          .select(`
+            *,
+            campaigns!inner(name, description, user_id),
+            contacts(email, first_name, last_name),
+            email_sequences(subject, body, step_number),
+            sender_accounts(email)
+          `)
+          .eq('campaigns.user_id', user?.id)
+          .not('sent_at', 'is', null)
+          .gte('sent_at', threeMonthsAgo.toISOString())
+          .order('sent_at', { ascending: true })
+          .limit(10);
+
+        console.log('Recent scheduled emails:', recentScheduled);
+        console.log('Recent sent emails:', recentSent);
+      }
 
       setEvents(calendarEvents);
     } catch (error) {
