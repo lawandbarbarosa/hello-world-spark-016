@@ -184,7 +184,7 @@ const Calendar = () => {
           contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
           subject: 'Scheduled Email',
           stepNumber: 1,
-          originalData: email
+          originalData: email as ScheduledEmail
         });
       }
 
@@ -200,7 +200,7 @@ const Calendar = () => {
           contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
           subject: 'Sent Email',
           stepNumber: 1,
-          originalData: email
+          originalData: email as SentEmail
         });
       }
 
@@ -298,13 +298,13 @@ const Calendar = () => {
 
   const getEventColor = (type: string, status: string) => {
     if (type === 'scheduled') {
-      return 'bg-gradient-to-br from-indigo-50 via-blue-50 to-cyan-50 text-indigo-900 border-l-4 border-indigo-500 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-indigo-100';
+      return 'bg-gradient-to-br from-orange-100 via-amber-50 to-yellow-100 text-orange-900 border-l-4 border-orange-500 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ring-2 ring-orange-200 hover:ring-orange-300';
     } else if (type === 'sent') {
-      return 'bg-gradient-to-br from-emerald-50 via-green-50 to-teal-50 text-emerald-900 border-l-4 border-emerald-500 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-emerald-100';
+      return 'bg-gradient-to-br from-green-100 via-emerald-50 to-teal-100 text-green-900 border-l-4 border-green-500 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ring-2 ring-green-200 hover:ring-green-300';
     } else if (type === 'failed') {
-      return 'bg-gradient-to-br from-rose-50 via-red-50 to-pink-50 text-rose-900 border-l-4 border-rose-500 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-rose-100';
+      return 'bg-gradient-to-br from-red-100 via-rose-50 to-pink-100 text-red-900 border-l-4 border-red-500 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ring-2 ring-red-200 hover:ring-red-300';
     }
-    return 'bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 text-slate-900 border-l-4 border-slate-400 shadow-md hover:shadow-lg hover:scale-105 transition-all duration-300 ring-1 ring-slate-100';
+    return 'bg-gradient-to-br from-gray-100 via-slate-50 to-zinc-100 text-gray-900 border-l-4 border-gray-400 shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 ring-2 ring-gray-200 hover:ring-gray-300';
   };
 
   const formatTime = (date: Date) => {
@@ -383,61 +383,61 @@ const Calendar = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Scheduled */}
-            <div className="group p-6 rounded-xl bg-gradient-to-br from-gray-700 to-purple-700 border border-purple-500 hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <div className="group p-6 rounded-xl bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-300 hover:shadow-xl hover:scale-105 transition-all duration-300">
               <div className="flex items-center gap-4 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
                   <Clock className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-white">Scheduled</h4>
-                  <p className="text-sm text-purple-200">Emails waiting to be sent</p>
+                  <h4 className="text-lg font-bold text-orange-900">Scheduled</h4>
+                  <p className="text-sm text-orange-700">Emails waiting to be sent</p>
                 </div>
               </div>
-              <div className="w-full h-3 bg-gradient-to-r from-gray-600 to-purple-600 rounded-full overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"></div>
+              <div className="w-full h-3 bg-gradient-to-r from-orange-200 to-amber-200 rounded-full overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-r from-orange-500 to-amber-600 rounded-full"></div>
               </div>
             </div>
 
             {/* Sent */}
-            <div className="group p-6 rounded-xl bg-gradient-to-br from-gray-700 to-purple-700 border border-purple-500 hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <div className="group p-6 rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-300 hover:shadow-xl hover:scale-105 transition-all duration-300">
               <div className="flex items-center gap-4 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg">
                   <CheckCircle className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-white">Sent</h4>
-                  <p className="text-sm text-purple-200">Successfully delivered</p>
+                  <h4 className="text-lg font-bold text-green-900">Sent</h4>
+                  <p className="text-sm text-green-700">Successfully delivered</p>
                 </div>
               </div>
-              <div className="w-full h-3 bg-gradient-to-r from-gray-600 to-purple-600 rounded-full overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"></div>
+              <div className="w-full h-3 bg-gradient-to-r from-green-200 to-emerald-200 rounded-full overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-r from-green-500 to-emerald-600 rounded-full"></div>
               </div>
             </div>
 
             {/* Failed */}
-            <div className="group p-6 rounded-xl bg-gradient-to-br from-gray-700 to-purple-700 border border-purple-500 hover:shadow-xl hover:scale-105 transition-all duration-300">
+            <div className="group p-6 rounded-xl bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-300 hover:shadow-xl hover:scale-105 transition-all duration-300">
               <div className="flex items-center gap-4 mb-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-rose-600 rounded-xl flex items-center justify-center shadow-lg">
                   <XCircle className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-bold text-white">Failed</h4>
-                  <p className="text-sm text-purple-200">Delivery unsuccessful</p>
+                  <h4 className="text-lg font-bold text-red-900">Failed</h4>
+                  <p className="text-sm text-red-700">Delivery unsuccessful</p>
                 </div>
               </div>
-              <div className="w-full h-3 bg-gradient-to-r from-gray-600 to-purple-600 rounded-full overflow-hidden">
-                <div className="w-full h-full bg-gradient-to-r from-purple-400 to-purple-600 rounded-full"></div>
+              <div className="w-full h-3 bg-gradient-to-r from-red-200 to-rose-200 rounded-full overflow-hidden">
+                <div className="w-full h-full bg-gradient-to-r from-red-500 to-rose-600 rounded-full"></div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Enhanced Calendar Grid */}
-        <div className="bg-gradient-to-r from-gray-800 to-purple-800 rounded-2xl shadow-2xl border border-purple-700 overflow-hidden">
+        <div className="bg-gradient-to-r from-gray-800 to-purple-800 rounded-3xl shadow-2xl border-2 border-purple-600 overflow-hidden">
           {/* Calendar Header */}
-          <div className="grid grid-cols-7 bg-gradient-to-r from-gray-700 via-purple-700 to-gray-700 border-b-2 border-purple-600">
+          <div className="grid grid-cols-7 bg-gradient-to-r from-gray-700 via-purple-700 to-gray-700 border-b-2 border-purple-500">
             {dayNames.map(day => (
-              <div key={day} className="p-6 text-center font-bold text-white border-r border-purple-600 last:border-r-0 text-lg">
+              <div key={day} className="p-6 text-center font-bold text-white border-r border-purple-500 last:border-r-0 text-xl tracking-wide">
                 {day}
               </div>
             ))}
@@ -453,45 +453,45 @@ const Calendar = () => {
               return (
                 <div
                   key={index}
-                  className={`min-h-[160px] border-r border-b border-purple-600 last:border-r-0 p-4 relative transition-all duration-300 group ${
+                  className={`min-h-[180px] border-r border-b border-purple-500 last:border-r-0 p-5 relative transition-all duration-300 group ${
                     isCurrentMonth 
                       ? hasEvents
-                        ? 'bg-gradient-to-br from-gray-700 to-purple-700 hover:from-purple-600 hover:to-purple-800' 
-                        : 'bg-gradient-to-br from-gray-800 to-purple-800 hover:from-purple-600 hover:to-purple-800'
+                        ? 'bg-gradient-to-br from-gray-700 to-purple-700 hover:from-purple-600 hover:to-purple-800 hover:shadow-inner' 
+                        : 'bg-gradient-to-br from-gray-800 to-purple-800 hover:from-purple-600 hover:to-purple-800 hover:shadow-inner'
                       : 'bg-gradient-to-br from-gray-900 to-purple-900 text-gray-400'
                   }`}
                 >
                   {day && (
                     <>
-                      <div className={`text-lg font-bold mb-3 transition-all duration-300 ${
+                      <div className={`text-xl font-bold mb-4 transition-all duration-300 ${
                         isToday 
-                          ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-white rounded-xl w-8 h-8 flex items-center justify-center shadow-lg transform scale-110' 
+                          ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-white rounded-2xl w-10 h-10 flex items-center justify-center shadow-xl transform scale-110 ring-2 ring-purple-300' 
                           : isCurrentMonth 
-                            ? 'text-white group-hover:text-purple-300' 
+                            ? 'text-white group-hover:text-purple-300 group-hover:scale-110' 
                             : 'text-gray-400'
                       }`}>
                         {day.getDate()}
                       </div>
                       
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {getEventsForDay(day).slice(0, 3).map(event => (
                           <div
                             key={event.id}
-                            className={`text-xs p-3 rounded-xl cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg hover:-translate-y-1 ${getEventColor(event.type, event.status)}`}
+                            className={`text-sm p-4 rounded-2xl cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl hover:-translate-y-2 hover:rotate-1 ${getEventColor(event.type, event.status)}`}
                             onClick={() => setSelectedEvent(event)}
                           >
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex items-center gap-3 mb-2">
                               {getEventIcon(event.type, event.status)}
-                              <span className="font-semibold text-xs">{formatTime(event.date)}</span>
+                              <span className="font-bold text-sm">{formatTime(event.date)}</span>
                             </div>
-                            <div className="truncate font-bold text-xs leading-tight">
+                            <div className="truncate font-bold text-sm leading-tight">
                               {event.title}
                             </div>
                           </div>
                         ))}
                         
                         {getEventsForDay(day).length > 3 && (
-                          <div className="text-xs text-purple-200 font-bold bg-gradient-to-r from-purple-600 to-purple-700 rounded-lg px-3 py-2 text-center hover:from-purple-500 hover:to-purple-600 transition-all duration-200">
+                          <div className="text-sm text-white font-bold bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl px-4 py-3 text-center hover:from-purple-500 hover:to-purple-600 hover:scale-105 transition-all duration-200 shadow-lg">
                             +{getEventsForDay(day).length - 3} more emails
                           </div>
                         )}
@@ -537,17 +537,17 @@ const Calendar = () => {
                 <div className="grid grid-cols-1 gap-6">
                   <div className={`rounded-xl p-6 border-2 ${
                     selectedEvent.type === 'scheduled' 
-                      ? 'bg-gradient-to-br from-gray-100 to-purple-100 border-purple-300' 
+                      ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-300' 
                       : selectedEvent.type === 'sent'
-                        ? 'bg-gradient-to-br from-gray-100 to-purple-100 border-purple-300'
-                        : 'bg-gradient-to-br from-gray-100 to-purple-100 border-purple-300'
+                        ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-300'
+                        : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-300'
                   }`}>
                     <label className={`text-sm font-bold uppercase tracking-wider ${
                       selectedEvent.type === 'scheduled' 
-                        ? 'text-purple-700' 
+                        ? 'text-orange-700' 
                         : selectedEvent.type === 'sent'
-                          ? 'text-purple-700'
-                          : 'text-purple-700'
+                          ? 'text-green-700'
+                          : 'text-red-700'
                     }`}>Subject</label>
                     <p className="text-gray-900 font-bold text-lg mt-2">{selectedEvent.subject}</p>
                   </div>
@@ -576,25 +576,25 @@ const Calendar = () => {
                   
                   <div className={`rounded-xl p-6 border-2 ${
                     selectedEvent.type === 'scheduled' 
-                      ? 'bg-gradient-to-br from-gray-100 to-purple-100 border-purple-300' 
+                      ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-300' 
                       : selectedEvent.type === 'sent'
-                        ? 'bg-gradient-to-br from-gray-100 to-purple-100 border-purple-300'
-                        : 'bg-gradient-to-br from-gray-100 to-purple-100 border-purple-300'
+                        ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-300'
+                        : 'bg-gradient-to-br from-red-50 to-rose-50 border-red-300'
                   }`}>
                     <label className={`text-sm font-bold uppercase tracking-wider ${
                       selectedEvent.type === 'scheduled' 
-                        ? 'text-purple-700' 
+                        ? 'text-orange-700' 
                         : selectedEvent.type === 'sent'
-                          ? 'text-purple-700'
-                          : 'text-purple-700'
+                          ? 'text-green-700'
+                          : 'text-red-700'
                     }`}>Status</label>
                     <div className="mt-3">
                       <Badge className={`px-4 py-2 text-sm font-bold rounded-lg ${
                         selectedEvent.type === 'scheduled' 
-                          ? 'bg-purple-100 text-purple-800 border-2 border-purple-300' 
+                          ? 'bg-orange-100 text-orange-800 border-2 border-orange-300' 
                           : selectedEvent.type === 'sent'
-                            ? 'bg-purple-100 text-purple-800 border-2 border-purple-300'
-                            : 'bg-purple-100 text-purple-800 border-2 border-purple-300'
+                            ? 'bg-green-100 text-green-800 border-2 border-green-300'
+                            : 'bg-red-100 text-red-800 border-2 border-red-300'
                       }`}>
                         {selectedEvent.status}
                       </Badge>
