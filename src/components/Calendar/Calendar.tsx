@@ -198,12 +198,27 @@ const Calendar = () => {
         return;
       }
 
-      // Transform data into calendar events with deduplication
+      // Transform data into calendar events with comprehensive deduplication
       const calendarEvents: CalendarEvent[] = [];
       const processedEmails = new Set<string>(); // Track processed emails to avoid duplicates
 
-      // Process scheduled emails first
+      // First, deduplicate scheduled emails within the same table
+      const uniqueScheduledEmails = new Map<string, any>();
       for (const email of scheduledEmails || []) {
+        // Create a unique key based on campaign, contact, and scheduled time
+        const uniqueKey = `${email.campaign_id}-${email.contact_id}-${new Date(email.scheduled_for).toISOString()}`;
+        
+        // Only keep the first occurrence of each unique email
+        if (!uniqueScheduledEmails.has(uniqueKey)) {
+          uniqueScheduledEmails.set(uniqueKey, email);
+          console.log('Adding unique scheduled email:', uniqueKey);
+        } else {
+          console.log('Skipping duplicate scheduled email in same table:', uniqueKey);
+        }
+      }
+
+      // Process unique scheduled emails
+      for (const email of uniqueScheduledEmails.values()) {
         const emailKey = `${email.campaign_id}-${email.contact_id}-${email.scheduled_for}`;
         
         // Skip if we've already processed this email
@@ -228,8 +243,23 @@ const Calendar = () => {
         });
       }
 
-      // Process sent emails, but check for duplicates
+      // First, deduplicate sent emails within the same table
+      const uniqueSentEmails = new Map<string, any>();
       for (const email of sentEmails || []) {
+        // Create a unique key based on campaign, contact, and sent time
+        const uniqueKey = `${email.campaign_id}-${email.contact_id}-${new Date(email.sent_at).toISOString()}`;
+        
+        // Only keep the first occurrence of each unique email
+        if (!uniqueSentEmails.has(uniqueKey)) {
+          uniqueSentEmails.set(uniqueKey, email);
+          console.log('Adding unique sent email:', uniqueKey);
+        } else {
+          console.log('Skipping duplicate sent email in same table:', uniqueKey);
+        }
+      }
+
+      // Process unique sent emails, but check for duplicates with scheduled emails
+      for (const email of uniqueSentEmails.values()) {
         const emailKey = `${email.campaign_id}-${email.contact_id}-${email.sent_at}`;
         
         // Skip if we've already processed this email
@@ -254,19 +284,20 @@ const Calendar = () => {
         });
       }
 
-      // Additional deduplication: Remove any remaining duplicates based on date, campaign, and contact
+      // Final deduplication: Remove any remaining duplicates based on exact date/time, campaign, and contact
       const finalEvents: CalendarEvent[] = [];
       const seenEvents = new Set<string>();
       
       for (const event of calendarEvents) {
-        // Create a unique key based on date, campaign, contact, and type
-        const eventKey = `${event.date.toISOString().split('T')[0]}-${event.campaignName}-${event.contactEmail}-${event.type}`;
+        // Create a more specific unique key based on exact date/time, campaign, contact, and type
+        const eventKey = `${event.date.toISOString()}-${event.campaignName}-${event.contactEmail}-${event.type}`;
         
         if (!seenEvents.has(eventKey)) {
           seenEvents.add(eventKey);
           finalEvents.push(event);
+          console.log('Adding final event:', eventKey);
         } else {
-          console.log('Removing duplicate event:', eventKey);
+          console.log('Removing final duplicate event:', eventKey);
         }
       }
       
