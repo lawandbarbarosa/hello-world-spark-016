@@ -522,12 +522,32 @@ const handler = async (req: Request): Promise<Response> => {
           `;
         }
 
+        // Get recipient email from contact using the specified email column
+        const contactMap = buildContactMap(contact);
+        const emailColumnNormalized = normalizeKey(campaign.email_column || 'email');
+        let recipientEmail = contact.email; // Default fallback
+        
+        // Try to find the email from custom fields using the selected email column
+        if (campaign.email_column && campaign.email_column !== 'email') {
+          // First try direct field access
+          const directValue = contact[campaign.email_column] || contact.custom_fields?.[campaign.email_column];
+          if (directValue && typeof directValue === 'string' && directValue.includes('@')) {
+            recipientEmail = directValue;
+          } else {
+            // Try normalized lookup
+            const normalizedValue = contactMap.get(emailColumnNormalized);
+            if (normalizedValue && normalizedValue.includes('@')) {
+              recipientEmail = normalizedValue;
+            }
+          }
+        }
+
         // Send email using Resend with current sender
-        console.log(`Attempting to send email to ${contact.email} from ${currentSender.email} (${currentSender.remainingCapacity} remaining capacity)`);
+        console.log(`Attempting to send email to ${recipientEmail} (from column: ${campaign.email_column || 'email'}) from ${currentSender.email} (${currentSender.remainingCapacity} remaining capacity)`);
         
         const emailResponse = await resend.emails.send({
           from: `${currentSender.email}`,
-          to: [contact.email],
+          to: [recipientEmail],
           subject: personalizedSubject,
           html: emailBodyWithTracking,
         });

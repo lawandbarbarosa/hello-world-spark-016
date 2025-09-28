@@ -29,6 +29,7 @@ interface CampaignData {
     [key: string]: any;
   }>;
   selectedColumns: string[];
+  emailColumn?: string;
   sequence: Array<{
     id: string;
     subject: string;
@@ -52,6 +53,7 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
     senderAccounts: [],
     contacts: [],
     selectedColumns: ['email'],
+    emailColumn: 'email',
     sequence: []
   });
 
