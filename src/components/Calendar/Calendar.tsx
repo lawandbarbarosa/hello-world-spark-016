@@ -96,45 +96,20 @@ const Calendar = () => {
   }, [user, currentDate]);
 
   const fetchCalendarData = async () => {
+    if (!user?.id) return;
+
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      // Get the start and end of the current month
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
-      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      
+      const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
+
       console.log('Fetching calendar data for:', {
         startOfMonth: startOfMonth.toISOString(),
         endOfMonth: endOfMonth.toISOString(),
-        userId: user?.id
+        userId: user.id
       });
 
-      // First, let's check if there's any data at all - try without any filters
-      console.log('Testing basic table access...');
-      
-      const { data: allScheduled, error: allScheduledError } = await supabase
-        .from('scheduled_emails')
-        .select('*')
-        .limit(5);
-      
-      const { data: allSent, error: allSentError } = await supabase
-        .from('email_sends')
-        .select('*')
-        .limit(5);
-
-      console.log('Sample scheduled emails (any user):', { allScheduled, allScheduledError });
-      console.log('Sample sent emails (any user):', { allSent, allSentError });
-
-      // Also check campaigns table
-      const { data: allCampaigns, error: allCampaignsError } = await supabase
-        .from('campaigns')
-        .select('*')
-        .limit(5);
-
-      console.log('Sample campaigns (any user):', { allCampaigns, allCampaignsError });
-      
-      // Try a simpler approach - fetch basic data first
-      console.log('Fetching scheduled emails with simple query...');
+      // Get all emails for the month - both scheduled and sent
       const { data: scheduledEmails, error: scheduledError } = await supabase
         .from('scheduled_emails')
         .select('*')
@@ -142,31 +117,6 @@ const Calendar = () => {
         .lte('scheduled_for', endOfMonth.toISOString())
         .order('scheduled_for', { ascending: true });
 
-      console.log('Scheduled emails result:', { scheduledEmails, scheduledError });
-      console.log('Scheduled emails count:', scheduledEmails?.length || 0);
-      
-      // Log individual scheduled emails for debugging
-      if (scheduledEmails && scheduledEmails.length > 0) {
-        console.log('Individual scheduled emails:');
-        scheduledEmails.forEach((email, index) => {
-          console.log(`Scheduled ${index + 1}:`, {
-            id: email.id,
-            campaign_id: email.campaign_id,
-            contact_id: email.contact_id,
-            scheduled_for: email.scheduled_for,
-            status: email.status
-          });
-        });
-      }
-
-      if (scheduledError) {
-        console.error('Error fetching scheduled emails:', scheduledError);
-        toast.error('Failed to fetch scheduled emails');
-        return;
-      }
-
-      // Try a simpler approach for sent emails too
-      console.log('Fetching sent emails with simple query...');
       const { data: sentEmails, error: sentError } = await supabase
         .from('email_sends')
         .select('*')
@@ -175,21 +125,10 @@ const Calendar = () => {
         .lte('sent_at', endOfMonth.toISOString())
         .order('sent_at', { ascending: true });
 
-      console.log('Sent emails result:', { sentEmails, sentError });
-      console.log('Sent emails count:', sentEmails?.length || 0);
-      
-      // Log individual sent emails for debugging
-      if (sentEmails && sentEmails.length > 0) {
-        console.log('Individual sent emails:');
-        sentEmails.forEach((email, index) => {
-          console.log(`Sent ${index + 1}:`, {
-            id: email.id,
-            campaign_id: email.campaign_id,
-            contact_id: email.contact_id,
-            sent_at: email.sent_at,
-            status: email.status
-          });
-        });
+      if (scheduledError) {
+        console.error('Error fetching scheduled emails:', scheduledError);
+        toast.error('Failed to fetch scheduled emails');
+        return;
       }
 
       if (sentError) {
@@ -198,139 +137,55 @@ const Calendar = () => {
         return;
       }
 
-      // Transform data into calendar events with comprehensive deduplication
-      const calendarEvents: CalendarEvent[] = [];
-      const processedEmails = new Set<string>(); // Track processed emails to avoid duplicates
+      // Simple approach: Create a map to store unique emails
+      const uniqueEmails = new Map<string, CalendarEvent>();
 
-      // First, deduplicate scheduled emails within the same table
-      const uniqueScheduledEmails = new Map<string, any>();
+      // Process scheduled emails
       for (const email of scheduledEmails || []) {
-        // Create a unique key based on campaign, contact, and scheduled time
-        const uniqueKey = `${email.campaign_id}-${email.contact_id}-${new Date(email.scheduled_for).toISOString()}`;
+        const date = new Date(email.scheduled_for);
+        const key = `${date.toDateString()}-${email.campaign_id}-${email.contact_id}`;
         
-        // Only keep the first occurrence of each unique email
-        if (!uniqueScheduledEmails.has(uniqueKey)) {
-          uniqueScheduledEmails.set(uniqueKey, email);
-          console.log('Adding unique scheduled email:', uniqueKey);
-        } else {
-          console.log('Skipping duplicate scheduled email in same table:', uniqueKey);
+        if (!uniqueEmails.has(key)) {
+          uniqueEmails.set(key, {
+            id: `scheduled-${email.id}`,
+            title: 'Scheduled Email',
+            date: date,
+            type: 'scheduled',
+            status: email.status,
+            campaignName: `Campaign ${email.campaign_id.slice(0, 8)}`,
+            contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
+            subject: 'Scheduled Email',
+            stepNumber: 1,
+            originalData: email as ScheduledEmail
+          });
         }
       }
 
-      // Process unique scheduled emails
-      for (const email of uniqueScheduledEmails.values()) {
-        const emailKey = `${email.campaign_id}-${email.contact_id}-${email.scheduled_for}`;
-        
-        // Skip if we've already processed this email
-        if (processedEmails.has(emailKey)) {
-          console.log('Skipping duplicate scheduled email:', emailKey);
-          continue;
-        }
-        
-        processedEmails.add(emailKey);
-        
-        calendarEvents.push({
-          id: `scheduled-${email.id}`,
-          title: 'Scheduled Email',
-          date: new Date(email.scheduled_for),
-          type: 'scheduled',
-          status: email.status,
-          campaignName: `Campaign ${email.campaign_id.slice(0, 8)}`,
-          contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
-          subject: 'Scheduled Email',
-          stepNumber: 1,
-          originalData: email as ScheduledEmail
-        });
-      }
-
-      // First, deduplicate sent emails within the same table
-      const uniqueSentEmails = new Map<string, any>();
+      // Process sent emails
       for (const email of sentEmails || []) {
-        // Create a unique key based on campaign, contact, and sent time
-        const uniqueKey = `${email.campaign_id}-${email.contact_id}-${new Date(email.sent_at).toISOString()}`;
+        const date = new Date(email.sent_at);
+        const key = `${date.toDateString()}-${email.campaign_id}-${email.contact_id}`;
         
-        // Only keep the first occurrence of each unique email
-        if (!uniqueSentEmails.has(uniqueKey)) {
-          uniqueSentEmails.set(uniqueKey, email);
-          console.log('Adding unique sent email:', uniqueKey);
-        } else {
-          console.log('Skipping duplicate sent email in same table:', uniqueKey);
+        if (!uniqueEmails.has(key)) {
+          uniqueEmails.set(key, {
+            id: `sent-${email.id}`,
+            title: 'Sent Email',
+            date: date,
+            type: email.status === 'failed' ? 'failed' : 'sent',
+            status: email.status,
+            campaignName: `Campaign ${email.campaign_id.slice(0, 8)}`,
+            contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
+            subject: 'Sent Email',
+            stepNumber: 1,
+            originalData: email as SentEmail
+          });
         }
       }
 
-      // Process unique sent emails, but check for duplicates with scheduled emails
-      for (const email of uniqueSentEmails.values()) {
-        const emailKey = `${email.campaign_id}-${email.contact_id}-${email.sent_at}`;
-        
-        // Skip if we've already processed this email
-        if (processedEmails.has(emailKey)) {
-          console.log('Skipping duplicate sent email:', emailKey);
-          continue;
-        }
-        
-        processedEmails.add(emailKey);
-        
-        calendarEvents.push({
-          id: `sent-${email.id}`,
-          title: 'Sent Email',
-          date: new Date(email.sent_at),
-          type: email.status === 'failed' ? 'failed' : 'sent',
-          status: email.status,
-          campaignName: `Campaign ${email.campaign_id.slice(0, 8)}`,
-          contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
-          subject: 'Sent Email',
-          stepNumber: 1,
-          originalData: email as SentEmail
-        });
-      }
-
-      // Final deduplication: Remove any remaining duplicates based on exact date/time, campaign, and contact
-      const finalEvents: CalendarEvent[] = [];
-      const seenEvents = new Set<string>();
+      // Convert map to array
+      const finalEvents = Array.from(uniqueEmails.values());
       
-      for (const event of calendarEvents) {
-        // Create a more specific unique key based on exact date/time, campaign, contact, and type
-        const eventKey = `${event.date.toISOString()}-${event.campaignName}-${event.contactEmail}-${event.type}`;
-        
-        if (!seenEvents.has(eventKey)) {
-          seenEvents.add(eventKey);
-          finalEvents.push(event);
-          console.log('Adding final event:', eventKey);
-        } else {
-          console.log('Removing final duplicate event:', eventKey);
-        }
-      }
-      
-      console.log('Total calendar events after deduplication:', finalEvents.length);
-      console.log('Final calendar events:', finalEvents);
-
-      // If no events found for current month, try to get some recent data for context
-      if (finalEvents.length === 0) {
-        console.log('No events found for current month, fetching recent data...');
-        
-        // Get recent scheduled emails (last 3 months)
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
-        
-        const { data: recentScheduled } = await supabase
-          .from('scheduled_emails')
-          .select('*')
-          .gte('scheduled_for', threeMonthsAgo.toISOString())
-          .order('scheduled_for', { ascending: true })
-          .limit(10);
-
-        const { data: recentSent } = await supabase
-          .from('email_sends')
-          .select('*')
-          .not('sent_at', 'is', null)
-          .gte('sent_at', threeMonthsAgo.toISOString())
-          .order('sent_at', { ascending: true })
-          .limit(10);
-
-        console.log('Recent scheduled emails:', recentScheduled);
-        console.log('Recent sent emails:', recentSent);
-      }
-
+      console.log('Total unique emails:', finalEvents.length);
       setEvents(finalEvents);
     } catch (error) {
       console.error('Error fetching calendar data:', error);
