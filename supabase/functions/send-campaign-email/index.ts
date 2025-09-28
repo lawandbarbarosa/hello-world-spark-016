@@ -523,7 +523,6 @@ const handler = async (req: Request): Promise<Response> => {
         }
 
         // Get recipient email from contact using the specified email column
-        const contactMap = buildContactMap(contact);
         const emailColumnNormalized = normalizeKey(campaign.email_column || 'email');
         let recipientEmail = contact.email; // Default fallback
         
@@ -534,7 +533,7 @@ const handler = async (req: Request): Promise<Response> => {
           if (directValue && typeof directValue === 'string' && directValue.includes('@')) {
             recipientEmail = directValue;
           } else {
-            // Try normalized lookup
+            // Try normalized lookup using the already built contactMap
             const normalizedValue = contactMap.get(emailColumnNormalized);
             if (normalizedValue && normalizedValue.includes('@')) {
               recipientEmail = normalizedValue;

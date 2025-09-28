@@ -129,7 +129,8 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
           name: campaignData.name,
           description: campaignData.description,
           status: 'draft',
-          user_id: user.id
+          user_id: user.id,
+          email_column: campaignData.emailColumn || 'email'
         })
         .select()
         .single();
