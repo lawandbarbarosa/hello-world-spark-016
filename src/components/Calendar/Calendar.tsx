@@ -298,13 +298,13 @@ const Calendar = () => {
 
   const getEventColor = (type: string, status: string) => {
     if (type === 'scheduled') {
-      return 'bg-blue-100 text-blue-800 border-blue-200';
+      return 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 border-l-4 border-blue-500 shadow-sm hover:shadow-md transition-all duration-200';
     } else if (type === 'sent') {
-      return 'bg-green-100 text-green-800 border-green-200';
+      return 'bg-gradient-to-r from-green-50 to-green-100 text-green-900 border-l-4 border-green-500 shadow-sm hover:shadow-md transition-all duration-200';
     } else if (type === 'failed') {
-      return 'bg-red-100 text-red-800 border-red-200';
+      return 'bg-gradient-to-r from-red-50 to-red-100 text-red-900 border-l-4 border-red-500 shadow-sm hover:shadow-md transition-all duration-200';
     }
-    return 'bg-gray-100 text-gray-800 border-gray-200';
+    return 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-900 border-l-4 border-gray-400 shadow-sm hover:shadow-md transition-all duration-200';
   };
 
   const formatTime = (date: Date) => {
@@ -331,155 +331,247 @@ const Calendar = () => {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Email Calendar</h1>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigateMonth('prev')}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <h2 className="text-xl font-semibold min-w-[200px] text-center">
-            {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigateMonth('next')}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-8">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Email Calendar
+              </h1>
+              <p className="text-gray-600 text-lg">Track your email campaigns and scheduled sends</p>
+            </div>
+            
+            <div className="flex items-center gap-4 bg-gray-50 rounded-xl p-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigateMonth('prev')}
+                className="hover:bg-white hover:shadow-sm transition-all duration-200"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <div className="text-center min-w-[200px]">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {monthNames[currentDate.getMonth()]}
+                </h2>
+                <p className="text-gray-600 font-medium">
+                  {currentDate.getFullYear()}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigateMonth('next')}
+                className="hover:bg-white hover:shadow-sm transition-all duration-200"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+          </div>
         </div>
-      </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-6 text-sm">
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div>
-          <span>Scheduled</span>
+        {/* Legend */}
+        <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Email Status Legend</h3>
+          <div className="flex flex-wrap items-center gap-6">
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 bg-gradient-to-r from-blue-50 to-blue-100 border-l-4 border-blue-500 rounded-sm shadow-sm"></div>
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-600" />
+                <span className="font-medium text-gray-700">Scheduled</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 bg-gradient-to-r from-green-50 to-green-100 border-l-4 border-green-500 rounded-sm shadow-sm"></div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                <span className="font-medium text-gray-700">Sent</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-500 rounded-sm shadow-sm"></div>
+              <div className="flex items-center gap-2">
+                <XCircle className="w-4 h-4 text-red-600" />
+                <span className="font-medium text-gray-700">Failed</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
-          <span>Sent</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
-          <span>Failed</span>
-        </div>
-      </div>
 
-      {/* Calendar Grid */}
-      <Card>
-        <CardContent className="p-0">
-          <div className="grid grid-cols-7 border-b">
+        {/* Calendar Grid */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+          {/* Calendar Header */}
+          <div className="grid grid-cols-7 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
             {dayNames.map(day => (
-              <div key={day} className="p-3 text-center font-medium text-muted-foreground border-r last:border-r-0">
+              <div key={day} className="p-4 text-center font-semibold text-gray-700 border-r border-gray-200 last:border-r-0">
                 {day}
               </div>
             ))}
           </div>
+          
+          {/* Calendar Body */}
           <div className="grid grid-cols-7">
-            {getDaysInMonth(currentDate).map((day, index) => (
-              <div
-                key={index}
-                className="min-h-[120px] border-r border-b last:border-r-0 p-2 relative"
-              >
-                {day && (
-                  <>
-                    <div className="text-sm font-medium mb-1">
-                      {day.getDate()}
-                    </div>
-                    <div className="space-y-1">
-                      {getEventsForDay(day).slice(0, 3).map(event => (
-                        <div
-                          key={event.id}
-                          className={`text-xs p-1 rounded border cursor-pointer hover:opacity-80 transition-opacity ${getEventColor(event.type, event.status)}`}
-                          onClick={() => setSelectedEvent(event)}
-                        >
-                          <div className="flex items-center gap-1">
-                            {getEventIcon(event.type, event.status)}
-                            <span className="truncate">{formatTime(event.date)}</span>
-                          </div>
-                          <div className="truncate font-medium">{event.title}</div>
-                        </div>
-                      ))}
-                      {getEventsForDay(day).length > 3 && (
-                        <div className="text-xs text-muted-foreground">
-                          +{getEventsForDay(day).length - 3} more
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Event Details Modal */}
-      {selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <Card className="w-full max-w-md mx-4">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                {getEventIcon(selectedEvent.type, selectedEvent.status)}
-                Email Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Subject</label>
-                <p className="text-sm">{selectedEvent.subject}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Campaign</label>
-                <p className="text-sm">{selectedEvent.campaignName}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Contact</label>
-                <p className="text-sm">{selectedEvent.contactEmail}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Date & Time</label>
-                <p className="text-sm">
-                  {selectedEvent.date.toLocaleDateString()} at {formatTime(selectedEvent.date)}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Status</label>
-                <Badge className={getEventColor(selectedEvent.type, selectedEvent.status)}>
-                  {selectedEvent.status}
-                </Badge>
-              </div>
-              {selectedEvent.stepNumber && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Step</label>
-                  <p className="text-sm">Step {selectedEvent.stepNumber}</p>
-                </div>
-              )}
-              {selectedEvent.originalData.error_message && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Error</label>
-                  <p className="text-sm text-red-600">{selectedEvent.originalData.error_message}</p>
-                </div>
-              )}
-              <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedEvent(null)}
+            {getDaysInMonth(currentDate).map((day, index) => {
+              const isToday = day && day.toDateString() === new Date().toDateString();
+              const isCurrentMonth = day && day.getMonth() === currentDate.getMonth();
+              
+              return (
+                <div
+                  key={index}
+                  className={`min-h-[140px] border-r border-b border-gray-200 last:border-r-0 p-3 relative transition-colors duration-200 ${
+                    isCurrentMonth 
+                      ? 'bg-white hover:bg-gray-50' 
+                      : 'bg-gray-50 text-gray-400'
+                  }`}
                 >
-                  Close
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                  {day && (
+                    <>
+                      <div className={`text-sm font-semibold mb-2 ${
+                        isToday 
+                          ? 'bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs' 
+                          : isCurrentMonth 
+                            ? 'text-gray-900' 
+                            : 'text-gray-400'
+                      }`}>
+                        {day.getDate()}
+                      </div>
+                      
+                      <div className="space-y-1.5">
+                        {getEventsForDay(day).slice(0, 3).map(event => (
+                          <div
+                            key={event.id}
+                            className={`text-xs p-2 rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 hover:shadow-md ${getEventColor(event.type, event.status)}`}
+                            onClick={() => setSelectedEvent(event)}
+                          >
+                            <div className="flex items-center gap-1.5 mb-1">
+                              {getEventIcon(event.type, event.status)}
+                              <span className="font-medium text-xs">{formatTime(event.date)}</span>
+                            </div>
+                            <div className="truncate font-semibold text-xs leading-tight">
+                              {event.title}
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {getEventsForDay(day).length > 3 && (
+                          <div className="text-xs text-gray-500 font-medium bg-gray-100 rounded px-2 py-1 text-center">
+                            +{getEventsForDay(day).length - 3} more
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      )}
+      </div>
     </div>
+
+        {/* Event Details Modal */}
+        {selectedEvent && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+              {/* Modal Header */}
+              <div className={`p-6 text-white ${
+                selectedEvent.type === 'scheduled' 
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600' 
+                  : selectedEvent.type === 'sent'
+                    ? 'bg-gradient-to-r from-green-500 to-green-600'
+                    : 'bg-gradient-to-r from-red-500 to-red-600'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {getEventIcon(selectedEvent.type, selectedEvent.status)}
+                    <h2 className="text-xl font-bold">Email Details</h2>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedEvent(null)}
+                    className="text-white hover:bg-white/20"
+                  >
+                    ✕
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Modal Content */}
+              <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Subject</label>
+                    <p className="text-gray-900 font-medium mt-1">{selectedEvent.subject}</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Campaign</label>
+                    <p className="text-gray-900 font-medium mt-1">{selectedEvent.campaignName}</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Contact</label>
+                    <p className="text-gray-900 font-medium mt-1">{selectedEvent.contactEmail}</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Date & Time</label>
+                    <p className="text-gray-900 font-medium mt-1">
+                      {selectedEvent.date.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })} at {formatTime(selectedEvent.date)}
+                    </p>
+                  </div>
+                  
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Status</label>
+                    <div className="mt-2">
+                      <Badge className={`px-3 py-1 text-sm font-semibold ${
+                        selectedEvent.type === 'scheduled' 
+                          ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                          : selectedEvent.type === 'sent'
+                            ? 'bg-green-100 text-green-800 border-green-200'
+                            : 'bg-red-100 text-red-800 border-red-200'
+                      }`}>
+                        {selectedEvent.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  {selectedEvent.stepNumber && (
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <label className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Step</label>
+                      <p className="text-gray-900 font-medium mt-1">Step {selectedEvent.stepNumber}</p>
+                    </div>
+                  )}
+                  
+                  {selectedEvent.originalData.error_message && (
+                    <div className="bg-red-50 rounded-lg p-4 border border-red-200">
+                      <label className="text-sm font-semibold text-red-600 uppercase tracking-wide">Error Message</label>
+                      <p className="text-red-800 font-medium mt-1">{selectedEvent.originalData.error_message}</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex justify-end pt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedEvent(null)}
+                    className="px-6 py-2 hover:bg-gray-50 transition-colors duration-200"
+                  >
+                    Close
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
   );
 };
 
