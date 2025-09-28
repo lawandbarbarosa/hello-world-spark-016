@@ -111,12 +111,12 @@ export const replaceMergeTags = (
   let result = text;
 
   // Replace merge tags with fallback support
-  result = result.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match, field, fallback) => {
+  result = result.replace(/\{\{\s*([^}|]+)\|([^}]+)\s*\}\}/g, (match, field, fallback) => {
     return contact[field] || fallback;
   });
 
   // Replace simple merge tags without fallback
-  result = result.replace(/\{\{(\w+)\}\}/g, (match, field) => {
+  result = result.replace(/\{\{\s*([^}|]+)\s*\}\}/g, (match, field) => {
     if (field === 'first_name') {
       return contact.first_name || fallbackTags.first_name;
     }

@@ -32,6 +32,7 @@ interface CampaignData {
   senderAccounts: any[];
   contacts: any[];
   selectedColumns?: string[];
+  emailColumn?: string;
   sequence: EmailStep[];
 }
 
@@ -47,6 +48,7 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
   const [cursorPositions, setCursorPositions] = useState<Record<string, { subject: number; body: number }>>({});
   const [richTextMode, setRichTextMode] = useState<Record<string, boolean>>({});
   const [showTemplateLibrary, setShowTemplateLibrary] = useState<boolean>(false);
+  const [emailColumn, setEmailColumn] = useState<string>(data.emailColumn || 'email');
   
   // Get available merge tags from uploaded contacts
   const getAvailableMergeTags = () => {
@@ -104,8 +106,8 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
       };
 
   useEffect(() => {
-    onUpdate({ sequence });
-  }, [sequence, onUpdate]);
+    onUpdate({ sequence, emailColumn });
+  }, [sequence, emailColumn, onUpdate]);
 
   // Monitor data changes for debugging
   useEffect(() => {
@@ -296,6 +298,31 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
     insertMergeTag(stepId, field, tag, cursorPosition);
   };
 
+  // Get potential email columns from contacts
+  const getPotentialEmailColumns = () => {
+    if (!data.contacts || data.contacts.length === 0) return [];
+    
+    const firstContact = data.contacts[0];
+    const allKeys = Object.keys(firstContact);
+    
+    // Find columns that might contain email addresses
+    return allKeys.filter(key => {
+      const value = firstContact[key];
+      if (typeof value === 'string') {
+        // Check if the value looks like an email or the column name suggests it's an email
+        const lowerKey = key.toLowerCase();
+        const lowerValue = value.toLowerCase();
+        return lowerKey.includes('email') || 
+               lowerKey.includes('mail') || 
+               lowerValue.includes('@') ||
+               key === 'email';
+      }
+      return false;
+    });
+  };
+
+  const potentialEmailColumns = getPotentialEmailColumns();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -341,6 +368,52 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
           </Button>
         </div>
       </div>
+
+      {/* Email Column Selection */}
+      {potentialEmailColumns.length > 1 && (
+        <Card className="bg-muted/30 border-primary/20">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-primary" />
+                <Label className="text-sm font-medium text-foreground">Email to:</Label>
+              </div>
+              <Select value={emailColumn} onValueChange={(value) => setEmailColumn(value)}>
+                <SelectTrigger className="w-64 bg-background">
+                  <SelectValue placeholder="Select email column" />
+                </SelectTrigger>
+                <SelectContent>
+                  {potentialEmailColumns.map((column) => (
+                    <SelectItem key={column} value={column}>
+                      {column}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="text-sm text-muted-foreground">
+                ({data.contacts?.length || 0} contacts will receive emails)
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Show selected email column when only one exists */}
+      {potentialEmailColumns.length === 1 && (
+        <Card className="bg-muted/30 border-primary/20">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-primary" />
+                <Label className="text-sm font-medium text-foreground">Email to:</Label>
+              </div>
+              <Badge variant="secondary" className="bg-primary/10 text-primary">
+                {emailColumn} ({data.contacts?.length || 0} contacts)
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Template Library */}
       {showTemplateLibrary && (

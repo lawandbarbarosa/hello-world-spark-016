@@ -62,6 +62,56 @@ async function syncToGmailSent({ emailSendId, senderEmail, recipientEmail, subje
   }
 }
 
+// Helper functions for email processing
+const normalizeKey = (s: string) =>
+  s
+    .replace(/\u00A0/g, ' ')  // Non-breaking spaces
+    .replace(/_/g, ' ')        // Underscores to spaces
+    .replace(/\s+/g, ' ')      // Multiple spaces to single
+    .trim()
+    .toLowerCase();
+
+const buildContactMap = (c: any) => {
+  const map = new Map<string, string>();
+  // Top-level fields
+  Object.keys(c || {}).forEach((key) => {
+    if (key === 'custom_fields') return;
+    const val = c[key];
+    if (val === undefined || val === null || typeof val === 'object') return;
+    const nk = normalizeKey(key);
+    map.set(nk, String(val));
+  });
+  // Custom fields
+  const cf = c?.custom_fields || {};
+  Object.keys(cf).forEach((key) => {
+    const val = cf[key];
+    if (val === undefined || val === null) return;
+    const nk = normalizeKey(key);
+    if (!map.has(nk)) map.set(nk, String(val));
+  });
+  // Common aliases
+  const first = c.first_name ?? c.firstName ?? cf.first_name ?? cf.firstName;
+  if (first) map.set(normalizeKey('first name'), String(first));
+  const last = c.last_name ?? c.lastName ?? cf.last_name ?? cf.lastName;
+  if (last) map.set(normalizeKey('last name'), String(last));
+  const company = c.company ?? cf.company;
+  if (company) map.set(normalizeKey('company'), String(company));
+  return map;
+};
+
+const replaceWithMap = (text: string, map: Map<string, string>) => {
+  if (!text) return text;
+  // {{ field | fallback }}
+  return text.replace(/\{\{\s*([^|{}]+?)(?:\s*\|\s*([^}]+?))?\s*\}\}/g, (match, field, fallback) => {
+    const nf = normalizeKey(field);
+    const value = map.get(nf);
+    if (value !== undefined && value !== null && value !== '') {
+      return String(value);
+    }
+    return fallback ? String(fallback).trim() : match;
+  });
+};
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -77,26 +127,22 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if this is a manual trigger
-    const body = await req.json().catch(() => ({}));
-    const isManual = body.manual || false;
-    
-    if (isManual) {
-      console.log("🔧 Manual trigger detected");
-    }
-
-    // Get scheduled emails that are ready to be sent
     const now = new Date();
-    const { data: scheduledEmails, error: scheduledError } = await supabase
+    
+    // Check if this is manual trigger (has isManual parameter)
+    const body = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const isManual = body?.isManual === true;
+    
+    // Get scheduled emails that are ready to send
+    const { data: scheduledEmails, error } = await supabase
       .from("scheduled_emails")
       .select("*")
       .eq("status", "scheduled")
-      .lte("scheduled_for", now.toISOString())
-      .limit(50); // Process up to 50 emails at a time
+      .lte("scheduled_for", now.toISOString());
 
-    if (scheduledError) {
-      console.error("Error fetching scheduled emails:", scheduledError);
-      return new Response(JSON.stringify({ error: "Error fetching scheduled emails" }), {
+    if (error) {
+      console.error("Error fetching scheduled emails:", error);
+      return new Response(JSON.stringify({ error: "Failed to fetch scheduled emails" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -160,9 +206,9 @@ const handler = async (req: Request): Promise<Response> => {
           continue;
         }
 
-        // Check if campaign is active - skip paused campaigns
-        if (campaign.status !== 'active') {
-          console.log(`Campaign ${campaign.id} is ${campaign.status}, skipping scheduled email`);
+        // Only skip if campaign is explicitly paused
+        if (campaign.status === 'paused') {
+          console.log(`Campaign ${campaign.id} is paused, skipping scheduled email`);
           continue;
         }
 
@@ -231,27 +277,7 @@ const handler = async (req: Request): Promise<Response> => {
           console.log(`Processing specifically scheduled email at exact time: ${scheduledEmail.scheduled_for}`);
         }
 
-        // Check sender daily limit
-        const todayStart = new Date(zonedTime.getFullYear(), zonedTime.getMonth(), zonedTime.getDate());
-        const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-
-        const { count: senderSentCount } = await supabase
-          .from('email_sends')
-          .select('*', { count: 'exact', head: true })
-          .eq('sender_account_id', scheduledEmail.sender_account_id)
-          .gte('created_at', todayStart.toISOString())
-          .lt('created_at', todayEnd.toISOString())
-          .in('status', ['sent', 'pending']);
-
-        const sentToday = senderSentCount || 0;
-        const remainingCapacity = Math.max(0, senderAccount.daily_limit - sentToday);
-
-        if (remainingCapacity <= 0) {
-          console.log(`Sender ${senderAccount.email} has reached daily limit`);
-          continue; // Skip this email for now
-        }
-
-        // Mark as being processed
+        // Update scheduled email status to processing
         await supabase
           .from("scheduled_emails")
           .update({
@@ -260,13 +286,34 @@ const handler = async (req: Request): Promise<Response> => {
           })
           .eq("id", scheduledEmail.id);
 
-        // Personalize email content
+        // Personalize email content using the robust contact map approach
+        const contactMap = buildContactMap(contact);
         const fallbackTags = userSettings?.fallback_merge_tags || { first_name: 'there', company: 'your company' };
+        
+        let personalizedSubject = replaceWithMap(sequence.subject, contactMap);
+        let personalizedBody = replaceWithMap(sequence.body, contactMap);
 
-        let personalizedSubject = personalizeText(sequence.subject, contact, fallbackTags);
-        let personalizedBody = personalizeText(sequence.body, contact, fallbackTags);
+        // Block send if unresolved tags remain and mark scheduled email failed
+        const unresolved = Array.from(
+          new Set(
+            (personalizedSubject + ' ' + personalizedBody)
+              .match(/\{\{[^}]+\}\}/g) || []
+          )
+        );
+        if (unresolved.length > 0) {
+          const errorMsg = `Unresolved template tags: ${unresolved.join(', ')}`;
+          console.error(errorMsg);
+          await Promise.all([
+            supabase.from("scheduled_emails").update({
+              status: "failed",
+              error_message: errorMsg
+            }).eq("id", scheduledEmail.id)
+          ]);
+          failedCount++;
+          continue;
+        }
 
-        // Create email send record
+        // Create email send record for tracking
         const { data: emailSendRecord, error: insertError } = await supabase
           .from("email_sends")
           .insert({
@@ -338,12 +385,31 @@ const handler = async (req: Request): Promise<Response> => {
           `;
         }
 
+        // Get recipient email from contact using the specified email column
+        const emailColumnNormalized = normalizeKey(campaign.email_column || 'email');
+        let recipientEmail = contact.email; // Default fallback
+        
+        // Try to find the email from custom fields using the selected email column
+        if (campaign.email_column && campaign.email_column !== 'email') {
+          // First try direct field access
+          const directValue = contact[campaign.email_column] || contact.custom_fields?.[campaign.email_column];
+          if (directValue && typeof directValue === 'string' && directValue.includes('@')) {
+            recipientEmail = directValue;
+          } else {
+            // Try normalized lookup
+            const normalizedValue = contactMap.get(emailColumnNormalized);
+            if (normalizedValue && normalizedValue.includes('@')) {
+              recipientEmail = normalizedValue;
+            }
+          }
+        }
+
         // Send email
-        console.log(`Sending follow-up email step ${sequence.step_number} to ${contact.email}`);
+        console.log(`Sending follow-up email step ${sequence.step_number} to ${recipientEmail} (from column: ${campaign.email_column || 'email'})`);
         
         const emailResponse = await resend.emails.send({
           from: senderAccount.email,
-          to: [contact.email],
+          to: [recipientEmail],
           subject: personalizedSubject,
           html: emailBodyWithTracking,
         });
@@ -381,7 +447,7 @@ const handler = async (req: Request): Promise<Response> => {
           await Promise.all([
             supabase.from("email_sends").update({
               status: "sent",
-              sent_at: now.toISOString(),
+              sent_at: new Date().toISOString(),
             }).eq("id", emailSendRecord.id),
             
             supabase.from("scheduled_emails").update({
@@ -389,52 +455,50 @@ const handler = async (req: Request): Promise<Response> => {
             }).eq("id", scheduledEmail.id)
           ]);
 
-          // Sync to Gmail Sent folder if enabled
-          try {
-            await syncToGmailSent({
-              emailSendId: emailSendRecord.id,
-              senderEmail: senderAccount.email,
-              recipientEmail: contact.email,
-              subject: personalizedSubject,
-              body: emailBodyWithTracking,
-              sentAt: now.toISOString()
-            });
-          } catch (syncError) {
-            console.warn("Failed to sync to Gmail (non-critical):", syncError);
-            // Don't fail the email send if Gmail sync fails
-          }
+          // Sync to Gmail Sent folder
+          await syncToGmailSent({
+            emailSendId: emailSendRecord.id,
+            senderEmail: senderAccount.email,
+            recipientEmail: recipientEmail,
+            subject: personalizedSubject,
+            body: emailBodyWithTracking,
+            sentAt: new Date().toISOString()
+          });
         }
 
-      } catch (error) {
-        console.error("Error processing scheduled email:", scheduledEmail.id, error);
+      } catch (emailError) {
+        console.error("Error processing scheduled email:", emailError);
         failedCount++;
         
         // Mark as failed
-        await supabase
-          .from("scheduled_emails")
-          .update({
-            status: "failed",
-            error_message: (error as Error).message,
-          })
-          .eq("id", scheduledEmail.id);
+        await supabase.from("scheduled_emails").update({
+          status: "failed",
+          error_message: emailError instanceof Error ? emailError.message : String(emailError),
+        }).eq("id", scheduledEmail.id);
       }
     }
 
-    console.log(`Processed ${processedCount} emails, ${failedCount} failed`);
+    console.log(`✅ Processed ${processedCount} emails successfully, ${failedCount} failed`);
 
-    return new Response(JSON.stringify({ 
-      success: true,
-      processed: processedCount,
-      failed: failedCount,
-      message: `Processed ${processedCount} scheduled emails, ${failedCount} failed`
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        message: `Processed ${processedCount} scheduled emails`,
+        processed: processedCount,
+        failed: failedCount,
+        total: scheduledEmails.length,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
 
   } catch (error) {
-    console.error("Error in process-scheduled-emails function:", error);
+    console.error("Error in scheduled email processing:", error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({
+        error: "Internal server error",
+        details: error instanceof Error ? error.message : String(error),
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -442,101 +506,5 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 };
-
-// Helper function to personalize text with merge tags
-function personalizeText(text: string, contact: any, fallbackTags: any): string {
-  let result = text;
-  
-  console.log(`personalizeText called with text:`, text);
-  console.log(`Contact data:`, contact);
-  console.log(`Available contact fields:`, Object.keys(contact));
-
-  // Replace with fallback support {{field|fallback}}
-  result = result.replace(/\{\{(\w+)\|([^}]+)\}\}/g, (match, field, fallback) => {
-    console.log(`Fallback replacement for "${field}":`, contact[field] || fallback);
-    return contact[field] || fallback;
-  });
-
-  // Replace simple merge tags with comprehensive field matching (same logic as initial emails)
-  result = result.replace(/\{\{(\w+)\}\}/g, (match, field) => {
-    console.log(`Template replacement: Looking for field "${field}" in contact:`, contact);
-    console.log(`Available contact fields:`, Object.keys(contact));
-    console.log(`Custom fields:`, contact.custom_fields);
-    
-    // Check direct field match first
-    if (contact[field] !== undefined && contact[field] !== null) {
-      console.log(`Direct match found for "${field}":`, contact[field]);
-      return String(contact[field]);
-    }
-    
-    // Check custom_fields JSON if it exists
-    if (contact.custom_fields && typeof contact.custom_fields === 'object') {
-      if (contact.custom_fields[field] !== undefined && contact.custom_fields[field] !== null) {
-        console.log(`Custom field match found for "${field}":`, contact.custom_fields[field]);
-        return String(contact.custom_fields[field]);
-      }
-      
-      // Check case-insensitive match in custom_fields
-      const fieldLower = field.toLowerCase();
-      const customFieldKey = Object.keys(contact.custom_fields).find(key => key.toLowerCase() === fieldLower);
-      if (customFieldKey && contact.custom_fields[customFieldKey] !== undefined && contact.custom_fields[customFieldKey] !== null) {
-        console.log(`Case-insensitive custom field match found for "${field}" -> "${customFieldKey}":`, contact.custom_fields[customFieldKey]);
-        return String(contact.custom_fields[customFieldKey]);
-      }
-    }
-    
-    // Check case-insensitive match in main contact object
-    const fieldLower = field.toLowerCase();
-    const contactKey = Object.keys(contact).find(key => key.toLowerCase() === fieldLower);
-    if (contactKey && contact[contactKey] !== undefined && contact[contactKey] !== null) {
-      console.log(`Case-insensitive match found for "${field}" -> "${contactKey}":`, contact[contactKey]);
-      return String(contact[contactKey]);
-    }
-    
-    // Legacy field mappings for backward compatibility
-    if (field === 'firstName' || field === 'first_name') {
-      const value = contact.first_name || contact.firstName || (contact.custom_fields && contact.custom_fields.firstName) || (contact.custom_fields && contact.custom_fields.first_name) || fallbackTags.first_name;
-      console.log(`Legacy firstName mapping for "${field}":`, value);
-      return value;
-    }
-    if (field === 'lastName' || field === 'last_name') {
-      const value = contact.last_name || contact.lastName || (contact.custom_fields && contact.custom_fields.lastName) || (contact.custom_fields && contact.custom_fields.last_name) || '';
-      console.log(`Legacy lastName mapping for "${field}":`, value);
-      return value;
-    }
-    if (field === 'company') {
-      const value = contact.company || (contact.custom_fields && contact.custom_fields.company) || fallbackTags.company;
-      console.log(`Legacy company mapping for "${field}":`, value);
-      return value;
-    }
-    
-    // Additional check: if custom_fields exists, try to find any field that might match
-    if (contact.custom_fields && typeof contact.custom_fields === 'object') {
-      // Try to find any field in custom_fields that might be what we're looking for
-      const allCustomKeys = Object.keys(contact.custom_fields);
-      console.log(`Checking all custom fields for "${field}":`, allCustomKeys);
-      
-      // Try exact match first
-      if (contact.custom_fields[field] !== undefined && contact.custom_fields[field] !== null) {
-        console.log(`Found exact match in custom_fields for "${field}":`, contact.custom_fields[field]);
-        return String(contact.custom_fields[field]);
-      }
-      
-      // Try case-insensitive match
-      const matchingKey = allCustomKeys.find(key => key.toLowerCase() === field.toLowerCase());
-      if (matchingKey && contact.custom_fields[matchingKey] !== undefined && contact.custom_fields[matchingKey] !== null) {
-        console.log(`Found case-insensitive match in custom_fields for "${field}" -> "${matchingKey}":`, contact.custom_fields[matchingKey]);
-        return String(contact.custom_fields[matchingKey]);
-      }
-    }
-    
-    // Return the tag unchanged if no match found
-    console.log(`No match found for "${field}", returning unchanged:`, match);
-    return match;
-  });
-
-  console.log(`Final personalized text:`, result);
-  return result;
-}
 
 serve(handler);
