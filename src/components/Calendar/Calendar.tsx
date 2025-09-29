@@ -110,74 +110,115 @@ const Calendar = () => {
         userId: user.id
       });
 
-      // Get scheduled emails - try with joins first, fallback to basic query if needed
-      let scheduledEmails: any[] = [];
-      let scheduledError: any = null;
-      
-      try {
-        const { data, error } = await supabase
-          .from('scheduled_emails')
-          .select(`
-            *,
-            campaigns(name, description),
-            contacts(email, first_name, last_name),
-            email_sequences(subject, body, step_number),
-            sender_accounts(email)
-          `)
-          .gte('scheduled_for', startOfMonth.toISOString())
-          .lte('scheduled_for', endOfMonth.toISOString())
-          .order('scheduled_for', { ascending: true });
-        
-        scheduledEmails = data || [];
-        scheduledError = error;
-      } catch (err) {
-        console.warn('Join query failed, trying basic query for scheduled emails:', err);
-        // Fallback to basic query without joins
-        const { data, error } = await supabase
-          .from('scheduled_emails')
-          .select('*')
-          .gte('scheduled_for', startOfMonth.toISOString())
-          .lte('scheduled_for', endOfMonth.toISOString())
-          .order('scheduled_for', { ascending: true });
-        
-        scheduledEmails = data || [];
-        scheduledError = error;
+      // Get scheduled emails - basic query without joins since no foreign keys exist
+      const { data: scheduledEmails, error: scheduledError } = await supabase
+        .from('scheduled_emails')
+        .select('*')
+        .gte('scheduled_for', startOfMonth.toISOString())
+        .lte('scheduled_for', endOfMonth.toISOString())
+        .order('scheduled_for', { ascending: true });
+
+      // Get sent emails - basic query without joins since foreign keys might not work
+      const { data: sentEmails, error: sentError } = await supabase
+        .from('email_sends')
+        .select('*')
+        .not('sent_at', 'is', null)
+        .gte('sent_at', startOfMonth.toISOString())
+        .lte('sent_at', endOfMonth.toISOString())
+        .order('sent_at', { ascending: true });
+
+      // Fetch related data separately to avoid join issues
+      let campaignsMap = new Map();
+      let contactsMap = new Map();
+      let sequencesMap = new Map();
+      let sendersMap = new Map();
+
+      if (scheduledEmails && scheduledEmails.length > 0) {
+        // Get unique IDs for related data
+        const campaignIds = [...new Set(scheduledEmails.map(e => e.campaign_id))];
+        const contactIds = [...new Set(scheduledEmails.map(e => e.contact_id))];
+        const sequenceIds = [...new Set(scheduledEmails.map(e => e.sequence_id))];
+        const senderIds = [...new Set(scheduledEmails.map(e => e.sender_account_id))];
+
+        // Fetch campaigns
+        if (campaignIds.length > 0) {
+          const { data: campaigns } = await supabase
+            .from('campaigns')
+            .select('id, name, description')
+            .in('id', campaignIds);
+          campaigns?.forEach(c => campaignsMap.set(c.id, c));
+        }
+
+        // Fetch contacts
+        if (contactIds.length > 0) {
+          const { data: contacts } = await supabase
+            .from('contacts')
+            .select('id, email, first_name, last_name')
+            .in('id', contactIds);
+          contacts?.forEach(c => contactsMap.set(c.id, c));
+        }
+
+        // Fetch email sequences
+        if (sequenceIds.length > 0) {
+          const { data: sequences } = await supabase
+            .from('email_sequences')
+            .select('id, subject, body, step_number')
+            .in('id', sequenceIds);
+          sequences?.forEach(s => sequencesMap.set(s.id, s));
+        }
+
+        // Fetch sender accounts
+        if (senderIds.length > 0) {
+          const { data: senders } = await supabase
+            .from('sender_accounts')
+            .select('id, email')
+            .in('id', senderIds);
+          senders?.forEach(s => sendersMap.set(s.id, s));
+        }
       }
 
-      // Get sent emails - try with joins first, fallback to basic query if needed
-      let sentEmails: any[] = [];
-      let sentError: any = null;
-      
-      try {
-        const { data, error } = await supabase
-          .from('email_sends')
-          .select(`
-            *,
-            campaigns(name, description),
-            contacts(email, first_name, last_name),
-            email_sequences(subject, body, step_number),
-            sender_accounts(email)
-          `)
-          .not('sent_at', 'is', null)
-          .gte('sent_at', startOfMonth.toISOString())
-          .lte('sent_at', endOfMonth.toISOString())
-          .order('sent_at', { ascending: true });
-        
-        sentEmails = data || [];
-        sentError = error;
-      } catch (err) {
-        console.warn('Join query failed, trying basic query for sent emails:', err);
-        // Fallback to basic query without joins
-        const { data, error } = await supabase
-          .from('email_sends')
-          .select('*')
-          .not('sent_at', 'is', null)
-          .gte('sent_at', startOfMonth.toISOString())
-          .lte('sent_at', endOfMonth.toISOString())
-          .order('sent_at', { ascending: true });
-        
-        sentEmails = data || [];
-        sentError = error;
+      // Also fetch data for sent emails
+      if (sentEmails && sentEmails.length > 0) {
+        const campaignIds = [...new Set(sentEmails.map(e => e.campaign_id))];
+        const contactIds = [...new Set(sentEmails.map(e => e.contact_id))];
+        const sequenceIds = [...new Set(sentEmails.map(e => e.sequence_id))];
+        const senderIds = [...new Set(sentEmails.map(e => e.sender_account_id))];
+
+        // Fetch campaigns (merge with existing)
+        if (campaignIds.length > 0) {
+          const { data: campaigns } = await supabase
+            .from('campaigns')
+            .select('id, name, description')
+            .in('id', campaignIds);
+          campaigns?.forEach(c => campaignsMap.set(c.id, c));
+        }
+
+        // Fetch contacts (merge with existing)
+        if (contactIds.length > 0) {
+          const { data: contacts } = await supabase
+            .from('contacts')
+            .select('id, email, first_name, last_name')
+            .in('id', contactIds);
+          contacts?.forEach(c => contactsMap.set(c.id, c));
+        }
+
+        // Fetch email sequences (merge with existing)
+        if (sequenceIds.length > 0) {
+          const { data: sequences } = await supabase
+            .from('email_sequences')
+            .select('id, subject, body, step_number')
+            .in('id', sequenceIds);
+          sequences?.forEach(s => sequencesMap.set(s.id, s));
+        }
+
+        // Fetch sender accounts (merge with existing)
+        if (senderIds.length > 0) {
+          const { data: senders } = await supabase
+            .from('sender_accounts')
+            .select('id, email')
+            .in('id', senderIds);
+          senders?.forEach(s => sendersMap.set(s.id, s));
+        }
       }
 
       if (scheduledError) {
@@ -207,19 +248,24 @@ const Calendar = () => {
       // Create a map to store unique emails by their actual content
       const uniqueEmails = new Map<string, CalendarEvent>();
 
-      // Process scheduled emails
+      // Process scheduled emails using the maps
       for (const email of scheduledEmails || []) {
         const date = new Date(email.scheduled_for);
         // Use a more specific key that includes sequence and time to avoid false duplicates
         const key = `scheduled-${email.id}-${date.getTime()}`;
         
-        // Handle cases where joins might not work due to missing foreign keys
-        const contactName = email.contacts?.first_name && email.contacts?.last_name 
-          ? `${email.contacts.first_name} ${email.contacts.last_name}`
-          : email.contacts?.email || `Contact ${email.contact_id.slice(0, 8)}`;
+        // Get related data from maps
+        const contact = contactsMap.get(email.contact_id);
+        const campaign = campaignsMap.get(email.campaign_id);
+        const sequence = sequencesMap.get(email.sequence_id);
+        const sender = sendersMap.get(email.sender_account_id);
         
-        const campaignName = email.campaigns?.name || `Campaign ${email.campaign_id.slice(0, 8)}`;
-        const subject = email.email_sequences?.subject || 'Scheduled Email';
+        const contactName = contact?.first_name && contact?.last_name 
+          ? `${contact.first_name} ${contact.last_name}`
+          : contact?.email || `Contact ${email.contact_id.slice(0, 8)}`;
+        
+        const campaignName = campaign?.name || `Campaign ${email.campaign_id.slice(0, 8)}`;
+        const subject = sequence?.subject || 'Scheduled Email';
         
         uniqueEmails.set(key, {
           id: `scheduled-${email.id}`,
@@ -230,24 +276,29 @@ const Calendar = () => {
           campaignName: campaignName,
           contactEmail: contactName,
           subject: subject,
-          stepNumber: email.email_sequences?.step_number || 1,
+          stepNumber: sequence?.step_number || 1,
           originalData: email as ScheduledEmail
         });
       }
 
-      // Process sent emails
+      // Process sent emails using the maps
       for (const email of sentEmails || []) {
         const date = new Date(email.sent_at);
         // Use a more specific key that includes sequence and time to avoid false duplicates
         const key = `sent-${email.id}-${date.getTime()}`;
         
-        // Handle cases where joins might not work due to missing foreign keys
-        const contactName = email.contacts?.first_name && email.contacts?.last_name 
-          ? `${email.contacts.first_name} ${email.contacts.last_name}`
-          : email.contacts?.email || `Contact ${email.contact_id.slice(0, 8)}`;
+        // Get related data from maps
+        const contact = contactsMap.get(email.contact_id);
+        const campaign = campaignsMap.get(email.campaign_id);
+        const sequence = sequencesMap.get(email.sequence_id);
+        const sender = sendersMap.get(email.sender_account_id);
         
-        const campaignName = email.campaigns?.name || `Campaign ${email.campaign_id.slice(0, 8)}`;
-        const subject = email.email_sequences?.subject || 'Sent Email';
+        const contactName = contact?.first_name && contact?.last_name 
+          ? `${contact.first_name} ${contact.last_name}`
+          : contact?.email || `Contact ${email.contact_id.slice(0, 8)}`;
+        
+        const campaignName = campaign?.name || `Campaign ${email.campaign_id.slice(0, 8)}`;
+        const subject = sequence?.subject || 'Sent Email';
         
         uniqueEmails.set(key, {
           id: `sent-${email.id}`,
@@ -258,7 +309,7 @@ const Calendar = () => {
           campaignName: campaignName,
           contactEmail: contactName,
           subject: subject,
-          stepNumber: email.email_sequences?.step_number || 1,
+          stepNumber: sequence?.step_number || 1,
           originalData: email as SentEmail
         });
       }
