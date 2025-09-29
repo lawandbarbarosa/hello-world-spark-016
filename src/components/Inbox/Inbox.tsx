@@ -215,8 +215,16 @@ const Inbox = () => {
         return groups;
       }, {});
 
-      // Convert to array and sort by latest sent date
+      // Convert to array and sort by opened status first, then by latest sent date
       const contactGroupsArray = Object.values(groupedByContact).sort((a, b) => {
+        // First priority: contacts with opened emails go to the top
+        const aHasOpened = a.totalOpened > 0;
+        const bHasOpened = b.totalOpened > 0;
+        
+        if (aHasOpened && !bHasOpened) return -1; // a goes first
+        if (!aHasOpened && bHasOpened) return 1;  // b goes first
+        
+        // If both have opened emails or both don't have opened emails, sort by latest sent date
         if (!a.latestSent && !b.latestSent) return 0;
         if (!a.latestSent) return 1;
         if (!b.latestSent) return -1;
@@ -433,9 +441,17 @@ const Inbox = () => {
                   <div className="flex items-center gap-3">
                     <User className="w-6 h-6 text-primary" />
                     <div>
-                      <CardTitle className="text-lg">
-                        {group.contactName}
-                      </CardTitle>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-lg">
+                          {group.contactName}
+                        </CardTitle>
+                        {group.totalOpened > 0 && (
+                          <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">
+                            <Eye className="w-3 h-3 mr-1" />
+                            Opened
+                          </Badge>
+                        )}
+                      </div>
                       <CardDescription>
                         {group.contactEmail}
                       </CardDescription>
