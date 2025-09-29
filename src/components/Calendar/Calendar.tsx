@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Mail, Clock, CheckCircle, XCircle, AlertCircle, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Mail, Clock, CheckCircle, XCircle, AlertCircle, X, RefreshCw, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +88,7 @@ const Calendar = () => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -109,17 +110,30 @@ const Calendar = () => {
         userId: user.id
       });
 
-      // Get all emails for the month - both scheduled and sent
+      // Get scheduled emails with proper joins for better data
       const { data: scheduledEmails, error: scheduledError } = await supabase
         .from('scheduled_emails')
-        .select('*')
+        .select(`
+          *,
+          campaigns!inner(name, description),
+          contacts!inner(email, first_name, last_name),
+          email_sequences!inner(subject, body, step_number),
+          sender_accounts!inner(email)
+        `)
         .gte('scheduled_for', startOfMonth.toISOString())
         .lte('scheduled_for', endOfMonth.toISOString())
         .order('scheduled_for', { ascending: true });
 
+      // Get sent emails with proper joins for better data
       const { data: sentEmails, error: sentError } = await supabase
         .from('email_sends')
-        .select('*')
+        .select(`
+          *,
+          campaigns!inner(name, description),
+          contacts!inner(email, first_name, last_name),
+          email_sequences!inner(subject, body, step_number),
+          sender_accounts!inner(email)
+        `)
         .not('sent_at', 'is', null)
         .gte('sent_at', startOfMonth.toISOString())
         .lte('sent_at', endOfMonth.toISOString())
@@ -137,55 +151,71 @@ const Calendar = () => {
         return;
       }
 
-      // Simple approach: Create a map to store unique emails
+      // Create a map to store unique emails by their actual content
       const uniqueEmails = new Map<string, CalendarEvent>();
 
       // Process scheduled emails
       for (const email of scheduledEmails || []) {
         const date = new Date(email.scheduled_for);
-        const key = `${date.toDateString()}-${email.campaign_id}-${email.contact_id}`;
+        // Use a more specific key that includes sequence and time to avoid false duplicates
+        const key = `scheduled-${email.id}-${date.getTime()}`;
         
-        if (!uniqueEmails.has(key)) {
-          uniqueEmails.set(key, {
-            id: `scheduled-${email.id}`,
-            title: 'Scheduled Email',
-            date: date,
-            type: 'scheduled',
-            status: email.status,
-            campaignName: `Campaign ${email.campaign_id.slice(0, 8)}`,
-            contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
-            subject: 'Scheduled Email',
-            stepNumber: 1,
-            originalData: email as ScheduledEmail
-          });
-        }
+        const contactName = email.contacts?.first_name && email.contacts?.last_name 
+          ? `${email.contacts.first_name} ${email.contacts.last_name}`
+          : email.contacts?.email || 'Unknown Contact';
+        
+        const campaignName = email.campaigns?.name || 'Unnamed Campaign';
+        const subject = email.email_sequences?.subject || 'No Subject';
+        
+        uniqueEmails.set(key, {
+          id: `scheduled-${email.id}`,
+          title: subject,
+          date: date,
+          type: 'scheduled',
+          status: email.status,
+          campaignName: campaignName,
+          contactEmail: contactName,
+          subject: subject,
+          stepNumber: email.email_sequences?.step_number || 1,
+          originalData: email as ScheduledEmail
+        });
       }
 
       // Process sent emails
       for (const email of sentEmails || []) {
         const date = new Date(email.sent_at);
-        const key = `${date.toDateString()}-${email.campaign_id}-${email.contact_id}`;
+        // Use a more specific key that includes sequence and time to avoid false duplicates
+        const key = `sent-${email.id}-${date.getTime()}`;
         
-        if (!uniqueEmails.has(key)) {
-          uniqueEmails.set(key, {
-            id: `sent-${email.id}`,
-            title: 'Sent Email',
-            date: date,
-            type: email.status === 'failed' ? 'failed' : 'sent',
-            status: email.status,
-            campaignName: `Campaign ${email.campaign_id.slice(0, 8)}`,
-            contactEmail: `Contact ${email.contact_id.slice(0, 8)}`,
-            subject: 'Sent Email',
-            stepNumber: 1,
-            originalData: email as SentEmail
-          });
-        }
+        const contactName = email.contacts?.first_name && email.contacts?.last_name 
+          ? `${email.contacts.first_name} ${email.contacts.last_name}`
+          : email.contacts?.email || 'Unknown Contact';
+        
+        const campaignName = email.campaigns?.name || 'Unnamed Campaign';
+        const subject = email.email_sequences?.subject || 'No Subject';
+        
+        uniqueEmails.set(key, {
+          id: `sent-${email.id}`,
+          title: subject,
+          date: date,
+          type: email.status === 'failed' ? 'failed' : 'sent',
+          status: email.status,
+          campaignName: campaignName,
+          contactEmail: contactName,
+          subject: subject,
+          stepNumber: email.email_sequences?.step_number || 1,
+          originalData: email as SentEmail
+        });
       }
 
-      // Convert map to array
-      const finalEvents = Array.from(uniqueEmails.values());
+      // Convert map to array and sort by date
+      const finalEvents = Array.from(uniqueEmails.values()).sort((a, b) => 
+        a.date.getTime() - b.date.getTime()
+      );
       
       console.log('Total unique emails:', finalEvents.length);
+      console.log('Scheduled emails:', scheduledEmails?.length || 0);
+      console.log('Sent emails:', sentEmails?.length || 0);
       setEvents(finalEvents);
     } catch (error) {
       console.error('Error fetching calendar data:', error);
@@ -205,6 +235,23 @@ const Calendar = () => {
       }
       return newDate;
     });
+  };
+
+  const resetCalendar = async () => {
+    setRefreshing(true);
+    setEvents([]);
+    try {
+      await fetchCalendarData();
+      toast.success('Calendar refreshed successfully');
+    } catch (error) {
+      toast.error('Failed to refresh calendar');
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -250,13 +297,13 @@ const Calendar = () => {
 
   const getEventColor = (type: string, status: string) => {
     if (type === 'scheduled') {
-      return 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 border-l-3 border-blue-400 shadow-sm';
+      return 'bg-gradient-to-r from-amber-50 to-orange-100 text-amber-800 border-l-4 border-amber-400 shadow-sm hover:shadow-md transition-all duration-200';
     } else if (type === 'sent') {
-      return 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 border-l-3 border-blue-600 border-2 border-blue-600 shadow-sm';
+      return 'bg-gradient-to-r from-green-50 to-emerald-100 text-green-800 border-l-4 border-green-500 shadow-sm hover:shadow-md transition-all duration-200';
     } else if (type === 'failed') {
-      return 'bg-gradient-to-r from-red-50 to-red-100 text-red-800 border-l-3 border-red-400 shadow-sm';
+      return 'bg-gradient-to-r from-red-50 to-rose-100 text-red-800 border-l-4 border-red-500 shadow-sm hover:shadow-md transition-all duration-200';
     }
-    return 'bg-gradient-to-r from-slate-50 to-slate-100 text-slate-800 border-l-3 border-slate-400 shadow-sm';
+    return 'bg-gradient-to-r from-slate-50 to-slate-100 text-slate-800 border-l-4 border-slate-400 shadow-sm hover:shadow-md transition-all duration-200';
   };
 
   const formatTime = (date: Date) => {
@@ -321,23 +368,74 @@ const Calendar = () => {
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
+            
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToToday}
+                className="bg-white/60 backdrop-blur-sm border-white/30 text-slate-700 hover:bg-white/80 hover:text-slate-900 transition-all duration-200"
+              >
+                <CalendarIcon className="w-4 h-4 mr-2" />
+                Today
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetCalendar}
+                disabled={refreshing}
+                className="bg-white/60 backdrop-blur-sm border-white/30 text-slate-700 hover:bg-white/80 hover:text-slate-900 transition-all duration-200 disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Enhanced Legend */}
+        {/* Enhanced Legend with Statistics */}
         <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-lg border border-white/20 p-6">
-          <div className="flex items-center gap-8">
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 bg-gradient-to-br from-blue-400 to-blue-600 rounded-md shadow-sm"></div>
-              <span className="text-sm font-medium text-slate-700">Scheduled</span>
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="flex items-center gap-8">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-md shadow-sm border-l-4 border-amber-600"></div>
+                <span className="text-sm font-medium text-slate-700">Scheduled</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-gradient-to-br from-green-400 to-emerald-500 rounded-md shadow-sm border-l-4 border-green-600"></div>
+                <span className="text-sm font-medium text-slate-700">Sent</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-gradient-to-br from-red-400 to-rose-500 rounded-md shadow-sm border-l-4 border-red-600"></div>
+                <span className="text-sm font-medium text-slate-700">Failed</span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 bg-gradient-to-br from-blue-400 to-blue-600 rounded-md shadow-sm border-2 border-blue-700"></div>
-              <span className="text-sm font-medium text-slate-700">Sent</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 bg-gradient-to-br from-red-400 to-red-600 rounded-md shadow-sm"></div>
-              <span className="text-sm font-medium text-slate-700">Failed</span>
+            
+            <div className="flex items-center gap-6 text-sm">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-amber-600">
+                  {events.filter(e => e.type === 'scheduled').length}
+                </div>
+                <div className="text-xs text-slate-500">Scheduled</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {events.filter(e => e.type === 'sent').length}
+                </div>
+                <div className="text-xs text-slate-500">Sent</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-600">
+                  {events.filter(e => e.type === 'failed').length}
+                </div>
+                <div className="text-xs text-slate-500">Failed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-slate-600">
+                  {events.length}
+                </div>
+                <div className="text-xs text-slate-500">Total</div>
+              </div>
             </div>
           </div>
         </div>
@@ -455,8 +553,8 @@ const Calendar = () => {
               <div className="p-6 space-y-5">
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Subject</label>
-                    <p className="text-sm text-slate-800 mt-1 font-medium">{selectedEvent.subject}</p>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Email Subject</label>
+                    <p className="text-sm text-slate-800 mt-1 font-medium break-words">{selectedEvent.subject}</p>
                   </div>
                   
                   <div>
@@ -465,8 +563,17 @@ const Calendar = () => {
                   </div>
                   
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Contact</label>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recipient</label>
                     <p className="text-sm text-slate-800 mt-1 font-medium">{selectedEvent.contactEmail}</p>
+                  </div>
+                  
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Type</label>
+                    <p className="text-sm text-slate-800 mt-1 font-medium capitalize">
+                      {selectedEvent.type === 'scheduled' ? 'Scheduled Email' : 
+                       selectedEvent.type === 'sent' ? 'Sent Email' : 
+                       'Failed Email'}
+                    </p>
                   </div>
                   
                   
