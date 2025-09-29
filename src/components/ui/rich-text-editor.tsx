@@ -46,7 +46,9 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== value) {
-      editorRef.current.innerHTML = value;
+      // Highlight placeholders in the content
+      const highlightedValue = value.replace(/\{\{([^}]+)\}\}/g, '<span style="color: #8b5cf6; background-color: #f3f0ff; padding: 1px 3px; border-radius: 3px; font-weight: 500;">{{$1}}</span>');
+      editorRef.current.innerHTML = highlightedValue;
     }
   }, [value]);
 
@@ -58,8 +60,17 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const handleContentChange = () => {
     if (editorRef.current) {
-      const content = editorRef.current.innerHTML;
+      // Get the raw content without highlighting spans
+      const rawContent = editorRef.current.innerText || editorRef.current.textContent || '';
+      // Convert back to HTML with placeholders
+      const content = rawContent.replace(/\{\{([^}]+)\}\}/g, '{{$1}}');
       onChange(content);
+      
+      // Re-apply highlighting
+      const highlightedContent = content.replace(/\{\{([^}]+)\}\}/g, '<span style="color: #8b5cf6; background-color: #f3f0ff; padding: 1px 3px; border-radius: 3px; font-weight: 500;">{{$1}}</span>');
+      if (editorRef.current.innerHTML !== highlightedContent) {
+        editorRef.current.innerHTML = highlightedContent;
+      }
     }
   };
 
