@@ -110,44 +110,97 @@ const Calendar = () => {
         userId: user.id
       });
 
-      // Get scheduled emails with proper joins for better data
-      const { data: scheduledEmails, error: scheduledError } = await supabase
-        .from('scheduled_emails')
-        .select(`
-          *,
-          campaigns!inner(name, description),
-          contacts!inner(email, first_name, last_name),
-          email_sequences!inner(subject, body, step_number),
-          sender_accounts!inner(email)
-        `)
-        .gte('scheduled_for', startOfMonth.toISOString())
-        .lte('scheduled_for', endOfMonth.toISOString())
-        .order('scheduled_for', { ascending: true });
+      // Get scheduled emails - try with joins first, fallback to basic query if needed
+      let scheduledEmails: any[] = [];
+      let scheduledError: any = null;
+      
+      try {
+        const { data, error } = await supabase
+          .from('scheduled_emails')
+          .select(`
+            *,
+            campaigns(name, description),
+            contacts(email, first_name, last_name),
+            email_sequences(subject, body, step_number),
+            sender_accounts(email)
+          `)
+          .gte('scheduled_for', startOfMonth.toISOString())
+          .lte('scheduled_for', endOfMonth.toISOString())
+          .order('scheduled_for', { ascending: true });
+        
+        scheduledEmails = data || [];
+        scheduledError = error;
+      } catch (err) {
+        console.warn('Join query failed, trying basic query for scheduled emails:', err);
+        // Fallback to basic query without joins
+        const { data, error } = await supabase
+          .from('scheduled_emails')
+          .select('*')
+          .gte('scheduled_for', startOfMonth.toISOString())
+          .lte('scheduled_for', endOfMonth.toISOString())
+          .order('scheduled_for', { ascending: true });
+        
+        scheduledEmails = data || [];
+        scheduledError = error;
+      }
 
-      // Get sent emails with proper joins for better data
-      const { data: sentEmails, error: sentError } = await supabase
-        .from('email_sends')
-        .select(`
-          *,
-          campaigns!inner(name, description),
-          contacts!inner(email, first_name, last_name),
-          email_sequences!inner(subject, body, step_number),
-          sender_accounts!inner(email)
-        `)
-        .not('sent_at', 'is', null)
-        .gte('sent_at', startOfMonth.toISOString())
-        .lte('sent_at', endOfMonth.toISOString())
-        .order('sent_at', { ascending: true });
+      // Get sent emails - try with joins first, fallback to basic query if needed
+      let sentEmails: any[] = [];
+      let sentError: any = null;
+      
+      try {
+        const { data, error } = await supabase
+          .from('email_sends')
+          .select(`
+            *,
+            campaigns(name, description),
+            contacts(email, first_name, last_name),
+            email_sequences(subject, body, step_number),
+            sender_accounts(email)
+          `)
+          .not('sent_at', 'is', null)
+          .gte('sent_at', startOfMonth.toISOString())
+          .lte('sent_at', endOfMonth.toISOString())
+          .order('sent_at', { ascending: true });
+        
+        sentEmails = data || [];
+        sentError = error;
+      } catch (err) {
+        console.warn('Join query failed, trying basic query for sent emails:', err);
+        // Fallback to basic query without joins
+        const { data, error } = await supabase
+          .from('email_sends')
+          .select('*')
+          .not('sent_at', 'is', null)
+          .gte('sent_at', startOfMonth.toISOString())
+          .lte('sent_at', endOfMonth.toISOString())
+          .order('sent_at', { ascending: true });
+        
+        sentEmails = data || [];
+        sentError = error;
+      }
 
       if (scheduledError) {
         console.error('Error fetching scheduled emails:', scheduledError);
-        toast.error('Failed to fetch scheduled emails');
+        console.error('Scheduled error details:', {
+          message: scheduledError.message,
+          details: scheduledError.details,
+          hint: scheduledError.hint,
+          code: scheduledError.code
+        });
+        toast.error(`Failed to fetch scheduled emails: ${scheduledError.message}`);
         return;
       }
 
       if (sentError) {
         console.error('Error fetching sent emails:', sentError);
-        toast.error('Failed to fetch sent emails');
+        console.error('Sent error details:', {
+          message: sentError.message,
+          details: sentError.details,
+          hint: sentError.hint,
+          code: sentError.code
+        });
+        toast.error(`Failed to fetch sent emails: ${sentError.message}`);
         return;
       }
 
@@ -160,12 +213,13 @@ const Calendar = () => {
         // Use a more specific key that includes sequence and time to avoid false duplicates
         const key = `scheduled-${email.id}-${date.getTime()}`;
         
+        // Handle cases where joins might not work due to missing foreign keys
         const contactName = email.contacts?.first_name && email.contacts?.last_name 
           ? `${email.contacts.first_name} ${email.contacts.last_name}`
-          : email.contacts?.email || 'Unknown Contact';
+          : email.contacts?.email || `Contact ${email.contact_id.slice(0, 8)}`;
         
-        const campaignName = email.campaigns?.name || 'Unnamed Campaign';
-        const subject = email.email_sequences?.subject || 'No Subject';
+        const campaignName = email.campaigns?.name || `Campaign ${email.campaign_id.slice(0, 8)}`;
+        const subject = email.email_sequences?.subject || 'Scheduled Email';
         
         uniqueEmails.set(key, {
           id: `scheduled-${email.id}`,
@@ -187,12 +241,13 @@ const Calendar = () => {
         // Use a more specific key that includes sequence and time to avoid false duplicates
         const key = `sent-${email.id}-${date.getTime()}`;
         
+        // Handle cases where joins might not work due to missing foreign keys
         const contactName = email.contacts?.first_name && email.contacts?.last_name 
           ? `${email.contacts.first_name} ${email.contacts.last_name}`
-          : email.contacts?.email || 'Unknown Contact';
+          : email.contacts?.email || `Contact ${email.contact_id.slice(0, 8)}`;
         
-        const campaignName = email.campaigns?.name || 'Unnamed Campaign';
-        const subject = email.email_sequences?.subject || 'No Subject';
+        const campaignName = email.campaigns?.name || `Campaign ${email.campaign_id.slice(0, 8)}`;
+        const subject = email.email_sequences?.subject || 'Sent Email';
         
         uniqueEmails.set(key, {
           id: `sent-${email.id}`,
