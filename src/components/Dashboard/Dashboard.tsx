@@ -61,12 +61,32 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
     failureRate: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [autoRefresh, setAutoRefresh] = useState(false);
+  const [refreshInterval, setRefreshInterval] = useState(5); // seconds
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
     }
   }, [user]);
+
+  // Auto-refresh effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
+    if (autoRefresh && user) {
+      interval = setInterval(() => {
+        fetchDashboardData();
+      }, refreshInterval * 1000);
+    }
+    
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [autoRefresh, refreshInterval, user]);
 
   const fetchDashboardData = async () => {
     try {
@@ -137,6 +157,7 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
       });
     } finally {
       setLoading(false);
+      setLastRefresh(new Date());
     }
   };
 
@@ -304,17 +325,65 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
             Monitor your cold email campaigns and performance
+            {autoRefresh && (
+              <span className="ml-2 text-green-600 font-medium">
+                • Auto-refreshing every {refreshInterval}s
+              </span>
+            )}
+            <span className="ml-2 text-xs text-muted-foreground">
+              Last updated: {lastRefresh.toLocaleTimeString()}
+            </span>
           </p>
         </div>
-        <Button 
-          onClick={() => window.location.reload()} 
-          variant="outline" 
-          size="sm"
-          disabled={loading}
-        >
-          <Activity className="w-4 h-4 mr-2" />
-          {loading ? 'Loading...' : 'Refresh'}
-        </Button>
+        <div className="flex items-center gap-3">
+          {/* Auto-refresh toggle */}
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              variant={autoRefresh ? "default" : "outline"}
+              size="sm"
+              className={autoRefresh ? "bg-green-600 hover:bg-green-700" : ""}
+            >
+              {autoRefresh ? (
+                <>
+                  <Pause className="w-4 h-4 mr-2" />
+                  Pause Auto-Refresh
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4 mr-2" />
+                  Auto-Refresh
+                </>
+              )}
+            </Button>
+            
+            {/* Refresh interval selector */}
+            {autoRefresh && (
+              <select
+                value={refreshInterval}
+                onChange={(e) => setRefreshInterval(Number(e.target.value))}
+                className="px-3 py-2 text-sm border border-border rounded-md bg-background text-foreground"
+              >
+                <option value={5}>5s</option>
+                <option value={10}>10s</option>
+                <option value={15}>15s</option>
+                <option value={30}>30s</option>
+                <option value={60}>1m</option>
+              </select>
+            )}
+          </div>
+          
+          {/* Manual refresh button */}
+          <Button 
+            onClick={fetchDashboardData} 
+            variant="outline" 
+            size="sm"
+            disabled={loading}
+          >
+            <Activity className="w-4 h-4 mr-2" />
+            {loading ? 'Loading...' : 'Refresh Now'}
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards - Grouped Layout */}
