@@ -199,10 +199,22 @@ const InboxList = () => {
   };
 
   const personalizeContent = (content: string, contact: SentEmail['contact']) => {
+    // Get company name from email domain if available
+    const emailDomain = contact.email.split('@')[1];
+    const companyFromEmail = emailDomain ? emailDomain.split('.')[0] : "Company";
+    
     return content
       .replace(/\{\{firstName\}\}/g, contact.first_name || "")
       .replace(/\{\{lastName\}\}/g, contact.last_name || "")
-      .replace(/\{\{email\}\}/g, contact.email);
+      .replace(/\{\{email\}\}/g, contact.email)
+      .replace(/\{\{companyName\}\}/g, contact.first_name || companyFromEmail)
+      .replace(/\{\{Company Name\}\}/g, contact.first_name || companyFromEmail)
+      .replace(/\{\{leadCity\}\}/g, "your area")
+      .replace(/\{\{Lead City\}\}/g, "your area")
+      .replace(/\{\{company\}\}/g, contact.first_name || companyFromEmail)
+      .replace(/\{\{name\}\}/g, contact.first_name || contact.email.split('@')[0])
+      .replace(/\{\{fullName\}\}/g, `${contact.first_name || ""} ${contact.last_name || ""}`.trim() || contact.email.split('@')[0])
+      .replace(/\{\{Full Name\}\}/g, `${contact.first_name || ""} ${contact.last_name || ""}`.trim() || contact.email.split('@')[0]);
   };
 
   const formatDate = (dateString: string) => {
