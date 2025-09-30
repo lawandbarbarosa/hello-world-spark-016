@@ -49,7 +49,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
     { id: 'delivery', label: 'Deliverability', icon: Truck },
     { id: 'emails', label: 'Emails', icon: Mail },
     { id: 'replies', label: 'Reply Tracker', icon: Reply },
-    { id: 'spam', label: 'Spam', icon: Shield },
+    { id: 'spam', label: 'Failed Emails', icon: Shield },
     { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'senders', label: 'Senders', icon: Send },
     { id: 'settings', label: 'Settings', icon: Settings },

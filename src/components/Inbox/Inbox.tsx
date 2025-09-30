@@ -116,6 +116,7 @@ const Inbox = () => {
           sender_accounts(email)
         `)
         .eq('campaigns.user_id', user?.id)
+        .neq('status', 'failed')
         .order('created_at', { ascending: false });
 
       if (error) {
