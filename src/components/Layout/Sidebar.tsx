@@ -46,7 +46,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
     { id: 'bulk-campaigns', label: 'Bulk Campaigns', icon: Layers },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'delivery', label: 'Deliverability', icon: Truck },
-    { id: 'inbox', label: 'Inbox', icon: Inbox },
+    { id: 'inbox', label: 'Emails', icon: Inbox },
     { id: 'replies', label: 'Reply Tracker', icon: Reply },
     { id: 'spam', label: 'Spam', icon: Shield },
     { id: 'contacts', label: 'Contacts', icon: Users },
