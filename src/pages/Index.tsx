@@ -14,6 +14,7 @@ import ContactsList from '@/components/Contacts/ContactsList';
 import ReplyTracker from '@/components/Replies/ReplyTracker';
 import Calendar from '@/components/Calendar/Calendar';
 import SessionDebugger from '@/components/SessionDebugger';
+import BulkCampaigns from '@/components/Campaigns/BulkCampaigns';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -34,6 +35,8 @@ const Index = () => {
     } else if (path.startsWith('/campaigns/edit/')) {
       setActiveTab('edit-campaign');
       setSelectedCampaignId(params.id || null);
+    } else if (path === '/bulk-campaigns') {
+      setActiveTab('bulk-campaigns');
     } else if (path === '/calendar') {
       setActiveTab('calendar');
     } else if (path === '/delivery') {
@@ -70,6 +73,9 @@ const Index = () => {
         if (campaignId) {
           navigate(`/campaigns/edit/${campaignId}`);
         }
+        break;
+      case 'bulk-campaigns':
+        navigate('/bulk-campaigns');
         break;
       case 'calendar':
         navigate('/calendar');
@@ -117,6 +123,8 @@ const Index = () => {
         ) : (
           <Dashboard onNavigate={handleNavigation} />
         );
+      case 'bulk-campaigns':
+        return <BulkCampaigns />;
       case 'calendar':
         return <Calendar />;
       case 'delivery':

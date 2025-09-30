@@ -47,6 +47,11 @@ const App = () => (
                       <Index />
                     </ProtectedRoute>
                   } />
+                  <Route path="/bulk-campaigns" element={
+                    <ProtectedRoute>
+                      <Index />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/calendar" element={
                     <ProtectedRoute>
                       <Index />
