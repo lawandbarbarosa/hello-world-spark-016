@@ -20,7 +20,8 @@ import {
   Pause,
   Settings,
   Download,
-  Trash2
+  Trash2,
+  Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -300,81 +301,81 @@ const BulkCampaigns = () => {
           ) : (
             <div className="grid gap-4">
               {bulkCampaigns.map((campaign) => (
-              <Card key={campaign.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-3 h-3 rounded-full ${getStatusColor(campaign.status)}`} />
-                      <h3 className="font-semibold text-lg">{campaign.name}</h3>
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        {getStatusIcon(campaign.status)}
-                        {campaign.status}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Settings className="w-4 h-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDeleteCampaign(campaign.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-primary">{campaign.emails.toLocaleString()}</div>
-                      <div className="text-sm text-muted-foreground">Total Emails</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-blue-600">{campaign.sent.toLocaleString()}</div>
-                      <div className="text-sm text-muted-foreground">Sent</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{campaign.opened.toLocaleString()}</div>
-                      <div className="text-sm text-muted-foreground">Opened</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-purple-600">{campaign.replied.toLocaleString()}</div>
-                      <div className="text-sm text-muted-foreground">Replied</div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Delivery Progress</span>
-                      <span>{Math.round((campaign.sent / campaign.emails) * 100)}%</span>
-                    </div>
-                    <Progress value={(campaign.sent / campaign.emails) * 100} className="h-2" />
-                  </div>
-
-                  <div className="flex justify-between items-center mt-4 pt-4 border-t">
-                    <div className="text-sm text-muted-foreground">
-                      Created: {new Date(campaign.createdAt).toLocaleDateString()}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        View Details
-                      </Button>
-                      {campaign.status === 'paused' && (
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700">
-                          Resume
-                        </Button>
-                      )}
-                      {campaign.status === 'active' && (
+                <Card key={campaign.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(campaign.status)}`} />
+                        <h3 className="font-semibold text-lg">{campaign.name}</h3>
+                        <Badge variant="secondary" className="flex items-center gap-1">
+                          {getStatusIcon(campaign.status)}
+                          {campaign.status}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-2">
                         <Button variant="outline" size="sm">
-                          Pause
+                          <Settings className="w-4 h-4" />
                         </Button>
-                      )}
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteCampaign(campaign.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">{campaign.emails.toLocaleString()}</div>
+                        <div className="text-sm text-muted-foreground">Total Emails</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-600">{campaign.sent.toLocaleString()}</div>
+                        <div className="text-sm text-muted-foreground">Sent</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{campaign.opened.toLocaleString()}</div>
+                        <div className="text-sm text-muted-foreground">Opened</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{campaign.replied.toLocaleString()}</div>
+                        <div className="text-sm text-muted-foreground">Replied</div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Delivery Progress</span>
+                        <span>{campaign.emails > 0 ? Math.round((campaign.sent / campaign.emails) * 100) : 0}%</span>
+                      </div>
+                      <Progress value={campaign.emails > 0 ? (campaign.sent / campaign.emails) * 100 : 0} className="h-2" />
+                    </div>
+
+                    <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Created: {new Date(campaign.createdAt).toLocaleDateString()}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" size="sm">
+                          View Details
+                        </Button>
+                        {campaign.status === 'paused' && (
+                          <Button size="sm" className="bg-green-600 hover:bg-green-700">
+                            Resume
+                          </Button>
+                        )}
+                        {campaign.status === 'active' && (
+                          <Button variant="outline" size="sm">
+                            Pause
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
