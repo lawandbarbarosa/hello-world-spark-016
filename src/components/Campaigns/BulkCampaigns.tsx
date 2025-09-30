@@ -43,39 +43,8 @@ const BulkCampaigns = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Mock data for bulk campaigns
-  const [bulkCampaigns] = useState<BulkCampaign[]>([
-    {
-      id: '1',
-      name: 'Product Launch Campaign',
-      status: 'active',
-      emails: 5000,
-      sent: 3200,
-      opened: 960,
-      replied: 48,
-      createdAt: '2024-01-15'
-    },
-    {
-      id: '2',
-      name: 'Welcome Series',
-      status: 'completed',
-      emails: 2500,
-      sent: 2500,
-      opened: 875,
-      replied: 125,
-      createdAt: '2024-01-10'
-    },
-    {
-      id: '3',
-      name: 'Re-engagement Campaign',
-      status: 'paused',
-      emails: 1000,
-      sent: 500,
-      opened: 150,
-      replied: 15,
-      createdAt: '2024-01-20'
-    }
-  ]);
+  // State for bulk campaigns - starts empty, only shows created campaigns
+  const [bulkCampaigns, setBulkCampaigns] = useState<BulkCampaign[]>([]);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -99,6 +68,21 @@ const BulkCampaigns = () => {
     
     // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Create new campaign object
+    const newCampaign: BulkCampaign = {
+      id: Date.now().toString(), // Simple ID generation
+      name: campaignName,
+      status: 'draft',
+      emails: uploadedFile ? Math.floor(Math.random() * 5000) + 1000 : 0, // Mock email count if file uploaded
+      sent: 0,
+      opened: 0,
+      replied: 0,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+    
+    // Add the new campaign to the list
+    setBulkCampaigns(prev => [newCampaign, ...prev]);
     
     toast.success('Bulk campaign created successfully!');
     setIsCreating(false);
@@ -129,6 +113,11 @@ const BulkCampaigns = () => {
       case 'draft': return <FileText className="w-4 h-4" />;
       default: return <AlertCircle className="w-4 h-4" />;
     }
+  };
+
+  const handleDeleteCampaign = (campaignId: string) => {
+    setBulkCampaigns(prev => prev.filter(campaign => campaign.id !== campaignId));
+    toast.success('Campaign deleted successfully');
   };
 
   return (
@@ -291,8 +280,26 @@ const BulkCampaigns = () => {
         </TabsContent>
 
         <TabsContent value="manage" className="space-y-6">
-          <div className="grid gap-4">
-            {bulkCampaigns.map((campaign) => (
+          {bulkCampaigns.length === 0 ? (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Mail className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="text-xl font-semibold mb-2">No Bulk Campaigns Yet</h3>
+                <p className="text-muted-foreground mb-6">
+                  Create your first bulk campaign to get started with high-volume email marketing.
+                </p>
+                <Button 
+                  onClick={() => setActiveTab('create')}
+                  className="bg-gradient-primary"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Campaign
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4">
+              {bulkCampaigns.map((campaign) => (
               <Card key={campaign.id} className="hover:shadow-md transition-shadow">
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between mb-4">
@@ -308,7 +315,12 @@ const BulkCampaigns = () => {
                       <Button variant="outline" size="sm">
                         <Settings className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleDeleteCampaign(campaign.id)}
+                      >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
@@ -363,8 +375,9 @@ const BulkCampaigns = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
