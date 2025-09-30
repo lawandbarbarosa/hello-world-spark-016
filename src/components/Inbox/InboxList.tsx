@@ -214,7 +214,14 @@ const InboxList = () => {
       .replace(/\{\{company\}\}/g, contact.first_name || companyFromEmail)
       .replace(/\{\{name\}\}/g, contact.first_name || contact.email.split('@')[0])
       .replace(/\{\{fullName\}\}/g, `${contact.first_name || ""} ${contact.last_name || ""}`.trim() || contact.email.split('@')[0])
-      .replace(/\{\{Full Name\}\}/g, `${contact.first_name || ""} ${contact.last_name || ""}`.trim() || contact.email.split('@')[0]);
+      .replace(/\{\{Full Name\}\}/g, `${contact.first_name || ""} ${contact.last_name || ""}`.trim() || contact.email.split('@')[0])
+      // Handle case variations and additional common variables
+      .replace(/\{\{First Name\}\}/g, contact.first_name || "")
+      .replace(/\{\{Last Name\}\}/g, contact.last_name || "")
+      .replace(/\{\{Industry\}\}/g, "your industry")
+      .replace(/\{\{industry\}\}/g, "your industry")
+      .replace(/\{\{Company\}\}/g, contact.first_name || companyFromEmail)
+      .replace(/\{\{company\}\}/g, contact.first_name || companyFromEmail);
   };
 
   const formatDate = (dateString: string) => {
