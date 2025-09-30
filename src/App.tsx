@@ -52,6 +52,16 @@ const App = () => (
                       <Index />
                     </ProtectedRoute>
                   } />
+                  <Route path="/inbox" element={
+                    <ProtectedRoute>
+                      <Index />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="/inbox/:emailId" element={
+                    <ProtectedRoute>
+                      <Index />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/calendar" element={
                     <ProtectedRoute>
                       <Index />
