@@ -89,22 +89,6 @@ const Calendar = () => {
   const [loading, setLoading] = useState(true);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [monthLoading, setMonthLoading] = useState(false);
-  
-  // Cache for related data to avoid repeated queries
-  const [dataCache, setDataCache] = useState<{
-    campaigns: Map<string, any>;
-    contacts: Map<string, any>;
-    sequences: Map<string, any>;
-    senders: Map<string, any>;
-    lastFetch: Date;
-  }>({
-    campaigns: new Map(),
-    contacts: new Map(),
-    sequences: new Map(),
-    senders: new Map(),
-    lastFetch: new Date(0)
-  });
 
   useEffect(() => {
     if (user) {
@@ -112,20 +96,10 @@ const Calendar = () => {
     }
   }, [user, currentDate]);
 
-  const fetchCalendarData = async (forceRefresh = false) => {
+  const fetchCalendarData = async () => {
     if (!user?.id) return;
 
-    // Check if we need to refresh cache (every 5 minutes or if forced)
-    const now = new Date();
-    const cacheAge = now.getTime() - dataCache.lastFetch.getTime();
-    const shouldRefreshCache = forceRefresh || cacheAge > 5 * 60 * 1000; // 5 minutes
-
-    // Use different loading states for initial load vs month navigation
-    if (events.length === 0) {
-      setLoading(true);
-    } else {
-      setMonthLoading(true);
-    }
+    setLoading(true);
     try {
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
@@ -133,8 +107,7 @@ const Calendar = () => {
       console.log('Fetching calendar data for:', {
         startOfMonth: startOfMonth.toISOString(),
         endOfMonth: endOfMonth.toISOString(),
-        userId: user.id,
-        shouldRefreshCache
+        userId: user.id
       });
 
       // Get scheduled emails - basic query without joins since no foreign keys exist
@@ -154,72 +127,98 @@ const Calendar = () => {
         .lte('sent_at', endOfMonth.toISOString())
         .order('sent_at', { ascending: true });
 
-      // Use cached data or fetch if needed
-      let campaignsMap = dataCache.campaigns;
-      let contactsMap = dataCache.contacts;
-      let sequencesMap = dataCache.sequences;
-      let sendersMap = dataCache.senders;
+      // Fetch related data separately to avoid join issues
+      let campaignsMap = new Map();
+      let contactsMap = new Map();
+      let sequencesMap = new Map();
+      let sendersMap = new Map();
 
-      if (shouldRefreshCache) {
-        // Get all unique IDs from both email types
-        const allCampaignIds = new Set<string>();
-        const allContactIds = new Set<string>();
-        const allSequenceIds = new Set<string>();
-        const allSenderIds = new Set<string>();
+      if (scheduledEmails && scheduledEmails.length > 0) {
+        // Get unique IDs for related data
+        const campaignIds = [...new Set(scheduledEmails.map(e => e.campaign_id))];
+        const contactIds = [...new Set(scheduledEmails.map(e => e.contact_id))];
+        const sequenceIds = [...new Set(scheduledEmails.map(e => e.sequence_id))];
+        const senderIds = [...new Set(scheduledEmails.map(e => e.sender_account_id))];
 
-        scheduledEmails?.forEach(e => {
-          allCampaignIds.add(e.campaign_id);
-          allContactIds.add(e.contact_id);
-          allSequenceIds.add(e.sequence_id);
-          allSenderIds.add(e.sender_account_id);
-        });
-
-        sentEmails?.forEach(e => {
-          allCampaignIds.add(e.campaign_id);
-          allContactIds.add(e.contact_id);
-          allSequenceIds.add(e.sequence_id);
-          allSenderIds.add(e.sender_account_id);
-        });
-
-        // Fetch all related data in parallel
-        const [campaignsResult, contactsResult, sequencesResult, sendersResult] = await Promise.all([
-          allCampaignIds.size > 0 ? supabase
+        // Fetch campaigns
+        if (campaignIds.length > 0) {
+          const { data: campaigns } = await supabase
             .from('campaigns')
             .select('id, name, description')
-            .in('id', Array.from(allCampaignIds)) : Promise.resolve({ data: [] }),
-          allContactIds.size > 0 ? supabase
+            .in('id', campaignIds);
+          campaigns?.forEach(c => campaignsMap.set(c.id, c));
+        }
+
+        // Fetch contacts
+        if (contactIds.length > 0) {
+          const { data: contacts } = await supabase
             .from('contacts')
             .select('id, email, first_name, last_name')
-            .in('id', Array.from(allContactIds)) : Promise.resolve({ data: [] }),
-          allSequenceIds.size > 0 ? supabase
+            .in('id', contactIds);
+          contacts?.forEach(c => contactsMap.set(c.id, c));
+        }
+
+        // Fetch email sequences
+        if (sequenceIds.length > 0) {
+          const { data: sequences } = await supabase
             .from('email_sequences')
             .select('id, subject, body, step_number')
-            .in('id', Array.from(allSequenceIds)) : Promise.resolve({ data: [] }),
-          allSenderIds.size > 0 ? supabase
+            .in('id', sequenceIds);
+          sequences?.forEach(s => sequencesMap.set(s.id, s));
+        }
+
+        // Fetch sender accounts
+        if (senderIds.length > 0) {
+          const { data: senders } = await supabase
             .from('sender_accounts')
             .select('id, email')
-            .in('id', Array.from(allSenderIds)) : Promise.resolve({ data: [] })
-        ]);
+            .in('id', senderIds);
+          senders?.forEach(s => sendersMap.set(s.id, s));
+        }
+      }
 
-        // Update maps with fresh data
-        campaignsMap = new Map();
-        contactsMap = new Map();
-        sequencesMap = new Map();
-        sendersMap = new Map();
+      // Also fetch data for sent emails
+      if (sentEmails && sentEmails.length > 0) {
+        const campaignIds = [...new Set(sentEmails.map(e => e.campaign_id))];
+        const contactIds = [...new Set(sentEmails.map(e => e.contact_id))];
+        const sequenceIds = [...new Set(sentEmails.map(e => e.sequence_id))];
+        const senderIds = [...new Set(sentEmails.map(e => e.sender_account_id))];
 
-        campaignsResult.data?.forEach(c => campaignsMap.set(c.id, c));
-        contactsResult.data?.forEach(c => contactsMap.set(c.id, c));
-        sequencesResult.data?.forEach(s => sequencesMap.set(s.id, s));
-        sendersResult.data?.forEach(s => sendersMap.set(s.id, s));
+        // Fetch campaigns (merge with existing)
+        if (campaignIds.length > 0) {
+          const { data: campaigns } = await supabase
+            .from('campaigns')
+            .select('id, name, description')
+            .in('id', campaignIds);
+          campaigns?.forEach(c => campaignsMap.set(c.id, c));
+        }
 
-        // Update cache
-        setDataCache({
-          campaigns: campaignsMap,
-          contacts: contactsMap,
-          sequences: sequencesMap,
-          senders: sendersMap,
-          lastFetch: now
-        });
+        // Fetch contacts (merge with existing)
+        if (contactIds.length > 0) {
+          const { data: contacts } = await supabase
+            .from('contacts')
+            .select('id, email, first_name, last_name')
+            .in('id', contactIds);
+          contacts?.forEach(c => contactsMap.set(c.id, c));
+        }
+
+        // Fetch email sequences (merge with existing)
+        if (sequenceIds.length > 0) {
+          const { data: sequences } = await supabase
+            .from('email_sequences')
+            .select('id, subject, body, step_number')
+            .in('id', sequenceIds);
+          sequences?.forEach(s => sequencesMap.set(s.id, s));
+        }
+
+        // Fetch sender accounts (merge with existing)
+        if (senderIds.length > 0) {
+          const { data: senders } = await supabase
+            .from('sender_accounts')
+            .select('id, email')
+            .in('id', senderIds);
+          senders?.forEach(s => sendersMap.set(s.id, s));
+        }
       }
 
       if (scheduledError) {
@@ -329,7 +328,6 @@ const Calendar = () => {
       toast.error('Failed to load calendar data');
     } finally {
       setLoading(false);
-      setMonthLoading(false);
     }
   };
 
@@ -349,7 +347,7 @@ const Calendar = () => {
     setRefreshing(true);
     setEvents([]);
     try {
-      await fetchCalendarData(true); // Force refresh cache
+      await fetchCalendarData();
       toast.success('Calendar refreshed successfully');
     } catch (error) {
       toast.error('Failed to refresh calendar');
@@ -455,30 +453,23 @@ const Calendar = () => {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigateMonth('prev')}
-                disabled={monthLoading}
-                className="hover:bg-white/50 transition-colors duration-200 text-slate-700 hover:text-slate-900 disabled:opacity-50"
+                className="hover:bg-white/50 transition-colors duration-200 text-slate-700 hover:text-slate-900"
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
-              <div className="text-center min-w-[180px] relative">
+              <div className="text-center min-w-[180px]">
                 <h2 className="text-xl font-semibold text-slate-800">
                   {monthNames[currentDate.getMonth()]}
                 </h2>
                 <p className="text-slate-600 text-sm">
                   {currentDate.getFullYear()}
                 </p>
-                {monthLoading && (
-                  <div className="absolute -top-1 -right-1">
-                    <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  </div>
-                )}
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => navigateMonth('next')}
-                disabled={monthLoading}
-                className="hover:bg-white/50 transition-colors duration-200 text-slate-700 hover:text-slate-900 disabled:opacity-50"
+                className="hover:bg-white/50 transition-colors duration-200 text-slate-700 hover:text-slate-900"
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>

@@ -12,8 +12,7 @@ import {
   Shield,
   Reply,
   Truck,
-  Calendar,
-  Layers
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -43,13 +42,11 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'campaigns', label: 'Campaigns', icon: Mail },
-    { id: 'bulk-campaigns', label: 'Bulk Campaigns', icon: Layers },
-    { id: 'inbox', label: 'Inbox', icon: Inbox },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'delivery', label: 'Deliverability', icon: Truck },
-    { id: 'emails', label: 'Emails', icon: Mail },
+    { id: 'inbox', label: 'Inbox', icon: Inbox },
     { id: 'replies', label: 'Reply Tracker', icon: Reply },
-    { id: 'spam', label: 'Failed Emails', icon: Shield },
+    { id: 'spam', label: 'Spam', icon: Shield },
     { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'senders', label: 'Senders', icon: Send },
     { id: 'settings', label: 'Settings', icon: Settings },
