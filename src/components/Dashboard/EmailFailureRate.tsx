@@ -591,66 +591,6 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
         </CardContent>
       </Card>
 
-      {/* Recent Failures */}
-      {stats.recentFailures.length > 0 && (
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <XCircle className="w-5 h-5 text-destructive" />
-              Recent Failures ({stats.recentFailures.length})
-            </CardTitle>
-            <CardDescription>
-              Latest email delivery failures and their error messages
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats.recentFailures.map((failure) => (
-                <div 
-                  key={failure.id}
-                  className="p-4 border border-destructive/20 rounded-lg bg-destructive/5"
-                >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-lg">{getFailureCategoryIcon(failure.failure_category)}</span>
-                            <span className="font-medium text-foreground">{failure.contact_email}</span>
-                            <Badge variant="outline" className="text-xs">
-                              {failure.campaign_name}
-                            </Badge>
-                            {failure.failure_category && (
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${getFailureCategoryColor(failure.failure_category)}`}
-                              >
-                                {failure.failure_category.replace('_', ' ')}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-sm text-muted-foreground mb-2">
-                            <span className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {new Date(failure.created_at).toLocaleString()}
-                            </span>
-                          </div>
-                          {failure.failure_reason && (
-                            <div className="text-sm text-foreground bg-muted/50 p-2 rounded border mb-2">
-                              <strong>Reason:</strong> {failure.failure_reason}
-                            </div>
-                          )}
-                          {failure.error_message && (
-                            <div className="text-sm text-destructive bg-destructive/10 p-2 rounded border">
-                              <strong>Technical Error:</strong> {failure.error_message}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* No Failures Message */}
       {!loading && stats.failedEmails === 0 && stats.totalEmails > 0 && (

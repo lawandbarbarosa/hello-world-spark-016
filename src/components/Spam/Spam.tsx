@@ -16,7 +16,9 @@ import {
   XCircle,
   RefreshCw,
   Eye,
-  User
+  User,
+  CheckCircle,
+  Info
 } from "lucide-react";
 
 interface FailedEmail {
@@ -56,10 +58,12 @@ const Spam = () => {
   const { user } = useAuth();
   const [failedEmails, setFailedEmails] = useState<FailedEmail[]>([]);
   const [loading, setLoading] = useState(true);
+  const [recentFailures, setRecentFailures] = useState<any[]>([]);
 
   useEffect(() => {
     if (user) {
       fetchFailedEmails();
+      fetchRecentFailures();
     }
   }, [user]);
 
@@ -134,6 +138,94 @@ const Spam = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRecentFailures = async () => {
+    try {
+      // Try to get recent failures using the database function
+      const { data: recentFailures, error: failuresError } = await supabase
+        .rpc('get_recent_failures_by_category' as any, {
+          user_id_param: user?.id,
+          limit_count: 10
+        }) as { data: any, error: any };
+
+      if (failuresError) {
+        console.log('Using basic recent failures (advanced functions not available)');
+        // Fall back to basic recent failures from email_sends
+        const { data: emailSends, error } = await supabase
+          .from('email_sends')
+          .select(`
+            id,
+            status,
+            error_message,
+            created_at,
+            contacts!inner(email),
+            campaigns!inner(name)
+          `)
+          .eq('campaigns.user_id', user?.id)
+          .eq('status', 'failed')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.error('Error fetching recent failures:', error);
+          return;
+        }
+
+        const basicFailures = emailSends?.map(email => ({
+          id: email.id,
+          contact_email: email.contacts?.email || 'Unknown',
+          campaign_name: email.campaigns?.name || 'Unknown Campaign',
+          status: email.status,
+          failure_category: null,
+          failure_reason: null,
+          bounce_type: null,
+          rejection_reason: null,
+          error_message: email.error_message || 'Unknown error',
+          created_at: email.created_at
+        })) || [];
+
+        setRecentFailures(basicFailures);
+        return;
+      }
+
+      setRecentFailures(recentFailures || []);
+    } catch (error) {
+      console.error('Error fetching recent failures:', error);
+      setRecentFailures([]);
+    }
+  };
+
+  const getFailureCategoryColor = (category: string | null) => {
+    switch (category) {
+      case 'invalid_address': return 'text-red-600';
+      case 'bounced': return 'text-orange-600';
+      case 'rejected': return 'text-yellow-600';
+      case 'blocked': return 'text-purple-600';
+      case 'spam': return 'text-pink-600';
+      case 'rate_limited': return 'text-blue-600';
+      case 'authentication': return 'text-indigo-600';
+      case 'network': return 'text-gray-600';
+      case 'domain_issue': return 'text-teal-600';
+      case 'content_filtered': return 'text-amber-600';
+      default: return 'text-gray-500';
+    }
+  };
+
+  const getFailureCategoryIcon = (category: string | null) => {
+    switch (category) {
+      case 'invalid_address': return '📧';
+      case 'bounced': return '↩️';
+      case 'rejected': return '❌';
+      case 'blocked': return '🚫';
+      case 'spam': return '📮';
+      case 'rate_limited': return '⏱️';
+      case 'authentication': return '🔐';
+      case 'network': return '🌐';
+      case 'domain_issue': return '🏠';
+      case 'content_filtered': return '🔍';
+      default: return '❓';
     }
   };
 
@@ -297,7 +389,10 @@ const Spam = () => {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={fetchFailedEmails}
+            onClick={() => {
+              fetchFailedEmails();
+              fetchRecentFailures();
+            }}
             disabled={loading}
           >
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -409,6 +504,67 @@ const Spam = () => {
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Recent Failures Section */}
+      {recentFailures.length > 0 && (
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <XCircle className="w-5 h-5 text-destructive" />
+              Recent Failures ({recentFailures.length})
+            </CardTitle>
+            <CardDescription>
+              Latest email delivery failures and their error messages
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentFailures.map((failure) => (
+                <div 
+                  key={failure.id}
+                  className="p-4 border border-destructive/20 rounded-lg bg-destructive/5"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-lg">{getFailureCategoryIcon(failure.failure_category)}</span>
+                        <span className="font-medium text-foreground">{failure.contact_email}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {failure.campaign_name}
+                        </Badge>
+                        {failure.failure_category && (
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${getFailureCategoryColor(failure.failure_category)}`}
+                          >
+                            {failure.failure_category.replace('_', ' ')}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-sm text-muted-foreground mb-2">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {new Date(failure.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {failure.failure_reason && (
+                        <div className="text-sm text-foreground bg-muted/50 p-2 rounded border mb-2">
+                          <strong>Reason:</strong> {failure.failure_reason}
+                        </div>
+                      )}
+                      {failure.error_message && (
+                        <div className="text-sm text-destructive bg-destructive/10 p-2 rounded border">
+                          <strong>Technical Error:</strong> {failure.error_message}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
