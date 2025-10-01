@@ -11,6 +11,7 @@ import { SessionPersistence } from "@/components/SessionPersistence";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import GmailCallback from "./pages/GmailCallback";
+import ScheduleMeeting from "./pages/ScheduleMeeting";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -93,6 +94,7 @@ const App = () => (
                     </ProtectedRoute>
                   } />
                   <Route path="/gmail-callback" element={<GmailCallback />} />
+                  <Route path="/schedule/:linkCode" element={<ScheduleMeeting />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </BrowserRouter>

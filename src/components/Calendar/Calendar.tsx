@@ -106,13 +106,23 @@ const Calendar = () => {
       // Fetch scheduled meetings
       const { data: meetings, error: meetingsError } = await supabase
         .from('scheduled_meetings')
-        .select(`
-          *,
-          scheduling_links(title)
-        `)
+        .select('*')
         .gte('scheduled_date', startOfMonth.toISOString())
         .lte('scheduled_date', endOfMonth.toISOString())
         .order('scheduled_date', { ascending: true });
+
+      // Fetch scheduling links for meetings if any exist
+      let schedulingLinksMap = new Map();
+      if (meetings && meetings.length > 0) {
+        const linkIds = [...new Set(meetings.map(m => m.link_id))];
+        if (linkIds.length > 0) {
+          const { data: links } = await supabase
+            .from('scheduling_links')
+            .select('id, title')
+            .in('id', linkIds);
+          links?.forEach(l => schedulingLinksMap.set(l.id, l));
+        }
+      }
 
       // Fetch related data
       let campaignsMap = new Map();
@@ -202,9 +212,10 @@ const Calendar = () => {
 
       // Process scheduled meetings
       meetings?.forEach(meeting => {
+        const link = schedulingLinksMap.get(meeting.link_id);
         allEvents.push({
           id: `meeting-${meeting.id}`,
-          title: meeting.scheduling_links?.title || 'Meeting',
+          title: link?.title || 'Meeting',
           date: new Date(meeting.scheduled_date),
           type: 'meeting',
           status: meeting.status,
