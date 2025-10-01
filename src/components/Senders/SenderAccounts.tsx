@@ -38,6 +38,15 @@ interface SenderAccount {
   user_id: string;
 }
 
+interface GroupedSenderAccount {
+  email: string;
+  provider: string;
+  daily_limit: number;
+  first_created_at: string;
+  campaign_ids: string[];
+  total_accounts: number;
+}
+
 interface SenderStats {
   totalSent: number;
   totalFailed: number;
@@ -48,6 +57,16 @@ interface SenderStats {
   clickRate: number;
   lastSentAt: string | null;
   todaySent: number;
+  thisWeekSent: number;
+  thisMonthSent: number;
+  dateSpecificCounts: {
+    [date: string]: {
+      sent: number;
+      opened: number;
+      clicked: number;
+      failed: number;
+    };
+  };
 }
 
 interface SentEmail {
@@ -73,6 +92,7 @@ interface SentEmail {
 const SenderAccounts = () => {
   const { user } = useAuth();
   const [senderAccounts, setSenderAccounts] = useState<SenderAccount[]>([]);
+  const [groupedSenderAccounts, setGroupedSenderAccounts] = useState<GroupedSenderAccount[]>([]);
   const [senderStats, setSenderStats] = useState<Record<string, SenderStats>>({});
   const [senderEmails, setSenderEmails] = useState<Record<string, SentEmail[]>>({});
   const [expandedSenders, setExpandedSenders] = useState<Set<string>>(new Set());
@@ -115,9 +135,13 @@ const SenderAccounts = () => {
 
       setSenderAccounts(accounts || []);
 
-      // Fetch stats and emails for each sender account
-      if (accounts && accounts.length > 0) {
-        await fetchSenderStats(accounts);
+      // Group sender accounts by email address
+      const groupedAccounts = groupSenderAccountsByEmail(accounts || []);
+      setGroupedSenderAccounts(groupedAccounts);
+
+      // Fetch stats and emails for each grouped sender account
+      if (groupedAccounts && groupedAccounts.length > 0) {
+        await fetchSenderStats(groupedAccounts);
       }
 
     } catch (error) {
@@ -132,12 +156,48 @@ const SenderAccounts = () => {
     }
   };
 
-  const fetchSenderStats = async (accounts: SenderAccount[]) => {
+  const groupSenderAccountsByEmail = (accounts: SenderAccount[]): GroupedSenderAccount[] => {
+    const grouped = new Map<string, GroupedSenderAccount>();
+
+    accounts.forEach(account => {
+      if (grouped.has(account.email)) {
+        const existing = grouped.get(account.email)!;
+        existing.campaign_ids.push(account.campaign_id || '');
+        existing.total_accounts += 1;
+        // Keep the earliest creation date
+        if (new Date(account.created_at) < new Date(existing.first_created_at)) {
+          existing.first_created_at = account.created_at;
+        }
+      } else {
+        grouped.set(account.email, {
+          email: account.email,
+          provider: account.provider,
+          daily_limit: account.daily_limit,
+          first_created_at: account.created_at,
+          campaign_ids: [account.campaign_id || ''],
+          total_accounts: 1
+        });
+      }
+    });
+
+    return Array.from(grouped.values()).sort((a, b) => 
+      new Date(b.first_created_at).getTime() - new Date(a.first_created_at).getTime()
+    );
+  };
+
+  const fetchSenderStats = async (groupedAccounts: GroupedSenderAccount[]) => {
     const stats: Record<string, SenderStats> = {};
     const emails: Record<string, SentEmail[]> = {};
 
-    for (const account of accounts) {
-      // Fetch email sends for this sender
+    for (const groupedAccount of groupedAccounts) {
+      // Get all sender account IDs for this email address
+      const accountIds = senderAccounts
+        .filter(acc => acc.email === groupedAccount.email)
+        .map(acc => acc.id);
+
+      if (accountIds.length === 0) continue;
+
+      // Fetch email sends for all accounts with this email address
       const { data: emailSends, error } = await supabase
         .from('email_sends')
         .select(`
@@ -146,7 +206,7 @@ const SenderAccounts = () => {
           campaigns(name),
           email_sequences(subject, body)
         `)
-        .eq('sender_account_id', account.id)
+        .in('sender_account_id', accountIds)
         .order('created_at', { ascending: false });
 
       if (!error && emailSends) {
@@ -162,15 +222,48 @@ const SenderAccounts = () => {
         const sentEmails = emailSends.filter(e => e.status === 'sent' && e.sent_at);
         const lastSentAt = sentEmails.length > 0 ? sentEmails[0].sent_at : null;
         
-        // Count today's emails
+        // Count emails by time periods
         const today = new Date().toISOString().split('T')[0];
+        const thisWeekStart = new Date();
+        thisWeekStart.setDate(thisWeekStart.getDate() - 7);
+        const thisMonthStart = new Date();
+        thisMonthStart.setMonth(thisMonthStart.getMonth() - 1);
+        
         const todaySent = emailSends.filter(e => 
           e.status === 'sent' && 
           e.sent_at && 
           e.sent_at.startsWith(today)
         ).length;
+        
+        const thisWeekSent = emailSends.filter(e => 
+          e.status === 'sent' && 
+          e.sent_at && 
+          new Date(e.sent_at) >= thisWeekStart
+        ).length;
+        
+        const thisMonthSent = emailSends.filter(e => 
+          e.status === 'sent' && 
+          e.sent_at && 
+          new Date(e.sent_at) >= thisMonthStart
+        ).length;
 
-        stats[account.id] = {
+        // Calculate date-specific counts
+        const dateSpecificCounts: { [date: string]: { sent: number; opened: number; clicked: number; failed: number; } } = {};
+        emailSends.forEach(email => {
+          if (email.sent_at) {
+            const date = email.sent_at.split('T')[0];
+            if (!dateSpecificCounts[date]) {
+              dateSpecificCounts[date] = { sent: 0, opened: 0, clicked: 0, failed: 0 };
+            }
+            
+            if (email.status === 'sent') dateSpecificCounts[date].sent++;
+            if (email.status === 'failed') dateSpecificCounts[date].failed++;
+            if (email.opened_at) dateSpecificCounts[date].opened++;
+            if (email.clicked_at) dateSpecificCounts[date].clicked++;
+          }
+        });
+
+        stats[groupedAccount.email] = {
           totalSent,
           totalFailed,
           totalOpened,
@@ -179,11 +272,14 @@ const SenderAccounts = () => {
           openRate,
           clickRate,
           lastSentAt,
-          todaySent
+          todaySent,
+          thisWeekSent,
+          thisMonthSent,
+          dateSpecificCounts
         };
 
         // Transform emails data
-        emails[account.id] = emailSends.map(email => ({
+        emails[groupedAccount.email] = emailSends.map(email => ({
           id: email.id,
           status: email.status,
           sent_at: email.sent_at,
@@ -519,36 +615,37 @@ const SenderAccounts = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="text-muted-foreground mt-2">Loading sender accounts...</p>
             </div>
-          ) : senderAccounts.length > 0 ? (
+          ) : groupedSenderAccounts.length > 0 ? (
             <div className="space-y-6">
               {/* Active Senders (accounts that have sent emails) */}
-              {senderAccounts.filter(sender => {
-                const stats = senderStats[sender.id];
+              {groupedSenderAccounts.filter(sender => {
+                const stats = senderStats[sender.email];
                 return stats && stats.totalSent > 0;
               }).length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                     <Activity className="w-5 h-5 text-success" />
-                    Active Senders ({senderAccounts.filter(sender => {
-                      const stats = senderStats[sender.id];
+                    Active Senders ({groupedSenderAccounts.filter(sender => {
+                      const stats = senderStats[sender.email];
                       return stats && stats.totalSent > 0;
                     }).length})
                   </h3>
-                  {senderAccounts
+                  {groupedSenderAccounts
                     .filter(sender => {
-                      const stats = senderStats[sender.id];
+                      const stats = senderStats[sender.email];
                       return stats && stats.totalSent > 0;
                     })
                     .map((sender) => {
-                      const stats = senderStats[sender.id] || { 
+                      const stats = senderStats[sender.email] || { 
                         totalSent: 0, totalFailed: 0, totalOpened: 0, totalClicked: 0,
-                        successRate: 0, openRate: 0, clickRate: 0, lastSentAt: null, todaySent: 0 
+                        successRate: 0, openRate: 0, clickRate: 0, lastSentAt: null, todaySent: 0,
+                        thisWeekSent: 0, thisMonthSent: 0, dateSpecificCounts: {}
                       };
-                      const emails = senderEmails[sender.id] || [];
-                      const isExpanded = expandedSenders.has(sender.id);
+                      const emails = senderEmails[sender.email] || [];
+                      const isExpanded = expandedSenders.has(sender.email);
 
                       return (
-                        <div key={sender.id} className="border border-border rounded-lg bg-gradient-card">
+                        <div key={sender.email} className="border border-border rounded-lg bg-gradient-card">
                           <div className="p-4">
                             <div className="flex items-center justify-between">
                               <div className="flex-1">
@@ -558,6 +655,11 @@ const SenderAccounts = () => {
                                   <Badge variant="outline" className="capitalize">
                                     {sender.provider}
                                   </Badge>
+                                  {sender.total_accounts > 1 && (
+                                    <Badge variant="secondary">
+                                      {sender.total_accounts} campaigns
+                                    </Badge>
+                                  )}
                                   {stats.todaySent > 0 && (
                                     <Badge variant="default" className="bg-success text-success-foreground">
                                       {stats.todaySent} sent today
@@ -592,13 +694,55 @@ const SenderAccounts = () => {
                                     <div className="text-xs text-muted-foreground">Click Rate</div>
                                   </div>
                                 </div>
+
+                                {/* Time Period Stats */}
+                                <div className="grid grid-cols-3 gap-4 mb-3">
+                                  <div className="text-center p-3 bg-background/30 rounded-lg border border-border">
+                                    <div className="text-lg font-bold text-success">{stats.todaySent}</div>
+                                    <div className="text-xs text-muted-foreground">Today</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-background/30 rounded-lg border border-border">
+                                    <div className="text-lg font-bold text-primary">{stats.thisWeekSent}</div>
+                                    <div className="text-xs text-muted-foreground">This Week</div>
+                                  </div>
+                                  <div className="text-center p-3 bg-background/30 rounded-lg border border-border">
+                                    <div className="text-lg font-bold text-blue-600">{stats.thisMonthSent}</div>
+                                    <div className="text-xs text-muted-foreground">This Month</div>
+                                  </div>
+                                </div>
+
+                                {/* Date-Specific Counts */}
+                                {Object.keys(stats.dateSpecificCounts).length > 0 && (
+                                  <div className="mb-3">
+                                    <h5 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                                      <Calendar className="w-4 h-4" />
+                                      Recent Activity by Date
+                                    </h5>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+                                      {Object.entries(stats.dateSpecificCounts)
+                                        .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+                                        .slice(0, 6)
+                                        .map(([date, counts]) => (
+                                          <div key={date} className="p-2 bg-background/20 rounded border text-xs">
+                                            <div className="font-medium text-foreground">{new Date(date).toLocaleDateString()}</div>
+                                            <div className="flex justify-between mt-1">
+                                              <span className="text-success">S: {counts.sent}</span>
+                                              <span className="text-primary">O: {counts.opened}</span>
+                                              <span className="text-blue-600">C: {counts.clicked}</span>
+                                              <span className="text-destructive">F: {counts.failed}</span>
+                                            </div>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </div>
+                                )}
                                 
                                 <div className="flex items-center gap-6 text-sm text-muted-foreground">
                                   <span>Daily Limit: {sender.daily_limit}</span>
                                   {stats.lastSentAt && (
                                     <span>Last Sent: {new Date(stats.lastSentAt).toLocaleDateString()}</span>
                                   )}
-                                  <span>Added: {new Date(sender.created_at).toLocaleDateString()}</span>
+                                  <span>Added: {new Date(sender.first_created_at).toLocaleDateString()}</span>
                                 </div>
                               </div>
                               
@@ -606,7 +750,7 @@ const SenderAccounts = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setViewingProfile(sender.id)}
+                                  onClick={() => setViewingProfile(sender.email)}
                                   className="text-primary hover:text-primary-foreground hover:bg-primary"
                                 >
                                   <User className="w-4 h-4" />
@@ -614,14 +758,22 @@ const SenderAccounts = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => openEditDialog(sender)}
+                                  onClick={() => {
+                                    // Find the first sender account with this email for editing
+                                    const firstAccount = senderAccounts.find(acc => acc.email === sender.email);
+                                    if (firstAccount) openEditDialog(firstAccount);
+                                  }}
                                 >
                                   <Edit className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleDeleteSender(sender.id)}
+                                  onClick={() => {
+                                    // Delete all accounts with this email
+                                    const accountsToDelete = senderAccounts.filter(acc => acc.email === sender.email);
+                                    accountsToDelete.forEach(acc => handleDeleteSender(acc.id));
+                                  }}
                                   className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -629,7 +781,7 @@ const SenderAccounts = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => toggleSenderExpansion(sender.id)}
+                                  onClick={() => toggleSenderExpansion(sender.email)}
                                 >
                                   {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                                 </Button>
@@ -639,7 +791,7 @@ const SenderAccounts = () => {
 
                           <Collapsible
                             open={isExpanded}
-                            onOpenChange={() => toggleSenderExpansion(sender.id)}
+                            onOpenChange={() => toggleSenderExpansion(sender.email)}
                           >
                             <CollapsibleContent>
                               <div className="px-4 pb-4 border-t bg-background/50">
@@ -690,25 +842,25 @@ const SenderAccounts = () => {
               )}
 
               {/* Unused Senders (accounts that haven't sent emails yet) */}
-              {senderAccounts.filter(sender => {
-                const stats = senderStats[sender.id];
+              {groupedSenderAccounts.filter(sender => {
+                const stats = senderStats[sender.email];
                 return !stats || stats.totalSent === 0;
               }).length > 0 && (
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-muted-foreground flex items-center gap-2">
                     <Settings className="w-5 h-5" />
-                    Unused Senders ({senderAccounts.filter(sender => {
-                      const stats = senderStats[sender.id];
+                    Unused Senders ({groupedSenderAccounts.filter(sender => {
+                      const stats = senderStats[sender.email];
                       return !stats || stats.totalSent === 0;
                     }).length})
                   </h3>
-                  {senderAccounts
+                  {groupedSenderAccounts
                     .filter(sender => {
-                      const stats = senderStats[sender.id];
+                      const stats = senderStats[sender.email];
                       return !stats || stats.totalSent === 0;
                     })
                     .map((sender) => (
-                      <div key={sender.id} className="border border-border rounded-lg bg-muted/30">
+                      <div key={sender.email} className="border border-border rounded-lg bg-muted/30">
                         <div className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -718,12 +870,17 @@ const SenderAccounts = () => {
                                 <Badge variant="outline" className="capitalize">
                                   {sender.provider}
                                 </Badge>
+                                {sender.total_accounts > 1 && (
+                                  <Badge variant="secondary">
+                                    {sender.total_accounts} campaigns
+                                  </Badge>
+                                )}
                                 <Badge variant="secondary">No activity</Badge>
                               </div>
                               
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <span>Daily Limit: {sender.daily_limit}</span>
-                                <span>Added: {new Date(sender.created_at).toLocaleDateString()}</span>
+                                <span>Added: {new Date(sender.first_created_at).toLocaleDateString()}</span>
                               </div>
                             </div>
                             
@@ -731,7 +888,7 @@ const SenderAccounts = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => setViewingProfile(sender.id)}
+                                  onClick={() => setViewingProfile(sender.email)}
                                   className="text-primary hover:text-primary-foreground hover:bg-primary"
                                 >
                                   <User className="w-4 h-4" />
@@ -739,14 +896,22 @@ const SenderAccounts = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => openEditDialog(sender)}
+                                  onClick={() => {
+                                    // Find the first sender account with this email for editing
+                                    const firstAccount = senderAccounts.find(acc => acc.email === sender.email);
+                                    if (firstAccount) openEditDialog(firstAccount);
+                                  }}
                                 >
                                   <Edit className="w-4 h-4" />
                                 </Button>
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleDeleteSender(sender.id)}
+                                  onClick={() => {
+                                    // Delete all accounts with this email
+                                    const accountsToDelete = senderAccounts.filter(acc => acc.email === sender.email);
+                                    accountsToDelete.forEach(acc => handleDeleteSender(acc.id));
+                                  }}
                                   className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
                                 >
                                   <Trash2 className="w-4 h-4" />
