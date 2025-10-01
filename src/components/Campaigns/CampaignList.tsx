@@ -37,6 +37,37 @@ interface Campaign {
   updated_at: string;
 }
 
+interface EmailWithCampaign {
+  id: string;
+  campaign_id: string;
+  contact_id: string;
+  sequence_id: string;
+  sender_account_id: string;
+  status: string;
+  sent_at: string | null;
+  opened_at: string | null;
+  clicked_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  campaign: {
+    name: string;
+    description: string;
+  };
+  contact: {
+    email: string;
+    first_name: string | null;
+    last_name: string | null;
+  };
+  email_sequence: {
+    subject: string;
+    body: string;
+    step_number: number;
+  };
+  sender_account: {
+    email: string;
+  };
+}
+
 interface CampaignListProps {
   onCreateNew: () => void;
   onEditCampaign?: (campaignId: string) => void;
@@ -46,11 +77,13 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [emails, setEmails] = useState<EmailWithCampaign[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       fetchCampaigns();
+      fetchEmails();
     }
   }, [user]);
 
@@ -74,6 +107,63 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEmails = async () => {
+    try {
+      const { data: emailSends, error } = await supabase
+        .from('email_sends')
+        .select(`
+          *,
+          campaigns!inner(name, description, user_id),
+          contacts(email, first_name, last_name),
+          email_sequences(subject, body, step_number),
+          sender_accounts(email)
+        `)
+        .eq('campaigns.user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching emails:', error);
+        return;
+      }
+
+      // Transform the data to match our interface
+      const transformedEmails: EmailWithCampaign[] = (emailSends || []).map(email => ({
+        id: email.id,
+        campaign_id: email.campaign_id,
+        contact_id: email.contact_id,
+        sequence_id: email.sequence_id,
+        sender_account_id: email.sender_account_id,
+        status: email.status,
+        sent_at: email.sent_at,
+        opened_at: email.opened_at,
+        clicked_at: email.clicked_at,
+        error_message: email.error_message,
+        created_at: email.created_at,
+        campaign: {
+          name: email.campaigns?.name || 'Unknown Campaign',
+          description: email.campaigns?.description || '',
+        },
+        contact: {
+          email: email.contacts?.email || 'Unknown Contact',
+          first_name: email.contacts?.first_name || null,
+          last_name: email.contacts?.last_name || null,
+        },
+        email_sequence: {
+          subject: email.email_sequences?.subject || 'No Subject',
+          body: email.email_sequences?.body || 'No Content',
+          step_number: email.email_sequences?.step_number || 1,
+        },
+        sender_account: {
+          email: email.sender_accounts?.email || 'Unknown Sender',
+        },
+      }));
+
+      setEmails(transformedEmails);
+    } catch (error) {
+      console.error('Error fetching emails:', error);
     }
   };
 
@@ -188,13 +278,39 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
     campaign.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Sort emails with opened ones at the top
+  const sortedEmails = [...emails].sort((a, b) => {
+    // First, prioritize opened emails
+    if (a.opened_at && !b.opened_at) return -1;
+    if (!a.opened_at && b.opened_at) return 1;
+    
+    // If both are opened or both are not opened, sort by opened_at date (most recent first)
+    if (a.opened_at && b.opened_at) {
+      return new Date(b.opened_at).getTime() - new Date(a.opened_at).getTime();
+    }
+    
+    // If neither is opened, sort by sent_at date (most recent first)
+    if (a.sent_at && b.sent_at) {
+      return new Date(b.sent_at).getTime() - new Date(a.sent_at).getTime();
+    }
+    
+    // Fallback to created_at
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+
+  const filteredEmails = sortedEmails.filter(email =>
+    email.email_sequence.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    email.contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    email.campaign.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Campaigns</h1>
+          <h1 className="text-3xl font-bold text-foreground">Emails</h1>
           <p className="text-muted-foreground mt-1">
-            Manage and monitor your email campaigns
+            View and manage your sent emails with opened emails shown first
           </p>
         </div>
         <Button 
@@ -211,7 +327,7 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input
-            placeholder="Search campaigns..."
+            placeholder="Search emails..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -219,41 +335,71 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
         </div>
       </div>
 
-      {/* Campaigns List */}
+      {/* Emails List */}
       {loading ? (
         <div className="text-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="text-muted-foreground mt-2">Loading campaigns...</p>
+          <p className="text-muted-foreground mt-2">Loading emails...</p>
         </div>
-      ) : filteredCampaigns.length > 0 ? (
+      ) : filteredEmails.length > 0 ? (
         <div className="space-y-4">
-          {filteredCampaigns.map((campaign) => {
-            const statusInfo = formatCampaignStatus(campaign.status);
+          {filteredEmails.map((email) => {
+            const getEmailStatus = () => {
+              if (email.clicked_at) {
+                return { label: 'Clicked', variant: 'default' as const, className: 'bg-blue-100 text-blue-800', icon: CheckCircle };
+              }
+              if (email.opened_at) {
+                return { label: 'Opened', variant: 'default' as const, className: 'bg-green-100 text-green-800', icon: Eye };
+              }
+              if (email.sent_at) {
+                return { label: 'Sent', variant: 'secondary' as const, className: 'bg-gray-100 text-gray-800', icon: Mail };
+              }
+              if (email.status === 'failed') {
+                return { label: 'Failed', variant: 'destructive' as const, className: 'bg-red-100 text-red-800', icon: XCircle };
+              }
+              return { label: 'Pending', variant: 'outline' as const, className: 'bg-yellow-100 text-yellow-800', icon: Clock };
+            };
+
+            const statusInfo = getEmailStatus();
+            const StatusIcon = statusInfo.icon;
+
             return (
               <div
-                key={campaign.id}
-                className="flex items-center justify-between p-4 border border-border rounded-lg bg-gradient-card hover:shadow-md transition-shadow"
+                key={email.id}
+                className={`flex items-center justify-between p-4 border border-border rounded-lg hover:shadow-md transition-shadow ${
+                  email.opened_at ? 'bg-green-50 border-green-200' : 'bg-gradient-card'
+                }`}
               >
                 <div className="space-y-1 flex-1">
-                  <h4 className="font-medium text-foreground">{campaign.name}</h4>
-                  {campaign.description && (
-                    <p className="text-sm text-muted-foreground">{campaign.description}</p>
-                  )}
+                  <h4 className="font-medium text-foreground">{email.email_sequence.subject}</h4>
+                  <p className="text-sm text-muted-foreground">
+                    To: {email.contact.first_name && email.contact.last_name 
+                      ? `${email.contact.first_name} ${email.contact.last_name}` 
+                      : email.contact.email}
+                  </p>
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      Created {new Date(campaign.created_at).toLocaleDateString()}
+                      <Mail className="w-3 h-3" />
+                      Campaign: {email.campaign.name}
                     </span>
-                    {campaign.updated_at !== campaign.created_at && (
+                    {email.sent_at && (
                       <span className="flex items-center gap-1">
-                        <Activity className="w-3 h-3" />
-                        Updated {new Date(campaign.updated_at).toLocaleDateString()}
+                        <Clock className="w-3 h-3" />
+                        Sent {new Date(email.sent_at).toLocaleDateString()}
                       </span>
                     )}
-                    <span className="flex items-center gap-1">
-                      <Eye className="w-3 h-3" />
-                      Opens tracked automatically
-                    </span>
+                    {email.opened_at && (
+                      <span className="flex items-center gap-1">
+                        <Eye className="w-3 h-3" />
+                        Opened {new Date(email.opened_at).toLocaleDateString()}
+                      </span>
+                    )}
+                    {email.clicked_at && (
+                      <span className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" />
+                        Clicked {new Date(email.clicked_at).toLocaleDateString()}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -261,46 +407,18 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
                     variant={statusInfo.variant}
                     className={statusInfo.className}
                   >
+                    <StatusIcon className="w-3 h-3 mr-1" />
                     {statusInfo.label}
                   </Badge>
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => onEditCampaign?.(campaign.id)}
+                      onClick={() => onEditCampaign?.(email.campaign_id)}
                       className="text-primary hover:text-primary-foreground hover:bg-primary"
                     >
                       <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </Button>
-                    {campaign.status === 'active' ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateCampaignStatus(campaign.id, 'paused')}
-                        className="text-warning hover:text-warning-foreground hover:bg-warning"
-                      >
-                        <Pause className="w-4 h-4 mr-1" />
-                        Pause
-                      </Button>
-                    ) : campaign.status === 'paused' || campaign.status === 'draft' ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateCampaignStatus(campaign.id, 'active')}
-                        className="text-success hover:text-success-foreground hover:bg-success"
-                      >
-                        <Play className="w-4 h-4 mr-1" />
-                        Activate
-                      </Button>
-                    ) : null}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteCampaign(campaign.id)}
-                      className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                      Edit Campaign
                     </Button>
                   </div>
                 </div>
@@ -313,10 +431,10 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
           <CardContent className="text-center">
             <Mail className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-foreground mb-2">
-              {searchTerm ? "No campaigns found" : "No campaigns yet"}
+              {searchTerm ? "No emails found" : "No emails yet"}
             </h3>
             <p className="text-muted-foreground mb-4">
-              {searchTerm ? "Try adjusting your search terms" : "Get started by creating your first campaign"}
+              {searchTerm ? "Try adjusting your search terms" : "Get started by creating your first campaign to send emails"}
             </p>
             {!searchTerm && (
               <Button 

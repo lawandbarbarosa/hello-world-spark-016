@@ -41,7 +41,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'campaigns', label: 'Campaigns', icon: Mail },
+    { id: 'campaigns', label: 'Emails', icon: Mail },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'delivery', label: 'Deliverability', icon: Truck },
     { id: 'inbox', label: 'Inbox', icon: Inbox },
