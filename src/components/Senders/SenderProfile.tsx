@@ -74,33 +74,35 @@ interface SenderProfileStats {
 }
 
 interface SenderProfileProps {
-  senderId: string;
+  senderEmail: string;
   onBack: () => void;
 }
 
-const SenderProfile = ({ senderId, onBack }: SenderProfileProps) => {
+const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
   const { user } = useAuth();
   const [senderAccount, setSenderAccount] = useState<SenderAccount | null>(null);
   const [stats, setStats] = useState<SenderProfileStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user && senderId) {
+    if (user && senderEmail) {
       fetchSenderProfile();
     }
-  }, [user, senderId]);
+  }, [user, senderEmail]);
 
   const fetchSenderProfile = async () => {
     try {
       setLoading(true);
 
-      // Fetch sender account details
-      const { data: account, error: accountError } = await supabase
+      // Fetch sender account details (get the first account with this email)
+      const { data: accounts, error: accountError } = await supabase
         .from('sender_accounts')
         .select('*')
-        .eq('id', senderId)
+        .eq('email', senderEmail)
         .eq('user_id', user?.id)
-        .single();
+        .limit(1);
+      
+      const account = accounts?.[0];
 
       if (accountError || !account) {
         console.error('Error fetching sender account:', accountError);
@@ -114,7 +116,21 @@ const SenderProfile = ({ senderId, onBack }: SenderProfileProps) => {
 
       setSenderAccount(account);
 
-      // Fetch email sends for this sender
+      // Get all sender account IDs for this email address
+      const { data: allAccounts, error: accountsError } = await supabase
+        .from('sender_accounts')
+        .select('id')
+        .eq('email', senderEmail)
+        .eq('user_id', user?.id);
+      
+      if (accountsError || !allAccounts) {
+        console.error('Error fetching sender accounts:', accountsError);
+        return;
+      }
+      
+      const accountIds = allAccounts.map(acc => acc.id);
+
+      // Fetch email sends for all accounts with this email address
       const { data: emailSends, error: emailError } = await supabase
         .from('email_sends')
         .select(`
@@ -123,7 +139,7 @@ const SenderProfile = ({ senderId, onBack }: SenderProfileProps) => {
           campaigns(name),
           email_sequences(subject)
         `)
-        .eq('sender_account_id', senderId)
+        .in('sender_account_id', accountIds)
         .order('created_at', { ascending: false });
 
       if (emailError) {

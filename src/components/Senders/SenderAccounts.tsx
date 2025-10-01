@@ -467,7 +467,7 @@ const SenderAccounts = () => {
   if (viewingProfile) {
     return (
       <SenderProfile 
-        senderId={viewingProfile} 
+        senderEmail={viewingProfile} 
         onBack={() => setViewingProfile(null)} 
       />
     );
