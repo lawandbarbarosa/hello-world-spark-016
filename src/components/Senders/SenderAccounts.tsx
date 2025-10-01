@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import SenderProfile from "./SenderProfile";
 import { 
   Mail, 
   User, 
@@ -76,6 +77,7 @@ const SenderAccounts = () => {
   const [senderEmails, setSenderEmails] = useState<Record<string, SentEmail[]>>({});
   const [expandedSenders, setExpandedSenders] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [viewingProfile, setViewingProfile] = useState<string | null>(null);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingSender, setEditingSender] = useState<SenderAccount | null>(null);
   const [formData, setFormData] = useState({
@@ -365,6 +367,16 @@ const SenderAccounts = () => {
       .replace(/\{\{email\}\}/g, contact.email);
   };
 
+  // If viewing a profile, show the profile component
+  if (viewingProfile) {
+    return (
+      <SenderProfile 
+        senderId={viewingProfile} 
+        onBack={() => setViewingProfile(null)} 
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -594,6 +606,14 @@ const SenderAccounts = () => {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  onClick={() => setViewingProfile(sender.id)}
+                                  className="text-primary hover:text-primary-foreground hover:bg-primary"
+                                >
+                                  <User className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   onClick={() => openEditDialog(sender)}
                                 >
                                   <Edit className="w-4 h-4" />
@@ -707,23 +727,31 @@ const SenderAccounts = () => {
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openEditDialog(sender)}
-                              >
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleDeleteSender(sender.id)}
-                                className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </div>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setViewingProfile(sender.id)}
+                                  className="text-primary hover:text-primary-foreground hover:bg-primary"
+                                >
+                                  <User className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => openEditDialog(sender)}
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleDeleteSender(sender.id)}
+                                  className="text-destructive hover:text-destructive-foreground hover:bg-destructive"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
                           </div>
                         </div>
                       </div>
