@@ -346,18 +346,18 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
           {filteredEmails.map((email) => {
             const getEmailStatus = () => {
               if (email.clicked_at) {
-                return { label: 'Clicked', variant: 'default' as const, className: 'bg-blue-100 text-blue-800', icon: CheckCircle };
+                return { label: 'Clicked', variant: 'default' as const, className: 'bg-primary text-primary-foreground', icon: CheckCircle };
               }
               if (email.opened_at) {
-                return { label: 'Opened', variant: 'default' as const, className: 'bg-green-100 text-green-800', icon: Eye };
+                return { label: 'Opened', variant: 'default' as const, className: 'bg-success text-success-foreground', icon: Eye };
               }
               if (email.sent_at) {
-                return { label: 'Sent', variant: 'secondary' as const, className: 'bg-gray-100 text-gray-800', icon: Mail };
+                return { label: 'Sent', variant: 'secondary' as const, className: 'bg-muted text-muted-foreground', icon: Mail };
               }
               if (email.status === 'failed') {
-                return { label: 'Failed', variant: 'destructive' as const, className: 'bg-red-100 text-red-800', icon: XCircle };
+                return { label: 'Failed', variant: 'destructive' as const, className: 'bg-destructive text-destructive-foreground', icon: XCircle };
               }
-              return { label: 'Pending', variant: 'outline' as const, className: 'bg-yellow-100 text-yellow-800', icon: Clock };
+              return { label: 'Pending', variant: 'outline' as const, className: 'bg-warning text-warning-foreground', icon: Clock };
             };
 
             const statusInfo = getEmailStatus();
@@ -366,9 +366,7 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
             return (
               <div
                 key={email.id}
-                className={`flex items-center justify-between p-4 border border-border rounded-lg hover:shadow-md transition-shadow ${
-                  email.opened_at ? 'bg-green-50 border-green-200' : 'bg-gradient-card'
-                }`}
+                className="flex items-center justify-between p-4 border border-border rounded-lg bg-gradient-card hover:shadow-md transition-shadow"
               >
                 <div className="space-y-1 flex-1">
                   <h4 className="font-medium text-foreground">{email.email_sequence.subject}</h4>
