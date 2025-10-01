@@ -14,9 +14,6 @@ import ContactsList from '@/components/Contacts/ContactsList';
 import ReplyTracker from '@/components/Replies/ReplyTracker';
 import Calendar from '@/components/Calendar/Calendar';
 import SessionDebugger from '@/components/SessionDebugger';
-import BulkCampaigns from '@/components/Campaigns/BulkCampaigns';
-import InboxList from '@/components/Inbox/InboxList';
-import EmailDetail from '@/components/Inbox/EmailDetail';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -37,18 +34,12 @@ const Index = () => {
     } else if (path.startsWith('/campaigns/edit/')) {
       setActiveTab('edit-campaign');
       setSelectedCampaignId(params.id || null);
-    } else if (path === '/bulk-campaigns') {
-      setActiveTab('bulk-campaigns');
-    } else if (path === '/inbox') {
-      setActiveTab('inbox');
-    } else if (path.startsWith('/inbox/')) {
-      setActiveTab('email-detail');
     } else if (path === '/calendar') {
       setActiveTab('calendar');
     } else if (path === '/delivery') {
       setActiveTab('delivery');
-    } else if (path === '/emails') {
-      setActiveTab('emails');
+    } else if (path === '/inbox') {
+      setActiveTab('inbox');
     } else if (path === '/replies') {
       setActiveTab('replies');
     } else if (path === '/spam') {
@@ -80,25 +71,14 @@ const Index = () => {
           navigate(`/campaigns/edit/${campaignId}`);
         }
         break;
-      case 'bulk-campaigns':
-        navigate('/bulk-campaigns');
-        break;
-      case 'inbox':
-        navigate('/inbox');
-        break;
-      case 'email-detail':
-        if (campaignId) {
-          navigate(`/inbox/${campaignId}`);
-        }
-        break;
       case 'calendar':
         navigate('/calendar');
         break;
       case 'delivery':
         navigate('/delivery');
         break;
-      case 'emails':
-        navigate('/emails');
+      case 'inbox':
+        navigate('/inbox');
         break;
       case 'replies':
         navigate('/replies');
@@ -137,17 +117,11 @@ const Index = () => {
         ) : (
           <Dashboard onNavigate={handleNavigation} />
         );
-      case 'bulk-campaigns':
-        return <BulkCampaigns />;
-      case 'inbox':
-        return <InboxList />;
-      case 'email-detail':
-        return <EmailDetail />;
       case 'calendar':
         return <Calendar />;
       case 'delivery':
         return <Delivery />;
-      case 'emails':
+      case 'inbox':
         return <Inbox />;
       case 'replies':
         return <ReplyTracker />;

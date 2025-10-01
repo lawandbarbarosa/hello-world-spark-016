@@ -47,32 +47,12 @@ const App = () => (
                       <Index />
                     </ProtectedRoute>
                   } />
-                  <Route path="/bulk-campaigns" element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/inbox" element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/inbox/:emailId" element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  } />
                   <Route path="/calendar" element={
                     <ProtectedRoute>
                       <Index />
                     </ProtectedRoute>
                   } />
                   <Route path="/delivery" element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  } />
-                  <Route path="/emails" element={
                     <ProtectedRoute>
                       <Index />
                     </ProtectedRoute>

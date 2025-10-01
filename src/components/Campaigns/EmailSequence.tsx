@@ -636,41 +636,17 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
                          <span className="text-xs text-muted-foreground">Drag tags or click to insert at cursor:</span>
                        </div>
                      </div>
-                     <div className="relative">
-                       <Input
-                         placeholder="e.g., Quick question about {{company}} from {{city}}"
-                         value={step.subject}
-                         onChange={(e) => updateStep(step.id, { subject: e.target.value })}
-                         onSelect={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
-                         onClick={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
-                         onKeyUp={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
-                         className="bg-background border-border text-foreground placeholder-highlight"
-                         onDragOver={handleDragOver}
-                         onDrop={(e) => handleDrop(e, step.id, 'subject')}
-                         style={{
-                           backgroundImage: `linear-gradient(to right, transparent 0%, transparent 100%)`,
-                           backgroundSize: '100% 100%',
-                           backgroundRepeat: 'no-repeat'
-                         }}
-                       />
-                       {/* Overlay for highlighting placeholders */}
-                       <div 
-                         className="absolute inset-0 pointer-events-none overflow-hidden rounded-md"
-                         style={{
-                           background: 'transparent',
-                           color: 'transparent',
-                           whiteSpace: 'pre',
-                           fontFamily: 'inherit',
-                           fontSize: 'inherit',
-                           lineHeight: 'inherit',
-                           padding: '0.5rem 0.75rem',
-                           border: '1px solid transparent'
-                         }}
-                         dangerouslySetInnerHTML={{
-                           __html: step.subject.replace(/\{\{([^}]+)\}\}/g, '<span style="color: #8b5cf6; background-color: #f3f0ff; padding: 1px 3px; border-radius: 3px; font-weight: 500;">{{$1}}</span>')
-                         }}
-                       />
-                     </div>
+                     <Input
+                       placeholder="e.g., Quick question about {{company}} from {{city}}"
+                       value={step.subject}
+                       onChange={(e) => updateStep(step.id, { subject: e.target.value })}
+                       onSelect={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
+                       onClick={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
+                       onKeyUp={(e) => handleCursorChange(step.id, 'subject', e.currentTarget.selectionStart || 0)}
+                       className="bg-background border-border text-foreground"
+                       onDragOver={handleDragOver}
+                       onDrop={(e) => handleDrop(e, step.id, 'subject')}
+                     />
                      <div className="flex flex-wrap gap-1">
                        {availableMergeTags.map(tag => (
                          <Badge 
@@ -734,47 +710,23 @@ Best regards,
                              <span className="text-xs text-muted-foreground">Drag tags or click to insert at cursor:</span>
                            </div>
                          </div>
-                         <div className="relative">
-                           <Textarea
-                             placeholder="Hi {{firstName}},
+                         <Textarea
+                           placeholder="Hi {{firstName}},
 
 I hope this email finds you well. I noticed you're from {{city}} and work at {{company}} as a {{title}}.
 
 Best regards,
 [Your name]"
-                             value={step.body}
-                             onChange={(e) => updateStep(step.id, { body: e.target.value })}
-                             onSelect={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
-                             onClick={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
-                             onKeyUp={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
-                             rows={8}
-                             className="bg-background border-border text-foreground font-mono text-sm placeholder-highlight"
-                             onDragOver={handleDragOver}
-                             onDrop={(e) => handleDrop(e, step.id, 'body')}
-                             style={{
-                               backgroundImage: `linear-gradient(to right, transparent 0%, transparent 100%)`,
-                               backgroundSize: '100% 100%',
-                               backgroundRepeat: 'no-repeat'
-                             }}
-                           />
-                           {/* Overlay for highlighting placeholders */}
-                           <div 
-                             className="absolute inset-0 pointer-events-none overflow-hidden rounded-md"
-                             style={{
-                               background: 'transparent',
-                               color: 'transparent',
-                               whiteSpace: 'pre-wrap',
-                               fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
-                               fontSize: '0.875rem',
-                               lineHeight: '1.25rem',
-                               padding: '0.5rem 0.75rem',
-                               border: '1px solid transparent'
-                             }}
-                             dangerouslySetInnerHTML={{
-                               __html: step.body.replace(/\{\{([^}]+)\}\}/g, '<span style="color: #8b5cf6; background-color: #f3f0ff; padding: 1px 3px; border-radius: 3px; font-weight: 500;">{{$1}}</span>')
-                             }}
-                           />
-                         </div>
+                           value={step.body}
+                           onChange={(e) => updateStep(step.id, { body: e.target.value })}
+                           onSelect={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                           onClick={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                           onKeyUp={(e) => handleCursorChange(step.id, 'body', e.currentTarget.selectionStart || 0)}
+                           rows={8}
+                           className="bg-background border-border text-foreground font-mono text-sm"
+                           onDragOver={handleDragOver}
+                           onDrop={(e) => handleDrop(e, step.id, 'body')}
+                         />
                          <div className="flex flex-wrap gap-1">
                            {availableMergeTags.map(tag => (
                              <Badge 
