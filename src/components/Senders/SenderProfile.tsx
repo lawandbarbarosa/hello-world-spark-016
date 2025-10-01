@@ -168,29 +168,39 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
         e.sent_at.startsWith(today)
       ).length || 0;
 
-      // Calculate daily stats for the last 30 days
+      // Calculate daily stats only for days when emails were actually sent
       const dailyStats: DailyEmailStats[] = [];
-      const last30Days = Array.from({ length: 30 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        return date.toISOString().split('T')[0];
+      const dateStatsMap = new Map<string, { sent: number; opened: number; clicked: number; failed: number }>();
+
+      // Group emails by date
+      emailSends?.forEach(email => {
+        if (email.sent_at) {
+          const date = email.sent_at.split('T')[0];
+          if (!dateStatsMap.has(date)) {
+            dateStatsMap.set(date, { sent: 0, opened: 0, clicked: 0, failed: 0 });
+          }
+          
+          const dayStats = dateStatsMap.get(date)!;
+          if (email.status === 'sent') dayStats.sent++;
+          if (email.status === 'failed') dayStats.failed++;
+          if (email.opened_at) dayStats.opened++;
+          if (email.clicked_at) dayStats.clicked++;
+        }
       });
 
-      for (const date of last30Days) {
-        const dayEmails = emailSends?.filter(e => e.sent_at && e.sent_at.startsWith(date)) || [];
-        const sent = dayEmails.filter(e => e.status === 'sent').length;
-        const opened = dayEmails.filter(e => e.opened_at).length;
-        const clicked = dayEmails.filter(e => e.clicked_at).length;
-        const failed = dayEmails.filter(e => e.status === 'failed').length;
-
+      // Convert map to array and sort by date (newest first)
+      for (const [date, stats] of dateStatsMap.entries()) {
         dailyStats.push({
           date,
-          sent,
-          opened,
-          clicked,
-          failed
+          sent: stats.sent,
+          opened: stats.opened,
+          clicked: stats.clicked,
+          failed: stats.failed
         });
       }
+
+      // Sort by date (newest first)
+      dailyStats.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
       // Get recent emails (last 10)
       const recentEmails = (emailSends || []).slice(0, 10).map(email => ({
@@ -223,7 +233,7 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
         clickRate,
         lastSentAt,
         todaySent,
-        dailyStats: dailyStats.reverse(), // Show oldest to newest
+        dailyStats, // Show newest to oldest
         recentEmails
       });
 
@@ -400,15 +410,16 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5" />
-            Daily Email Activity (Last 30 Days)
+            Daily Email Activity
           </CardTitle>
           <CardDescription>
             Track daily email sending patterns and performance
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {stats.dailyStats.map((day, index) => (
+          {stats.dailyStats.length > 0 ? (
+            <div className="space-y-4">
+              {stats.dailyStats.map((day, index) => (
               <div key={day.date} className="flex items-center gap-4 p-3 border border-border rounded-lg">
                 <div className="w-20 text-sm text-muted-foreground">
                   {new Date(day.date).toLocaleDateString('en-US', { 
@@ -449,7 +460,14 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
                 </div>
               </div>
             ))}
-          </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No email activity yet</p>
+              <p className="text-sm">Daily stats will appear here once emails are sent</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
