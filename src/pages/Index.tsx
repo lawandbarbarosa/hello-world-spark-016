@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import Sidebar from '@/components/Layout/Sidebar';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import CampaignList from '@/components/Campaigns/CampaignList';
+import CampaignsOverview from '@/components/Campaigns/CampaignsOverview';
 import CampaignWizard from '@/components/Campaigns/CampaignWizard';
 import EditCampaign from '@/components/Campaigns/EditCampaign';
 import Delivery from '@/components/Delivery/Delivery';
@@ -29,6 +30,8 @@ const Index = () => {
       setActiveTab('dashboard');
     } else if (path === '/campaigns') {
       setActiveTab('campaigns');
+    } else if (path === '/campaigns-overview') {
+      setActiveTab('campaigns-overview');
     } else if (path === '/campaigns/create') {
       setActiveTab('create-campaign');
     } else if (path.startsWith('/campaigns/edit/')) {
@@ -62,6 +65,9 @@ const Index = () => {
         break;
       case 'campaigns':
         navigate('/campaigns');
+        break;
+      case 'campaigns-overview':
+        navigate('/campaigns-overview');
         break;
       case 'create-campaign':
         navigate('/campaigns/create');
@@ -106,6 +112,8 @@ const Index = () => {
         return <Dashboard onNavigate={handleNavigation} />;
       case 'campaigns':
         return <CampaignList onCreateNew={() => handleNavigation('create-campaign')} onEditCampaign={(id) => handleNavigation('edit-campaign', id)} />;
+      case 'campaigns-overview':
+        return <CampaignsOverview onCreateNew={() => handleNavigation('create-campaign')} onEditCampaign={(id) => handleNavigation('edit-campaign', id)} />;
       case 'create-campaign':
         return <CampaignWizard onBack={() => handleNavigation('campaigns')} />;
       case 'edit-campaign':
