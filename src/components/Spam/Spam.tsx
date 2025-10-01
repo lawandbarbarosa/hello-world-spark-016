@@ -38,7 +38,7 @@ const Spam = () => {
 
   useEffect(() => {
     if (user) {
-      fetchFailedEmails();
+      fetchSpamEmails();
       fetchRecentFailures();
     }
   }, [user]);
@@ -168,27 +168,16 @@ const Spam = () => {
 
       if (error) {
         console.error('Error retrying email:', error);
-        toast({
-          title: "Error",
-          description: "Failed to retry email",
-          variant: "destructive",
-        });
+        toast.error('Failed to retry email');
         return;
       }
 
       // Remove from failed emails list
-      setFailedEmails(prev => prev.filter(email => email.id !== emailId));
-      toast({
-        title: "Success",
-        description: "Email queued for retry",
-      });
+      setRecentFailures(prev => prev.filter(email => email.id !== emailId));
+      toast.success('Email queued for retry');
     } catch (error) {
       console.error('Error retrying email:', error);
-      toast({
-        title: "Error",
-        description: "Failed to retry email",
-        variant: "destructive",
-      });
+      toast.error('Failed to retry email');
     }
   };
 
@@ -288,7 +277,7 @@ const Spam = () => {
             variant="outline" 
             size="sm"
             onClick={() => {
-              fetchFailedEmails();
+              fetchSpamEmails();
               fetchRecentFailures();
             }}
             disabled={loading}
@@ -296,7 +285,7 @@ const Spam = () => {
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          {failedEmails.length > 0 && (
+          {spamEmails.length > 0 && (
             <Button 
               variant="destructive" 
               size="sm"
@@ -375,7 +364,7 @@ const Spam = () => {
                     <Button
                       variant="destructive"
                       size="sm"
-                      onClick={() => handleDeleteSpam(email.id)}
+                      onClick={() => handleDeleteFailed(email.id)}
                     >
                       <Trash2 className="w-4 h-4 mr-1" />
                       Delete
