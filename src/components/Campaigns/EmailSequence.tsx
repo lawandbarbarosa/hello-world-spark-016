@@ -449,52 +449,6 @@ const EmailSequence = ({ data, onUpdate }: EmailSequenceProps) => {
         </Card>
       )}
 
-      {/* Placeholder Test Section */}
-      {data.contacts && data.contacts.length > 0 && availableMergeTags.length > 0 && (
-        <Card className="bg-gradient-card border-border">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Placeholder Test
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Test how your placeholders will look with real data
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Available Placeholders:</h4>
-                <div className="flex flex-wrap gap-2">
-                  {availableMergeTags.map((tag) => (
-                    <div key={tag} className="flex items-center gap-2 bg-background px-3 py-1 rounded border">
-                      <code className="text-sm">{`{{${tag}}}`}</code>
-                      <span className="text-xs text-muted-foreground">→</span>
-                      <span className="text-sm font-medium">
-                        {previewContact[tag] || '[No data]'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Test Email Preview:</h4>
-                <div className="bg-background p-3 rounded border">
-                  <p className="text-sm">
-                    <strong>Subject:</strong> Hello {replaceVariables('{{firstName}}')}, welcome to {replaceVariables('{{company}}')}!
-                  </p>
-                  <p className="text-sm mt-2">
-                    <strong>Body:</strong> Hi {replaceVariables('{{firstName}}')} {replaceVariables('{{lastName}}')}, 
-                    we're excited to have you at {replaceVariables('{{company}}')}. 
-                    Your email is {replaceVariables('{{email}}')}.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Preview Controls */}
       {previewMode && data.contacts && data.contacts.length > 0 && (
