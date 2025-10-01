@@ -38,6 +38,11 @@ const App = () => (
                       <Index />
                     </ProtectedRoute>
                   } />
+                  <Route path="/campaigns-overview" element={
+                    <ProtectedRoute>
+                      <Index />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/campaigns/create" element={
                     <ProtectedRoute>
                       <Index />
