@@ -383,6 +383,98 @@ export type Database = {
         }
         Relationships: []
       }
+      scheduled_meetings: {
+        Row: {
+          created_at: string
+          id: string
+          link_id: string
+          notes: string | null
+          prospect_email: string
+          prospect_name: string | null
+          scheduled_date: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link_id: string
+          notes?: string | null
+          prospect_email: string
+          prospect_name?: string | null
+          scheduled_date: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link_id?: string
+          notes?: string | null
+          prospect_email?: string
+          prospect_name?: string | null
+          scheduled_date?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scheduled_meetings_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "scheduling_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scheduling_links: {
+        Row: {
+          available_days: string[]
+          available_time_end: string
+          available_time_start: string
+          created_at: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          is_active: boolean
+          link_code: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_days?: string[]
+          available_time_end?: string
+          available_time_start?: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          link_code: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_days?: string[]
+          available_time_end?: string
+          available_time_start?: string
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          is_active?: boolean
+          link_code?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       sender_accounts: {
         Row: {
           campaign_id: string | null
