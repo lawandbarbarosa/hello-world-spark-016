@@ -34,6 +34,7 @@ interface Campaign {
   status: string;
   created_at: string;
   updated_at: string;
+  scheduledEmailsCount?: number;
 }
 
 interface DashboardStats {
@@ -89,7 +90,23 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         return;
       }
 
-      setCampaigns(campaignData || []);
+      // Fetch scheduled emails count for each campaign
+      const campaignsWithCounts = await Promise.all(
+        (campaignData || []).map(async (campaign) => {
+          const { count } = await supabase
+            .from('scheduled_emails')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', campaign.id)
+            .eq('status', 'scheduled');
+          
+          return {
+            ...campaign,
+            scheduledEmailsCount: count || 0
+          };
+        })
+      );
+
+      setCampaigns(campaignsWithCounts);
 
       // Fetch campaign statistics
       const { data: contactsData, error: contactsError } = await supabase
@@ -429,6 +446,12 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
                           <span className="flex items-center gap-1">
                             <Activity className="w-3 h-3" />
                             Updated {new Date(campaign.updated_at).toLocaleDateString()}
+                          </span>
+                        )}
+                        {campaign.scheduledEmailsCount !== undefined && campaign.scheduledEmailsCount > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {campaign.scheduledEmailsCount} scheduled
                           </span>
                         )}
                         <span className="flex items-center gap-1">
