@@ -35,6 +35,8 @@ interface Campaign {
   created_at: string;
   updated_at: string;
   scheduledEmailsCount?: number;
+  emailsSent?: number;
+  emailsOpened?: number;
 }
 
 interface DashboardStats {
@@ -90,18 +92,29 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         return;
       }
 
-      // Fetch scheduled emails count for each campaign
+      // Fetch scheduled emails count and email stats for each campaign
       const campaignsWithCounts = await Promise.all(
         (campaignData || []).map(async (campaign) => {
-          const { count } = await supabase
-            .from('scheduled_emails')
-            .select('*', { count: 'exact', head: true })
-            .eq('campaign_id', campaign.id)
-            .eq('status', 'scheduled');
+          const [scheduledResult, emailSendsResult] = await Promise.all([
+            supabase
+              .from('scheduled_emails')
+              .select('*', { count: 'exact', head: true })
+              .eq('campaign_id', campaign.id)
+              .eq('status', 'scheduled'),
+            supabase
+              .from('email_sends')
+              .select('id, opened_at')
+              .eq('campaign_id', campaign.id)
+          ]);
+
+          const emailsSent = emailSendsResult.data?.length || 0;
+          const emailsOpened = emailSendsResult.data?.filter(e => e.opened_at !== null).length || 0;
           
           return {
             ...campaign,
-            scheduledEmailsCount: count || 0
+            scheduledEmailsCount: scheduledResult.count || 0,
+            emailsSent,
+            emailsOpened
           };
         })
       );
@@ -454,10 +467,12 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
                             {campaign.scheduledEmailsCount} scheduled
                           </span>
                         )}
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-3 h-3" />
-                          Opens tracked automatically
-                        </span>
+                        {campaign.emailsSent !== undefined && campaign.emailsSent > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            {campaign.emailsOpened || 0} / {campaign.emailsSent} opened
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
