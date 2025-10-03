@@ -5,6 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useSettings } from "@/hooks/useSettings";
 import CampaignDetails from "./CampaignDetails";
 import SenderAccounts from "./SenderAccounts";
 import ContactUpload from "./ContactUpload";
@@ -46,6 +47,7 @@ interface CampaignWizardProps {
 }
 
 const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
+  const { settings } = useSettings();
   const [currentStep, setCurrentStep] = useState(0);
   const [campaignData, setCampaignData] = useState<CampaignData>({
     name: "",
@@ -252,6 +254,26 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         console.error('Campaign launch returned error:', launchData.error);
         toast.error(`Campaign launch failed: ${launchData.error}`);
         return;
+      }
+
+      // Send notification email if enabled
+      if (settings?.campaign_notifications_enabled && settings?.notification_email) {
+        try {
+          console.log('📧 Sending campaign notification...');
+          await supabase.functions.invoke('send-campaign-notification', {
+            body: {
+              campaignName: campaignData.name,
+              campaignId: campaign.id,
+              launchDate: new Date().toISOString(),
+              emailCount: campaignData.contacts.length,
+              notificationEmail: settings.notification_email,
+            },
+          });
+          console.log('✅ Notification sent successfully');
+        } catch (notifError) {
+          console.error('Failed to send notification (non-blocking):', notifError);
+          // Don't block campaign launch if notification fails
+        }
       }
 
       toast.success(`Campaign launched successfully! ${launchData?.message || `Sent ${launchData?.emailsSent || 0} emails.`}`);

@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Save, Settings as SettingsIcon, Sun, Moon, Monitor } from 'lucide-react';
+import { Loader2, Save, Settings as SettingsIcon, Sun, Moon, Monitor, Bell } from 'lucide-react';
 
 const settingsSchema = z.object({
   // General Settings
@@ -51,6 +51,10 @@ const settingsSchema = z.object({
   // Security & Compliance
   unsubscribe_link_enabled: z.boolean(),
   legal_disclaimer: z.string(),
+  
+  // Notifications
+  campaign_notifications_enabled: z.boolean(),
+  notification_email: z.string().email('Invalid email address').or(z.literal('')),
 });
 
 type SettingsFormData = z.infer<typeof settingsSchema>;
@@ -94,6 +98,8 @@ const Settings = () => {
       from_name_format: 'first_last',
       unsubscribe_link_enabled: true,
       legal_disclaimer: '',
+      campaign_notifications_enabled: false,
+      notification_email: '',
     },
   });
 
@@ -108,6 +114,8 @@ const Settings = () => {
         from_name_format: settings.from_name_format,
         unsubscribe_link_enabled: settings.unsubscribe_link_enabled,
         legal_disclaimer: settings.legal_disclaimer,
+        campaign_notifications_enabled: settings.campaign_notifications_enabled,
+        notification_email: settings.notification_email,
       });
     }
   }, [settings, form]);
@@ -138,6 +146,8 @@ const Settings = () => {
         from_name_format: data.from_name_format,
         unsubscribe_link_enabled: data.unsubscribe_link_enabled,
         legal_disclaimer: data.legal_disclaimer,
+        campaign_notifications_enabled: data.campaign_notifications_enabled,
+        notification_email: data.notification_email,
       });
 
       // Update theme immediately
@@ -405,6 +415,64 @@ const Settings = () => {
                   </FormItem>
                 )}
               />
+            </CardContent>
+          </Card>
+
+          {/* Notifications */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Campaign Notifications
+              </CardTitle>
+              <CardDescription>
+                Get notified when campaigns are launched
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                control={form.control}
+                name="campaign_notifications_enabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Email Notifications</FormLabel>
+                      <FormDescription>
+                        Receive email alerts when campaigns launch
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {form.watch('campaign_notifications_enabled') && (
+                <FormField
+                  control={form.control}
+                  name="notification_email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Notification Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="lawandata14@gmail.com"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Where to send campaign launch notifications
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </CardContent>
           </Card>
 

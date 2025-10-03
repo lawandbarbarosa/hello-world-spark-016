@@ -565,6 +565,7 @@ export type Database = {
       }
       user_settings: {
         Row: {
+          campaign_notifications_enabled: boolean | null
           created_at: string
           csv_mapping_defaults: Json | null
           daily_send_limit: number | null
@@ -573,6 +574,7 @@ export type Database = {
           from_name_format: string | null
           id: string
           legal_disclaimer: string | null
+          notification_email: string | null
           reply_handling_enabled: boolean | null
           send_time_end: string | null
           send_time_start: string | null
@@ -584,6 +586,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          campaign_notifications_enabled?: boolean | null
           created_at?: string
           csv_mapping_defaults?: Json | null
           daily_send_limit?: number | null
@@ -592,6 +595,7 @@ export type Database = {
           from_name_format?: string | null
           id?: string
           legal_disclaimer?: string | null
+          notification_email?: string | null
           reply_handling_enabled?: boolean | null
           send_time_end?: string | null
           send_time_start?: string | null
@@ -603,6 +607,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          campaign_notifications_enabled?: boolean | null
           created_at?: string
           csv_mapping_defaults?: Json | null
           daily_send_limit?: number | null
@@ -611,6 +616,7 @@ export type Database = {
           from_name_format?: string | null
           id?: string
           legal_disclaimer?: string | null
+          notification_email?: string | null
           reply_handling_enabled?: boolean | null
           send_time_end?: string | null
           send_time_start?: string | null
