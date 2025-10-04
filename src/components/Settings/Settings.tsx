@@ -54,6 +54,7 @@ const settingsSchema = z.object({
   
   // Notifications
   campaign_notifications_enabled: z.boolean(),
+  open_notifications_enabled: z.boolean(),
   notification_email: z.string().email('Invalid email address').or(z.literal('')),
 });
 
@@ -99,6 +100,7 @@ const Settings = () => {
       unsubscribe_link_enabled: true,
       legal_disclaimer: '',
       campaign_notifications_enabled: false,
+      open_notifications_enabled: false,
       notification_email: '',
     },
   });
@@ -115,6 +117,7 @@ const Settings = () => {
         unsubscribe_link_enabled: settings.unsubscribe_link_enabled,
         legal_disclaimer: settings.legal_disclaimer,
         campaign_notifications_enabled: settings.campaign_notifications_enabled,
+        open_notifications_enabled: settings.open_notifications_enabled,
         notification_email: settings.notification_email,
       });
     }
@@ -147,6 +150,7 @@ const Settings = () => {
         unsubscribe_link_enabled: data.unsubscribe_link_enabled,
         legal_disclaimer: data.legal_disclaimer,
         campaign_notifications_enabled: data.campaign_notifications_enabled,
+        open_notifications_enabled: data.open_notifications_enabled,
         notification_email: data.notification_email,
       });
 
@@ -451,7 +455,28 @@ const Settings = () => {
                 )}
               />
 
-              {form.watch('campaign_notifications_enabled') && (
+              <FormField
+                control={form.control}
+                name="open_notifications_enabled"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Email Open Notifications</FormLabel>
+                      <FormDescription>
+                        Get notified when recipients open your emails
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {(form.watch('campaign_notifications_enabled') || form.watch('open_notifications_enabled')) && (
                 <FormField
                   control={form.control}
                   name="notification_email"
@@ -466,7 +491,7 @@ const Settings = () => {
                         />
                       </FormControl>
                       <FormDescription>
-                        Where to send campaign launch notifications
+                        Where to send notifications
                       </FormDescription>
                       <FormMessage />
                     </FormItem>

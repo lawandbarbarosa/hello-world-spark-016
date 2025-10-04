@@ -121,6 +121,45 @@ const handler = async (req: Request): Promise<Response> => {
       console.error("Error updating email open status:", error);
     } else if (data && data.length > 0) {
       console.log(`✅ Successfully recorded legitimate email open for ID: ${emailSendId}`);
+      
+      // Send notification if enabled
+      try {
+        // Fetch campaign and user settings to check if notifications are enabled
+        const { data: emailSendData } = await supabase
+          .from("email_sends")
+          .select(`
+            campaign_id,
+            contact:contacts(email),
+            campaign:campaigns(name, user_id)
+          `)
+          .eq("id", emailSendId)
+          .single();
+
+        if (emailSendData?.campaign?.user_id) {
+          const { data: userSettings } = await supabase
+            .from("user_settings")
+            .select("open_notifications_enabled, notification_email")
+            .eq("user_id", emailSendData.campaign.user_id)
+            .single();
+
+          if (userSettings?.open_notifications_enabled && userSettings?.notification_email) {
+            console.log(`📧 Sending open notification to ${userSettings.notification_email}`);
+            
+            // Call the notification edge function
+            await supabase.functions.invoke("send-open-notification", {
+              body: {
+                contactEmail: emailSendData.contact?.email || "Unknown",
+                campaignName: emailSendData.campaign?.name || "Unknown Campaign",
+                openedAt: new Date().toISOString(),
+                notificationEmail: userSettings.notification_email,
+              },
+            });
+          }
+        }
+      } catch (notificationError) {
+        console.error("Error sending open notification:", notificationError);
+        // Don't fail the tracking if notification fails
+      }
     } else {
       console.log(`ℹ️ Email ${emailSendId} was already marked as opened or not found`);
     }

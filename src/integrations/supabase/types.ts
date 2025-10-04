@@ -575,6 +575,7 @@ export type Database = {
           id: string
           legal_disclaimer: string | null
           notification_email: string | null
+          open_notifications_enabled: boolean | null
           reply_handling_enabled: boolean | null
           send_time_end: string | null
           send_time_start: string | null
@@ -596,6 +597,7 @@ export type Database = {
           id?: string
           legal_disclaimer?: string | null
           notification_email?: string | null
+          open_notifications_enabled?: boolean | null
           reply_handling_enabled?: boolean | null
           send_time_end?: string | null
           send_time_start?: string | null
@@ -617,6 +619,7 @@ export type Database = {
           id?: string
           legal_disclaimer?: string | null
           notification_email?: string | null
+          open_notifications_enabled?: boolean | null
           reply_handling_enabled?: boolean | null
           send_time_end?: string | null
           send_time_start?: string | null
