@@ -37,6 +37,7 @@ interface CampaignStats {
   clickRate: number;
   launchDate: string;
   endDate: string | null;
+  scheduledCount?: number;
 }
 
 interface CampaignsOverviewProps {
@@ -77,13 +78,23 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
         return;
       }
 
-      // For each campaign, get email statistics
+      // For each campaign, get email statistics and scheduled emails
       const campaignsWithStats: CampaignStats[] = await Promise.all(
         (campaignsData || []).map(async (campaign) => {
-          const { data: emailSends, error: emailError } = await supabase
-            .from('email_sends')
-            .select('status, sent_at, opened_at, clicked_at')
-            .eq('campaign_id', campaign.id);
+          const [emailSendsResult, scheduledResult] = await Promise.all([
+            supabase
+              .from('email_sends')
+              .select('status, sent_at, opened_at, clicked_at')
+              .eq('campaign_id', campaign.id),
+            supabase
+              .from('scheduled_emails')
+              .select('*', { count: 'exact', head: true })
+              .eq('campaign_id', campaign.id)
+              .eq('status', 'scheduled')
+          ]);
+
+          const { data: emailSends, error: emailError } = emailSendsResult;
+          const scheduledCount = scheduledResult.count || 0;
 
           if (emailError) {
             console.error('Error fetching email stats for campaign:', campaign.id, emailError);
@@ -124,7 +135,8 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
             openRate,
             clickRate,
             launchDate,
-            endDate
+            endDate,
+            scheduledCount
           };
         })
       );
@@ -227,10 +239,11 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
       ) : filteredCampaigns.length > 0 ? (
         <div className="space-y-4">
           {filteredCampaigns.map((campaign) => {
-            // Check if campaign is actually completed (all emails sent)
+            // Check if campaign should be marked as completed
+            // Campaign is completed if: status is 'active' but there are no scheduled emails left
             const isReallyCompleted = campaign.status === 'active' && 
-                                     campaign.totalEmails > 0 && 
-                                     campaign.sentEmails === campaign.totalEmails;
+                                     (campaign.scheduledCount === 0 || campaign.scheduledCount === undefined) &&
+                                     campaign.totalEmails > 0;
             
             const actualStatus = isReallyCompleted ? 'completed' : campaign.status;
             const statusInfo = formatCampaignStatus(actualStatus);

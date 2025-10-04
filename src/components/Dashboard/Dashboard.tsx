@@ -439,7 +439,14 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
           ) : campaigns.length > 0 ? (
             <div className="space-y-4">
               {campaigns.map((campaign) => {
-                const statusInfo = formatCampaignStatus(campaign.status);
+                // Check if campaign should be marked as completed
+                // Campaign is completed if: status is 'active' but there are no scheduled emails left
+                const isReallyCompleted = campaign.status === 'active' && 
+                                         (campaign.scheduledEmailsCount === 0 || campaign.scheduledEmailsCount === undefined) &&
+                                         (campaign.emailsSent || 0) > 0;
+                
+                const actualStatus = isReallyCompleted ? 'completed' : campaign.status;
+                const statusInfo = formatCampaignStatus(actualStatus);
                 return (
                   <div
                     key={campaign.id}
