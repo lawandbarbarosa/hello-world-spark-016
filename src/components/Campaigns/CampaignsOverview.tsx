@@ -227,7 +227,13 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
       ) : filteredCampaigns.length > 0 ? (
         <div className="space-y-4">
           {filteredCampaigns.map((campaign) => {
-            const statusInfo = formatCampaignStatus(campaign.status);
+            // Check if campaign is actually completed (all emails sent)
+            const isReallyCompleted = campaign.status === 'active' && 
+                                     campaign.totalEmails > 0 && 
+                                     campaign.sentEmails === campaign.totalEmails;
+            
+            const actualStatus = isReallyCompleted ? 'completed' : campaign.status;
+            const statusInfo = formatCampaignStatus(actualStatus);
             const StatusIcon = statusInfo.icon;
 
             return (
