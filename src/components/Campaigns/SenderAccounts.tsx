@@ -4,8 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Mail, Trash2, Settings } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Mail, Trash2, Settings, Import } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SenderAccount {
   id: string;
@@ -28,8 +32,13 @@ interface SenderAccountsProps {
 }
 
 const SenderAccounts = ({ data, onUpdate }: SenderAccountsProps) => {
+  const { user } = useAuth();
   const [accounts, setAccounts] = useState<SenderAccount[]>(data.senderAccounts || []);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [savedSenders, setSavedSenders] = useState<any[]>([]);
+  const [selectedSenders, setSelectedSenders] = useState<Set<string>>(new Set());
+  const [loadingImport, setLoadingImport] = useState(false);
   const [newAccount, setNewAccount] = useState({
     email: "",
     provider: "",
@@ -39,6 +48,86 @@ const SenderAccounts = ({ data, onUpdate }: SenderAccountsProps) => {
   useEffect(() => {
     onUpdate({ senderAccounts: accounts });
   }, [accounts, onUpdate]);
+
+  useEffect(() => {
+    if (user && showImportDialog) {
+      fetchSavedSenders();
+    }
+  }, [user, showImportDialog]);
+
+  const fetchSavedSenders = async () => {
+    try {
+      setLoadingImport(true);
+      const { data: senders, error } = await supabase
+        .from('sender_accounts')
+        .select('id, email, provider, daily_limit')
+        .eq('user_id', user?.id)
+        .is('campaign_id', null)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Group by email to avoid duplicates
+      const uniqueSenders = Array.from(
+        new Map(senders?.map(s => [s.email, s]) || []).values()
+      );
+
+      setSavedSenders(uniqueSenders);
+    } catch (error) {
+      console.error('Error fetching saved senders:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load saved sender accounts",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingImport(false);
+    }
+  };
+
+  const handleImportSenders = () => {
+    const sendersToImport = savedSenders.filter(s => selectedSenders.has(s.id));
+    const newAccounts = sendersToImport.map(sender => ({
+      id: Date.now().toString() + Math.random(),
+      email: sender.email,
+      provider: sender.provider,
+      dailyLimit: sender.daily_limit
+    }));
+
+    // Check for duplicates
+    const existingEmails = new Set(accounts.map(a => a.email.toLowerCase()));
+    const uniqueNewAccounts = newAccounts.filter(
+      acc => !existingEmails.has(acc.email.toLowerCase())
+    );
+
+    if (uniqueNewAccounts.length === 0) {
+      toast({
+        title: "No New Accounts",
+        description: "All selected senders are already added",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setAccounts([...accounts, ...uniqueNewAccounts]);
+    setSelectedSenders(new Set());
+    setShowImportDialog(false);
+    
+    toast({
+      title: "Senders Imported",
+      description: `Successfully imported ${uniqueNewAccounts.length} sender account(s)`,
+    });
+  };
+
+  const toggleSenderSelection = (senderId: string) => {
+    const newSelection = new Set(selectedSenders);
+    if (newSelection.has(senderId)) {
+      newSelection.delete(senderId);
+    } else {
+      newSelection.add(senderId);
+    }
+    setSelectedSenders(newSelection);
+  };
 
   const handleAddAccount = () => {
     if (newAccount.email && newAccount.provider) {
@@ -80,17 +169,104 @@ const SenderAccounts = ({ data, onUpdate }: SenderAccountsProps) => {
         <div>
           <h3 className="text-lg font-semibold text-foreground">Email Sender Accounts</h3>
           <p className="text-sm text-muted-foreground">
-            Add email accounts to send campaigns from. Emails will be distributed across all accounts.
+            Import from saved senders or add new email accounts to send campaigns from.
           </p>
         </div>
-        <Button 
-          onClick={() => setShowAddForm(true)}
-          className="bg-gradient-primary text-primary-foreground hover:opacity-90"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Account
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setShowImportDialog(true)}
+            variant="outline"
+            className="border-primary text-primary hover:bg-primary/10"
+          >
+            <Import className="w-4 h-4 mr-2" />
+            Import Senders
+          </Button>
+          <Button 
+            onClick={() => setShowAddForm(true)}
+            className="bg-gradient-primary text-primary-foreground hover:opacity-90"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Manually
+          </Button>
+        </div>
       </div>
+
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Import Saved Senders</DialogTitle>
+            <DialogDescription>
+              Select sender accounts from your saved senders to add to this campaign
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {loadingImport ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground">Loading saved senders...</p>
+              </div>
+            ) : savedSenders.length === 0 ? (
+              <div className="text-center py-8">
+                <Mail className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground mb-2">No saved sender accounts found</p>
+                <p className="text-sm text-muted-foreground">
+                  Go to the Senders section to add sender accounts first
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {savedSenders.map((sender) => (
+                  <Card 
+                    key={sender.id} 
+                    className={`cursor-pointer transition-colors ${
+                      selectedSenders.has(sender.id) 
+                        ? 'bg-primary/5 border-primary' 
+                        : 'bg-gradient-card border-border hover:bg-muted/50'
+                    }`}
+                    onClick={() => toggleSenderSelection(sender.id)}
+                  >
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-3">
+                        <Checkbox 
+                          checked={selectedSenders.has(sender.id)}
+                          onCheckedChange={() => toggleSenderSelection(sender.id)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Mail className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-foreground">{sender.email}</h4>
+                          <p className="text-sm text-muted-foreground capitalize">
+                            {sender.provider} • {sender.daily_limit} emails/day
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowImportDialog(false);
+              setSelectedSenders(new Set());
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleImportSenders}
+              disabled={selectedSenders.size === 0}
+              className="bg-gradient-primary text-primary-foreground hover:opacity-90"
+            >
+              Import {selectedSenders.size > 0 ? `(${selectedSenders.size})` : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Account Form */}
       {showAddForm && (

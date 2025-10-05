@@ -18,6 +18,9 @@ export interface UserSettings {
   from_name_format: 'first_last' | 'company_team';
   unsubscribe_link_enabled: boolean;
   legal_disclaimer: string;
+  campaign_notifications_enabled: boolean;
+  notification_email: string;
+  open_notifications_enabled: boolean;
 }
 
 interface SettingsContextType {
@@ -43,6 +46,9 @@ const defaultSettings: UserSettings = {
   from_name_format: 'first_last',
   unsubscribe_link_enabled: true,
   legal_disclaimer: '',
+  campaign_notifications_enabled: false,
+  notification_email: '',
+  open_notifications_enabled: false,
 };
 
 const SettingsContext = React.createContext<SettingsContextType | undefined>(undefined);
@@ -95,6 +101,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           from_name_format: (data.from_name_format as any) || defaultSettings.from_name_format,
           unsubscribe_link_enabled: data.unsubscribe_link_enabled ?? defaultSettings.unsubscribe_link_enabled,
           legal_disclaimer: data.legal_disclaimer || defaultSettings.legal_disclaimer,
+          campaign_notifications_enabled: data.campaign_notifications_enabled ?? defaultSettings.campaign_notifications_enabled,
+          notification_email: data.notification_email || defaultSettings.notification_email,
+          open_notifications_enabled: data.open_notifications_enabled ?? defaultSettings.open_notifications_enabled,
         });
       }
     } catch (error) {
@@ -125,6 +134,9 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         from_name_format: newSettings.from_name_format,
         unsubscribe_link_enabled: newSettings.unsubscribe_link_enabled,
         legal_disclaimer: newSettings.legal_disclaimer,
+        campaign_notifications_enabled: newSettings.campaign_notifications_enabled,
+        notification_email: newSettings.notification_email,
+        open_notifications_enabled: newSettings.open_notifications_enabled,
       };
 
       const { error } = await supabase

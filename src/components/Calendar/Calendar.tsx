@@ -86,10 +86,11 @@ const Calendar = () => {
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59);
 
-      // Fetch scheduled emails
+      // Fetch scheduled emails (only those that are still scheduled)
       const { data: scheduledEmails, error: scheduledError } = await supabase
         .from('scheduled_emails')
         .select('*')
+        .eq('status', 'scheduled')
         .gte('scheduled_for', startOfMonth.toISOString())
         .lte('scheduled_for', endOfMonth.toISOString())
         .order('scheduled_for', { ascending: true });

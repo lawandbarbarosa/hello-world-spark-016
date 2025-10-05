@@ -34,6 +34,9 @@ interface Campaign {
   status: string;
   created_at: string;
   updated_at: string;
+  scheduledEmailsCount?: number;
+  emailsSent?: number;
+  emailsOpened?: number;
 }
 
 interface DashboardStats {
@@ -89,7 +92,34 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         return;
       }
 
-      setCampaigns(campaignData || []);
+      // Fetch scheduled emails count and email stats for each campaign
+      const campaignsWithCounts = await Promise.all(
+        (campaignData || []).map(async (campaign) => {
+          const [scheduledResult, emailSendsResult] = await Promise.all([
+            supabase
+              .from('scheduled_emails')
+              .select('*', { count: 'exact', head: true })
+              .eq('campaign_id', campaign.id)
+              .eq('status', 'scheduled'),
+            supabase
+              .from('email_sends')
+              .select('id, opened_at')
+              .eq('campaign_id', campaign.id)
+          ]);
+
+          const emailsSent = emailSendsResult.data?.length || 0;
+          const emailsOpened = emailSendsResult.data?.filter(e => e.opened_at !== null).length || 0;
+          
+          return {
+            ...campaign,
+            scheduledEmailsCount: scheduledResult.count || 0,
+            emailsSent,
+            emailsOpened
+          };
+        })
+      );
+
+      setCampaigns(campaignsWithCounts);
 
       // Fetch campaign statistics
       const { data: contactsData, error: contactsError } = await supabase
@@ -409,7 +439,14 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
           ) : campaigns.length > 0 ? (
             <div className="space-y-4">
               {campaigns.map((campaign) => {
-                const statusInfo = formatCampaignStatus(campaign.status);
+                // Check if campaign should be marked as completed
+                // Campaign is completed if: status is 'active' but there are no scheduled emails left
+                const isReallyCompleted = campaign.status === 'active' && 
+                                         (campaign.scheduledEmailsCount === 0 || campaign.scheduledEmailsCount === undefined) &&
+                                         (campaign.emailsSent || 0) > 0;
+                
+                const actualStatus = isReallyCompleted ? 'completed' : campaign.status;
+                const statusInfo = formatCampaignStatus(actualStatus);
                 return (
                   <div
                     key={campaign.id}
@@ -431,10 +468,18 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
                             Updated {new Date(campaign.updated_at).toLocaleDateString()}
                           </span>
                         )}
-                        <span className="flex items-center gap-1">
-                          <Eye className="w-3 h-3" />
-                          Opens tracked automatically
-                        </span>
+                        {campaign.scheduledEmailsCount !== undefined && campaign.scheduledEmailsCount > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Mail className="w-3 h-3" />
+                            {campaign.scheduledEmailsCount} scheduled
+                          </span>
+                        )}
+                        {campaign.emailsSent !== undefined && campaign.emailsSent > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Eye className="w-3 h-3" />
+                            {campaign.emailsOpened || 0} / {campaign.emailsSent} opened
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

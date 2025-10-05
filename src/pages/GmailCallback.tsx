@@ -46,24 +46,20 @@ const GmailCallback = () => {
         return;
       }
 
-      // Exchange code for refresh token
-      const tokenResponse = await fetch('/api/gmail-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          code,
-          redirectUri: `${window.location.origin}/gmail-callback`
-        })
+      // Exchange code for tokens via Supabase Edge Function
+      const redirectUri = `${window.location.origin}/gmail-callback`;
+      const { data: tokenData, error: tokenError } = await supabase.functions.invoke('gmail-token-exchange', {
+        body: { code, redirectUri },
       });
 
-      if (!tokenResponse.ok) {
-        throw new Error('Failed to exchange code for token');
+      if (tokenError) {
+        throw new Error(tokenError.message || 'Failed to exchange code for token');
       }
 
-      const tokenData = await tokenResponse.json();
-      
+      if (!tokenData?.refresh_token) {
+        throw new Error('No refresh token returned by Google. Please try again and ensure you grant consent.');
+      }
+
       // Get current user for account validation
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
@@ -83,36 +79,25 @@ const GmailCallback = () => {
 
       const senderAccountId = senderAccounts[0].id;
 
-      // Save the refresh token to the sender account
-      const { error: updateError } = await supabase.rpc('enable_gmail_sync' as any, {
-        sender_account_id_param: senderAccountId,
-        user_id_param: user?.id
-      }) as { error: any };
+      // Save the refresh token and enable Gmail sync
+      const { error: directUpdateError } = await supabase
+        .from('sender_accounts')
+        .update({ 
+          gmail_sync_enabled: true,
+          gmail_refresh_token: tokenData.refresh_token,
+        })
+        .eq('id', senderAccountId)
+        .eq('user_id', user.id);
 
-      if (updateError) {
-        // If function doesn't exist yet, just update the database directly
-        if (updateError.message?.includes('function') && updateError.message?.includes('does not exist')) {
-          const { error: directUpdateError } = await supabase
-            .from('sender_accounts')
-            .update({ 
-              gmail_sync_enabled: true
-            })
-            .eq('id', senderAccountId)
-            .eq('user_id', user.id);
-
-          if (directUpdateError) {
-            throw directUpdateError;
-          }
-        } else {
-          throw updateError;
-        }
+      if (directUpdateError) {
+        throw directUpdateError;
       }
 
       setStatus('success');
       setMessage(`Gmail sync has been successfully enabled for ${senderEmail}`);
       
       toast({
-        title: "Gmail Sync Enabled",
+        title: 'Gmail Sync Enabled',
         description: `Gmail sync is now active for ${senderEmail}`,
       });
 
@@ -122,9 +107,9 @@ const GmailCallback = () => {
       setMessage(error.message || 'An unexpected error occurred');
       
       toast({
-        title: "Gmail Sync Failed",
+        title: 'Gmail Sync Failed',
         description: error.message || 'Failed to enable Gmail sync',
-        variant: "destructive",
+        variant: 'destructive',
       });
     }
   };
