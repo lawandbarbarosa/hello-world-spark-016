@@ -481,7 +481,10 @@ export type Database = {
           created_at: string
           daily_limit: number | null
           email: string
+          gmail_access_token: string | null
+          gmail_refresh_token: string | null
           gmail_sync_enabled: boolean | null
+          gmail_token_expiry: string | null
           id: string
           provider: string
           user_id: string
@@ -491,7 +494,10 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           email: string
+          gmail_access_token?: string | null
+          gmail_refresh_token?: string | null
           gmail_sync_enabled?: boolean | null
+          gmail_token_expiry?: string | null
           id?: string
           provider: string
           user_id: string
@@ -501,7 +507,10 @@ export type Database = {
           created_at?: string
           daily_limit?: number | null
           email?: string
+          gmail_access_token?: string | null
+          gmail_refresh_token?: string | null
           gmail_sync_enabled?: boolean | null
+          gmail_token_expiry?: string | null
           id?: string
           provider?: string
           user_id?: string

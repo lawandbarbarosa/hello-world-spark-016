@@ -90,33 +90,28 @@ const GmailSyncSettings = () => {
   const handleGmailAuth = async (senderEmail: string) => {
     try {
       setUpdating(senderEmail);
-      
-      // Redirect to Gmail OAuth
-      const clientId = process.env.REACT_APP_GMAIL_CLIENT_ID || 'your-gmail-client-id';
+
       const redirectUri = `${window.location.origin}/gmail-callback`;
-      const scope = 'https://www.googleapis.com/auth/gmail.send';
-      
-      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${clientId}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `scope=${encodeURIComponent(scope)}&` +
-        `response_type=code&` +
-        `access_type=offline&` +
-        `state=${encodeURIComponent(JSON.stringify({ senderEmail }))}`;
-      
-      window.open(authUrl, '_blank');
-      
-      toast({
-        title: "Gmail Authorization",
-        description: "Please complete the Gmail authorization in the new window",
+      const { data, error } = await supabase.functions.invoke('gmail-auth-url', {
+        body: { senderEmail, redirectUri },
       });
-      
+
+      if (error || !data?.authUrl) {
+        throw new Error(error?.message || 'Failed to generate Gmail auth URL');
+      }
+
+      window.open(data.authUrl, '_blank');
+
+      toast({
+        title: 'Gmail Authorization',
+        description: 'Please complete the Gmail authorization in the new window',
+      });
     } catch (error) {
       console.error('Error initiating Gmail auth:', error);
       toast({
-        title: "Error",
-        description: "Failed to initiate Gmail authorization",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to initiate Gmail authorization',
+        variant: 'destructive',
       });
     } finally {
       setUpdating(null);
