@@ -13,7 +13,8 @@ import {
   Reply,
   Truck,
   Calendar,
-  Target
+  Target,
+  Filter
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,6 +50,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
     { id: 'inbox', label: 'Inbox', icon: Inbox },
     { id: 'replies', label: 'Reply Tracker', icon: Reply },
     { id: 'spam', label: 'Failed emails', icon: Shield },
+    { id: 'email-classification', label: 'Email Classification', icon: Filter },
     { id: 'contacts', label: 'Contacts', icon: Users },
     { id: 'senders', label: 'Senders', icon: Send },
     { id: 'settings', label: 'Settings', icon: Settings },

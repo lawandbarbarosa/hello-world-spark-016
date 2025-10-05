@@ -78,6 +78,11 @@ const App = () => (
                       <Index />
                     </ProtectedRoute>
                   } />
+                  <Route path="/email-classification" element={
+                    <ProtectedRoute>
+                      <Index />
+                    </ProtectedRoute>
+                  } />
                   <Route path="/contacts" element={
                     <ProtectedRoute>
                       <Index />

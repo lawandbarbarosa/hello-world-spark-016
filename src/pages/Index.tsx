@@ -15,6 +15,7 @@ import ContactsList from '@/components/Contacts/ContactsList';
 import ReplyTracker from '@/components/Replies/ReplyTracker';
 import Calendar from '@/components/Calendar/Calendar';
 import SessionDebugger from '@/components/SessionDebugger';
+import EmailClassification from '@/components/EmailClassification/EmailClassification';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -47,6 +48,8 @@ const Index = () => {
       setActiveTab('replies');
     } else if (path === '/spam') {
       setActiveTab('spam');
+    } else if (path === '/email-classification') {
+      setActiveTab('email-classification');
     } else if (path === '/contacts') {
       setActiveTab('contacts');
     } else if (path === '/senders') {
@@ -92,6 +95,9 @@ const Index = () => {
       case 'spam':
         navigate('/spam');
         break;
+      case 'email-classification':
+        navigate('/email-classification');
+        break;
       case 'contacts':
         navigate('/contacts');
         break;
@@ -135,6 +141,8 @@ const Index = () => {
         return <ReplyTracker />;
       case 'spam':
         return <Spam />;
+      case 'email-classification':
+        return <EmailClassification />;
       case 'contacts':
         return <ContactsList />;
       case 'senders':
