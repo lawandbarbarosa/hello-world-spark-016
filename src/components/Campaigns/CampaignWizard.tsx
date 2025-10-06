@@ -252,7 +252,18 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
 
       if (launchData?.error) {
         console.error('Campaign launch returned error:', launchData.error);
-        toast.error(`Campaign launch failed: ${launchData.error}`);
+        
+        // Show detailed error information
+        const errorMessage = typeof launchData.error === 'string' 
+          ? launchData.error 
+          : JSON.stringify(launchData.error);
+        
+        toast({
+          title: "Campaign Launch Failed",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 10000, // Show for 10 seconds
+        });
         return;
       }
 
@@ -276,7 +287,20 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         }
       }
 
-      toast.success(`Campaign launched successfully! ${launchData?.message || `Sent ${launchData?.emailsSent || 0} emails.`}`);
+      // Show detailed success message with email counts
+      const successMessage = `Campaign launched successfully! Sent ${launchData?.emailsSent || 0} emails.`;
+      const failedCount = launchData?.emailsError || 0;
+      
+      if (failedCount > 0) {
+        toast({
+          title: "Campaign Launched with Issues",
+          description: `${successMessage} ${failedCount} emails failed to send. Check the Inbox for detailed error information.`,
+          variant: "destructive",
+          duration: 8000,
+        });
+      } else {
+        toast.success(successMessage);
+      }
       onBack();
     } catch (error) {
       console.error('Error launching campaign:', error);

@@ -15,9 +15,14 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Info
+  Info,
+  Brain,
+  Upload,
+  Settings
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { mlService, EmailFeatures, ClassificationResult } from '@/services/mlService';
+import ModelUpload from './ModelUpload';
 
 interface EmailClassification {
   id: string;
@@ -50,6 +55,9 @@ const EmailClassification = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [confidenceFilter, setConfidenceFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('classifications');
+  const [availableModels, setAvailableModels] = useState(mlService.getAvailableModels());
+  const [classifying, setClassifying] = useState(false);
 
   // Classification categories
   const categories = [
@@ -64,6 +72,14 @@ const EmailClassification = () => {
 
   useEffect(() => {
     fetchEmailClassifications();
+  }, []);
+
+  // Update available models when they change
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAvailableModels(mlService.getAvailableModels());
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchEmailClassifications = async () => {
@@ -153,6 +169,64 @@ const EmailClassification = () => {
     return matchesSearch && matchesCategory && matchesConfidence;
   });
 
+  // ML Classification Functions
+  const classifyWithML = async (emailData: EmailClassification) => {
+    const features: EmailFeatures = {
+      subject: emailData.subject,
+      content: emailData.content,
+      sender: emailData.sender,
+      timestamp: emailData.created_at
+    };
+
+    try {
+      const result = await mlService.classifyEmail(features);
+      if (result) {
+        return {
+          ...emailData,
+          classification: result.category,
+          confidence: result.confidence,
+          updated_at: new Date().toISOString()
+        };
+      }
+    } catch (error) {
+      console.error('ML classification failed:', error);
+    }
+    
+    return emailData;
+  };
+
+  const classifyAllEmails = async () => {
+    if (availableModels.length === 0) {
+      alert('No ML models available. Please import a model first.');
+      return;
+    }
+
+    setClassifying(true);
+    try {
+      const updatedEmails = await Promise.all(
+        emails.map(email => classifyWithML(email))
+      );
+      
+      setEmails(updatedEmails);
+      calculateStats(updatedEmails);
+      
+      // In a real implementation, you would save these classifications to your database
+      console.log('All emails classified with ML model');
+    } catch (error) {
+      console.error('Batch classification failed:', error);
+    } finally {
+      setClassifying(false);
+    }
+  };
+
+  const handleModelAdded = (modelId: string) => {
+    setAvailableModels(mlService.getAvailableModels());
+  };
+
+  const handleModelSelected = (modelId: string) => {
+    setAvailableModels(mlService.getAvailableModels());
+  };
+
   const getCategoryInfo = (category: string) => {
     return categories.find(cat => cat.value === category) || categories[categories.length - 1];
   };
@@ -187,14 +261,54 @@ const EmailClassification = () => {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Email Classification</h1>
           <p className="text-muted-foreground">
-            Analyze and categorize emails based on their content and context
+            Analyze and categorize emails using machine learning models
           </p>
         </div>
-        <Button className="bg-gradient-primary text-primary-foreground">
-          <Filter className="w-4 h-4 mr-2" />
-          Reclassify All
-        </Button>
+        <div className="flex items-center gap-2">
+          {availableModels.length > 0 && (
+            <Button 
+              onClick={classifyAllEmails}
+              disabled={classifying}
+              className="bg-gradient-primary text-primary-foreground"
+            >
+              {classifying ? (
+                <>
+                  <Brain className="w-4 h-4 mr-2 animate-pulse" />
+                  Classifying...
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4 mr-2" />
+                  Classify with ML
+                </>
+              )}
+            </Button>
+          )}
+          <Button 
+            variant="outline"
+            onClick={() => setActiveTab('models')}
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            Manage Models
+          </Button>
+        </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="classifications">Classifications</TabsTrigger>
+          <TabsTrigger value="models">ML Models</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="models" className="space-y-6">
+          <ModelUpload 
+            onModelAdded={handleModelAdded}
+            onModelSelected={handleModelSelected}
+          />
+        </TabsContent>
+
+        <TabsContent value="classifications" className="space-y-6">
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -348,6 +462,8 @@ const EmailClassification = () => {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

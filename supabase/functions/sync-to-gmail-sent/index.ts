@@ -81,12 +81,23 @@ const handler = async (req: Request): Promise<Response> => {
         hasClientId: !!gmailClientId,
         hasClientSecret: !!gmailClientSecret
       });
+      
+      // Update the email_sends record to indicate Gmail sync is not configured
+      await supabase
+        .from('email_sends')
+        .update({ 
+          gmail_sync_error: "Gmail API credentials not configured",
+          gmail_synced: false
+        })
+        .eq('id', emailSendId);
+      
       return new Response(JSON.stringify({ 
         success: false,
-        message: "Gmail API credentials not configured",
-        senderEmail
+        message: "Gmail API credentials not configured - emails will not appear in Gmail Sent folder",
+        senderEmail,
+        requiresSetup: true
       }), {
-        status: 500,
+        status: 200, // Not a server error, just configuration issue
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -133,11 +144,29 @@ const handler = async (req: Request): Promise<Response> => {
     } else {
       console.error("Failed to sync to Gmail:", syncResult.error);
       
+      // Update the email_sends record with the sync error
+      await supabase
+        .from('email_sends')
+        .update({ 
+          gmail_sync_error: syncResult.error,
+          gmail_synced: false
+        })
+        .eq('id', emailSendId);
+      
       return new Response(JSON.stringify({ 
         success: false,
-        message: "Failed to sync email to Gmail",
+        message: "Failed to sync email to Gmail Sent folder",
         error: syncResult.error,
-        senderEmail
+        senderEmail,
+        troubleshooting: {
+          suggestion: "Check if Gmail API access is properly configured and the sender account has valid Gmail authentication",
+          commonCauses: [
+            "Expired or invalid Gmail refresh token",
+            "Gmail API not enabled in Google Cloud Console",
+            "Insufficient Gmail API permissions",
+            "Sender account not properly authenticated with Gmail"
+          ]
+        }
       }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

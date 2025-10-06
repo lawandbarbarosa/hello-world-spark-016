@@ -47,18 +47,20 @@ async function syncToGmailSent({ emailSendId, senderEmail, recipientEmail, subje
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Gmail sync failed: ${error}`);
+      return { success: false, message: `Gmail sync failed: ${error}` };
     }
 
     const result = await response.json();
     if (result.success) {
       console.log("Email synced to Gmail Sent folder:", result.gmailMessageId);
+      return result;
     } else {
       console.log("Gmail sync not configured or failed:", result.message);
+      return result;
     }
   } catch (error) {
     console.warn("Gmail sync error (non-critical):", error);
-    // Don't throw - this is non-critical
+    return { success: false, message: (error as Error).message };
   }
 }
 
@@ -418,11 +420,24 @@ const handler = async (req: Request): Promise<Response> => {
           console.error("Email send error:", emailResponse.error);
           failedCount++;
           
+          // Create detailed error message with context
+          const detailedError = {
+            recipient: recipientEmail,
+            sender: senderAccount.email,
+            subject: personalizedSubject,
+            error: emailResponse.error,
+            timestamp: new Date().toISOString(),
+            campaignId: scheduledEmail.campaign_id,
+            contactId: scheduledEmail.contact_id,
+            sequenceStep: sequence.step_number,
+            scheduledFor: scheduledEmail.scheduled_for
+          };
+          
           // Mark both records as failed with detailed categorization
           const { error: updateError } = await supabase
             .rpc('update_email_failure_details', {
               email_send_id_param: emailSendRecord.id,
-              error_message_param: JSON.stringify(emailResponse.error),
+              error_message_param: JSON.stringify(detailedError),
               status_param: 'failed'
             });
 
@@ -431,13 +446,13 @@ const handler = async (req: Request): Promise<Response> => {
             // Fallback to basic update if categorization fails
             await supabase.from("email_sends").update({
               status: "failed",
-              error_message: JSON.stringify(emailResponse.error),
+              error_message: JSON.stringify(detailedError),
             }).eq("id", emailSendRecord.id);
           }
 
           await supabase.from("scheduled_emails").update({
             status: "failed",
-            error_message: JSON.stringify(emailResponse.error),
+            error_message: JSON.stringify(detailedError),
           }).eq("id", scheduledEmail.id);
         } else {
           console.log("Follow-up email sent successfully:", emailResponse.data?.id);
@@ -456,14 +471,39 @@ const handler = async (req: Request): Promise<Response> => {
           ]);
 
           // Sync to Gmail Sent folder
-          await syncToGmailSent({
-            emailSendId: emailSendRecord.id,
-            senderEmail: senderAccount.email,
-            recipientEmail: recipientEmail,
-            subject: personalizedSubject,
-            body: emailBodyWithTracking,
-            sentAt: new Date().toISOString()
-          });
+          try {
+            const syncResult = await syncToGmailSent({
+              emailSendId: emailSendRecord.id,
+              senderEmail: senderAccount.email,
+              recipientEmail: recipientEmail,
+              subject: personalizedSubject,
+              body: emailBodyWithTracking,
+              sentAt: new Date().toISOString()
+            });
+            
+            if (syncResult && !syncResult.success) {
+              console.warn(`Gmail sync failed for ${recipientEmail}:`, syncResult.message);
+              // Update email_sends record with sync error details
+              await supabase
+                .from("email_sends")
+                .update({
+                  gmail_sync_error: syncResult.message,
+                  gmail_synced: false
+                })
+                .eq("id", emailSendRecord.id);
+            }
+          } catch (syncError) {
+            console.warn("Failed to sync to Gmail (non-critical):", syncError);
+            // Update email_sends record with sync error
+            await supabase
+              .from("email_sends")
+              .update({
+                gmail_sync_error: (syncError as Error).message,
+                gmail_synced: false
+              })
+              .eq("id", emailSendRecord.id);
+            // Don't fail the email send if Gmail sync fails
+          }
         }
 
       } catch (emailError) {

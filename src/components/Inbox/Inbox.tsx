@@ -450,10 +450,15 @@ const Inbox = () => {
                       <div className="text-2xl font-bold text-success">{group.totalOpened}</div>
                       <div className="text-xs text-muted-foreground">Opened</div>
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-destructive">{group.totalFailed}</div>
-                      <div className="text-xs text-muted-foreground">Failed</div>
-                    </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-destructive">{group.totalFailed}</div>
+                        <div className="text-xs text-muted-foreground">Failed</div>
+                        {group.totalFailed > 0 && (
+                          <div className="text-xs text-destructive mt-1">
+                            Check details for errors
+                          </div>
+                        )}
+                      </div>
                     {group.hasReplied && (
                       <div className="text-center">
                         <div className="flex items-center justify-center">
@@ -594,8 +599,52 @@ const Inbox = () => {
 
                           {email.error_message && (
                             <div className="border-t pt-3">
-                              <strong className="text-sm text-destructive">Error:</strong>
-                              <p className="mt-1 text-sm text-destructive">{email.error_message}</p>
+                              <strong className="text-sm text-destructive">Error Details:</strong>
+                              <div className="mt-2 p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                                {(() => {
+                                  try {
+                                    const errorData = JSON.parse(email.error_message);
+                                    return (
+                                      <div className="space-y-2 text-sm">
+                                        {errorData.error && (
+                                          <div>
+                                            <strong>Error:</strong> {typeof errorData.error === 'object' ? JSON.stringify(errorData.error) : errorData.error}
+                                          </div>
+                                        )}
+                                        {errorData.recipient && (
+                                          <div><strong>Recipient:</strong> {errorData.recipient}</div>
+                                        )}
+                                        {errorData.sender && (
+                                          <div><strong>Sender:</strong> {errorData.sender}</div>
+                                        )}
+                                        {errorData.subject && (
+                                          <div><strong>Subject:</strong> {errorData.subject}</div>
+                                        )}
+                                        {errorData.timestamp && (
+                                          <div><strong>Time:</strong> {new Date(errorData.timestamp).toLocaleString()}</div>
+                                        )}
+                                        {errorData.troubleshooting && (
+                                          <div className="mt-3 p-2 bg-warning/10 border border-warning/20 rounded">
+                                            <strong className="text-warning">Troubleshooting:</strong>
+                                            <p className="mt-1 text-warning text-xs">{errorData.troubleshooting.suggestion}</p>
+                                            {errorData.troubleshooting.commonCauses && (
+                                              <ul className="mt-2 text-xs text-warning list-disc list-inside">
+                                                {errorData.troubleshooting.commonCauses.map((cause: string, index: number) => (
+                                                  <li key={index}>{cause}</li>
+                                                ))}
+                                              </ul>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  } catch {
+                                    return (
+                                      <p className="text-sm text-destructive">{email.error_message}</p>
+                                    );
+                                  }
+                                })()}
+                              </div>
                             </div>
                           )}
                         </div>

@@ -22,6 +22,7 @@ import {
   AlertTriangle
 } from "lucide-react";
 import EmailFailureRate from "./EmailFailureRate";
+import GmailSyncStatus from "../Settings/GmailSyncStatus";
 
 interface DashboardProps {
   onNavigate?: (tab: string, campaignId?: string) => void;
@@ -418,6 +419,9 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
 
       {/* Email Failure Rate Component */}
       <EmailFailureRate onRefresh={fetchDashboardData} />
+
+      {/* Gmail Sync Status */}
+      <GmailSyncStatus />
 
       {/* Recent Campaigns */}
       <Card className="shadow-md">
