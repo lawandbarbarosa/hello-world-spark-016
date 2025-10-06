@@ -307,6 +307,33 @@ const SenderAccounts = () => {
 
   const handleAddSender = async () => {
     try {
+      // Check if email already exists for this user
+      const { data: existingAccount, error: checkError } = await supabase
+        .from('sender_accounts')
+        .select('id')
+        .eq('user_id', user?.id)
+        .eq('email', formData.email)
+        .maybeSingle();
+
+      if (checkError) {
+        console.error('Error checking for existing account:', checkError);
+        toast({
+          title: "Error",
+          description: "Failed to verify sender account",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (existingAccount) {
+        toast({
+          title: "Account Already Exists",
+          description: `The email ${formData.email} is already available in your sender accounts.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('sender_accounts')
         .insert([{
