@@ -53,8 +53,14 @@ const GmailSyncStatus = ({ className }: GmailSyncStatusProps) => {
       // Get recent email sends to check sync status
       const { data: recentEmails, error: emailError } = await supabase
         .from('email_sends')
-        .select('id, gmail_synced, gmail_sync_error, created_at')
-        .eq('user_id', user.id)
+        .select(`
+          id, 
+          gmail_synced, 
+          gmail_sync_error, 
+          created_at,
+          campaign:campaigns!inner(user_id)
+        `)
+        .eq('campaign.user_id', user.id)
         .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()) // Last 7 days
         .order('created_at', { ascending: false })
         .limit(100);
