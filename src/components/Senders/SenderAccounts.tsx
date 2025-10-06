@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import SenderProfile from "./SenderProfile";
+import GmailAuthButton from "../Settings/GmailAuthButton";
 import { 
   Mail, 
   User, 
@@ -822,7 +823,21 @@ const SenderAccounts = () => {
                           >
                             <CollapsibleContent>
                               <div className="px-4 pb-4 border-t bg-background/50">
-                                <div className="pt-4">
+                                <div className="pt-4 space-y-4">
+                                  {/* Gmail Authentication */}
+                                  <div className="border rounded-lg p-4 bg-background">
+                                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                                      <Mail className="w-4 h-4" />
+                                      Gmail Sync
+                                    </h4>
+                                    <GmailAuthButton
+                                      senderEmail={sender.email}
+                                      senderId={sender.accounts[0].id}
+                                      isAuthenticated={sender.accounts[0].gmail_sync_enabled || false}
+                                      onAuthSuccess={fetchSenderAccounts}
+                                    />
+                                  </div>
+
                                   <h4 className="font-medium mb-3 flex items-center gap-2">
                                     <Send className="w-4 h-4" />
                                     Email History ({emails.length})
@@ -908,6 +923,16 @@ const SenderAccounts = () => {
                               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                                 <span>Daily Limit: {sender.daily_limit}</span>
                                 <span>Added: {new Date(sender.first_created_at).toLocaleDateString()}</span>
+                              </div>
+                              
+                              {/* Gmail Authentication for unused senders */}
+                              <div className="mt-3 p-3 border rounded-lg bg-background">
+                                <GmailAuthButton
+                                  senderEmail={sender.email}
+                                  senderId={sender.accounts[0].id}
+                                  isAuthenticated={sender.accounts[0].gmail_sync_enabled || false}
+                                  onAuthSuccess={fetchSenderAccounts}
+                                />
                               </div>
                             </div>
                             
