@@ -37,6 +37,10 @@ interface SenderAccount {
   created_at: string;
   campaign_id: string | null;
   user_id: string;
+  gmail_sync_enabled?: boolean;
+  gmail_access_token?: string;
+  gmail_refresh_token?: string;
+  gmail_token_expiry?: string;
 }
 
 interface GroupedSenderAccount {
@@ -46,6 +50,7 @@ interface GroupedSenderAccount {
   first_created_at: string;
   campaign_ids: string[];
   total_accounts: number;
+  accounts: SenderAccount[];
 }
 
 interface SenderStats {
@@ -165,6 +170,7 @@ const SenderAccounts = () => {
         const existing = grouped.get(account.email)!;
         existing.campaign_ids.push(account.campaign_id || '');
         existing.total_accounts += 1;
+        existing.accounts.push(account);
         // Keep the earliest creation date
         if (new Date(account.created_at) < new Date(existing.first_created_at)) {
           existing.first_created_at = account.created_at;
@@ -176,7 +182,8 @@ const SenderAccounts = () => {
           daily_limit: account.daily_limit,
           first_created_at: account.created_at,
           campaign_ids: [account.campaign_id || ''],
-          total_accounts: 1
+          total_accounts: 1,
+          accounts: [account]
         });
       }
     });
