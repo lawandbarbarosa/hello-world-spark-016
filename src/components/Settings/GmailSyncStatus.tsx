@@ -55,8 +55,8 @@ const GmailSyncStatus = ({ className }: GmailSyncStatusProps) => {
         .from('email_sends')
         .select(`
           id, 
-          gmail_synced, 
-          gmail_sync_error, 
+          status,
+          error_message,
           created_at,
           campaign:campaigns!inner(user_id)
         `)
@@ -76,8 +76,8 @@ const GmailSyncStatus = ({ className }: GmailSyncStatusProps) => {
       ) || [];
 
       const totalEmails = recentEmails?.length || 0;
-      const syncedEmails = recentEmails?.filter(email => email.gmail_synced).length || 0;
-      const recentErrors = recentEmails?.filter(email => email.gmail_sync_error).length || 0;
+      const syncedEmails = recentEmails?.filter(email => email.status === 'sent').length || 0;
+      const recentErrors = recentEmails?.filter(email => email.error_message).length || 0;
 
       setSyncStatus({
         enabled: enabledAccounts.length > 0,

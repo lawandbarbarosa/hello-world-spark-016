@@ -258,10 +258,7 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
           ? launchData.error 
           : JSON.stringify(launchData.error);
         
-        toast({
-          title: "Campaign Launch Failed",
-          description: errorMessage,
-          variant: "destructive",
+        toast.error(`Campaign Launch Failed: ${errorMessage}`, {
           duration: 10000, // Show for 10 seconds
         });
         return;
@@ -292,10 +289,7 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
       const failedCount = launchData?.emailsError || 0;
       
       if (failedCount > 0) {
-        toast({
-          title: "Campaign Launched with Issues",
-          description: `${successMessage} ${failedCount} emails failed to send. Check the Inbox for detailed error information.`,
-          variant: "destructive",
+        toast.warning(`${successMessage} ${failedCount} emails failed to send. Check the Inbox for detailed error information.`, {
           duration: 8000,
         });
       } else {
