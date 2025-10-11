@@ -92,7 +92,8 @@ const GmailAuthButton = ({
     try {
       // Call the database function to disable Gmail sync
       const { error } = await supabase.rpc('disable_gmail_sync', {
-        sender_email_param: senderEmail
+        sender_account_id_param: senderId,
+        user_id_param: user?.id
       });
 
       if (error) {
