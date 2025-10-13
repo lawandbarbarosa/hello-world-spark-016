@@ -47,6 +47,7 @@ interface SenderProfileStats {
   openRate: number;
   lastSentAt: string | null;
   todaySent: number;
+  todayScheduled: number;
   dailyStats: DailyEmailStats[];
   recentEmails: {
     id: string;
@@ -161,6 +162,17 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
         e.sent_at.startsWith(today)
       ).length || 0;
 
+      // Fetch scheduled emails for today
+      const { data: scheduledEmails } = await supabase
+        .from('scheduled_emails')
+        .select('id')
+        .in('sender_account_id', accountIds)
+        .eq('status', 'scheduled')
+        .gte('scheduled_for', `${today}T00:00:00`)
+        .lte('scheduled_for', `${today}T23:59:59`);
+
+      const todayScheduled = scheduledEmails?.length || 0;
+
       // Calculate daily stats only for days when emails were actually sent
       const dailyStats: DailyEmailStats[] = [];
       const dateStatsMap = new Map<string, { sent: number; opened: number; failed: number }>();
@@ -221,6 +233,7 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
         openRate,
         lastSentAt,
         todaySent,
+        todayScheduled,
         dailyStats, // Show newest to oldest
         recentEmails
       });
@@ -339,7 +352,7 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
       </Card>
 
       {/* Performance Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-2">
@@ -375,6 +388,19 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
             <div className="text-3xl font-bold text-blue-600">{stats.openRate}%</div>
             <div className="text-sm text-muted-foreground mt-1">
               {stats.totalOpened} opened
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Calendar className="w-5 h-5 text-orange-600" />
+              <span className="text-sm font-medium text-muted-foreground">Scheduled Today</span>
+            </div>
+            <div className="text-3xl font-bold text-orange-600">{stats.todayScheduled}</div>
+            <div className="text-sm text-muted-foreground mt-1">
+              pending emails
             </div>
           </CardContent>
         </Card>

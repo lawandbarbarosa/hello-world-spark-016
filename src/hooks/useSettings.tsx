@@ -21,7 +21,6 @@ export interface UserSettings {
   campaign_notifications_enabled: boolean;
   notification_email: string;
   open_notifications_enabled: boolean;
-  scheduled_email_notifications_enabled: boolean;
 }
 
 interface SettingsContextType {
@@ -50,7 +49,6 @@ const defaultSettings: UserSettings = {
   campaign_notifications_enabled: false,
   notification_email: '',
   open_notifications_enabled: false,
-  scheduled_email_notifications_enabled: false,
 };
 
 const SettingsContext = React.createContext<SettingsContextType | undefined>(undefined);
@@ -106,7 +104,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           campaign_notifications_enabled: data.campaign_notifications_enabled ?? defaultSettings.campaign_notifications_enabled,
           notification_email: data.notification_email || defaultSettings.notification_email,
           open_notifications_enabled: data.open_notifications_enabled ?? defaultSettings.open_notifications_enabled,
-          scheduled_email_notifications_enabled: data.scheduled_email_notifications_enabled ?? defaultSettings.scheduled_email_notifications_enabled,
         });
       }
     } catch (error) {
@@ -140,7 +137,6 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         campaign_notifications_enabled: newSettings.campaign_notifications_enabled,
         notification_email: newSettings.notification_email,
         open_notifications_enabled: newSettings.open_notifications_enabled,
-        scheduled_email_notifications_enabled: newSettings.scheduled_email_notifications_enabled,
       };
 
       const { error } = await supabase

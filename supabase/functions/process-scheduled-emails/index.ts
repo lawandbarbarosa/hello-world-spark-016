@@ -64,7 +64,6 @@ async function syncToGmailSent({ emailSendId, senderEmail, recipientEmail, subje
   }
 }
 
-
 // Helper functions for email processing
 const normalizeKey = (s: string) =>
   s
@@ -470,39 +469,6 @@ const handler = async (req: Request): Promise<Response> => {
               status: "sent",
             }).eq("id", scheduledEmail.id)
           ]);
-
-          // Send notification if enabled
-          try {
-            const { data: userSettings } = await supabase
-              .from('user_settings')
-              .select('scheduled_email_notifications_enabled, notification_email')
-              .eq('user_id', campaign.user_id)
-              .single();
-
-            if (userSettings?.scheduled_email_notifications_enabled && userSettings?.notification_email) {
-              console.log(`📧 Sending scheduled email notification to ${userSettings.notification_email}`);
-              
-              const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-              await fetch(`${supabaseUrl}/functions/v1/send-scheduled-notification`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`
-                },
-                body: JSON.stringify({
-                  notificationEmail: userSettings.notification_email,
-                  campaignName: campaign.name,
-                  contactEmail: recipientEmail,
-                  sequenceStep: sequence.step_number,
-                  subject: personalizedSubject,
-                  sentAt: new Date().toISOString()
-                })
-              });
-            }
-          } catch (notificationError) {
-            console.warn("Failed to send notification (non-critical):", notificationError);
-            // Don't fail the email send if notification fails
-          }
 
           // Sync to Gmail Sent folder
           try {
