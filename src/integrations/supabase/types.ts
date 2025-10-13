@@ -586,7 +586,6 @@ export type Database = {
           notification_email: string | null
           open_notifications_enabled: boolean | null
           reply_handling_enabled: boolean | null
-          scheduled_email_notifications_enabled: boolean | null
           send_time_end: string | null
           send_time_start: string | null
           sending_days: string[] | null
@@ -609,7 +608,6 @@ export type Database = {
           notification_email?: string | null
           open_notifications_enabled?: boolean | null
           reply_handling_enabled?: boolean | null
-          scheduled_email_notifications_enabled?: boolean | null
           send_time_end?: string | null
           send_time_start?: string | null
           sending_days?: string[] | null
@@ -632,7 +630,6 @@ export type Database = {
           notification_email?: string | null
           open_notifications_enabled?: boolean | null
           reply_handling_enabled?: boolean | null
-          scheduled_email_notifications_enabled?: boolean | null
           send_time_end?: string | null
           send_time_start?: string | null
           sending_days?: string[] | null
