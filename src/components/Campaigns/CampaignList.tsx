@@ -46,7 +46,6 @@ interface EmailWithCampaign {
   status: string;
   sent_at: string | null;
   opened_at: string | null;
-  clicked_at: string | null;
   error_message: string | null;
   created_at: string;
   campaign: {
@@ -139,7 +138,6 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
         status: email.status,
         sent_at: email.sent_at,
         opened_at: email.opened_at,
-        clicked_at: email.clicked_at,
         error_message: email.error_message,
         created_at: email.created_at,
         campaign: {
@@ -345,9 +343,6 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
         <div className="space-y-4">
           {filteredEmails.map((email) => {
             const getEmailStatus = () => {
-              if (email.clicked_at) {
-                return { label: 'Clicked', variant: 'default' as const, className: 'bg-primary text-primary-foreground', icon: CheckCircle };
-              }
               if (email.opened_at) {
                 return { label: 'Opened', variant: 'default' as const, className: 'bg-success text-success-foreground', icon: Eye };
               }
@@ -390,12 +385,6 @@ const CampaignList = ({ onCreateNew, onEditCampaign }: CampaignListProps) => {
                       <span className="flex items-center gap-1">
                         <Eye className="w-3 h-3" />
                         Opened {new Date(email.opened_at).toLocaleDateString()}
-                      </span>
-                    )}
-                    {email.clicked_at && (
-                      <span className="flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" />
-                        Clicked {new Date(email.clicked_at).toLocaleDateString()}
                       </span>
                     )}
                   </div>

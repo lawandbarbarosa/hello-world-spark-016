@@ -10,7 +10,6 @@ import {
   Target, 
   Mail, 
   Eye, 
-  MousePointer,
   Calendar,
   Search,
   TrendingUp,
@@ -31,10 +30,8 @@ interface CampaignStats {
   totalEmails: number;
   sentEmails: number;
   openedEmails: number;
-  clickedEmails: number;
   failedEmails: number;
   openRate: number;
-  clickRate: number;
   launchDate: string;
   endDate: string | null;
   scheduledCount?: number;
@@ -84,7 +81,7 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
           const [emailSendsResult, scheduledResult] = await Promise.all([
             supabase
               .from('email_sends')
-              .select('status, sent_at, opened_at, clicked_at')
+              .select('status, sent_at, opened_at')
               .eq('campaign_id', campaign.id),
             supabase
               .from('scheduled_emails')
@@ -103,10 +100,8 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
               totalEmails: 0,
               sentEmails: 0,
               openedEmails: 0,
-              clickedEmails: 0,
               failedEmails: 0,
               openRate: 0,
-              clickRate: 0,
               launchDate: campaign.created_at,
               endDate: null
             };
@@ -115,11 +110,9 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
           const totalEmails = emailSends?.length || 0;
           const sentEmails = emailSends?.filter(e => e.sent_at).length || 0;
           const openedEmails = emailSends?.filter(e => e.opened_at).length || 0;
-          const clickedEmails = emailSends?.filter(e => e.clicked_at).length || 0;
           const failedEmails = emailSends?.filter(e => e.status === 'failed').length || 0;
           
           const openRate = sentEmails > 0 ? Math.round((openedEmails / sentEmails) * 100) : 0;
-          const clickRate = sentEmails > 0 ? Math.round((clickedEmails / sentEmails) * 100) : 0;
 
           // Determine launch and end dates
           const launchDate = campaign.created_at;
@@ -130,10 +123,8 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
             totalEmails,
             sentEmails,
             openedEmails,
-            clickedEmails,
             failedEmails,
             openRate,
-            clickRate,
             launchDate,
             endDate,
             scheduledCount
@@ -303,14 +294,6 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
                     
                     <div className="text-center p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center justify-center gap-1 mb-1">
-                        <MousePointer className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm font-medium">Click Rate</span>
-                      </div>
-                      <div className="text-2xl font-bold text-blue-600">{campaign.clickRate}%</div>
-                    </div>
-                    
-                    <div className="text-center p-3 bg-muted/50 rounded-lg">
-                      <div className="flex items-center justify-center gap-1 mb-1">
                         <Users className="w-4 h-4 text-purple-600" />
                         <span className="text-sm font-medium">Sent</span>
                       </div>
@@ -351,17 +334,6 @@ const CampaignsOverview = ({ onCreateNew, onEditCampaign }: CampaignsOverviewPro
                       <div 
                         className="bg-green-500 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${Math.min(campaign.openRate, 100)}%` }}
-                      ></div>
-                    </div>
-                    
-                    <div className="flex justify-between text-sm">
-                      <span>Click Rate</span>
-                      <span>{campaign.clickRate}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min(campaign.clickRate, 100)}%` }}
                       ></div>
                     </div>
                   </div>

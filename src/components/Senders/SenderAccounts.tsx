@@ -57,10 +57,8 @@ interface SenderStats {
   totalSent: number;
   totalFailed: number;
   totalOpened: number;
-  totalClicked: number;
   successRate: number;
   openRate: number;
-  clickRate: number;
   lastSentAt: string | null;
   todaySent: number;
   thisWeekSent: number;
@@ -69,7 +67,6 @@ interface SenderStats {
     [date: string]: {
       sent: number;
       opened: number;
-      clicked: number;
       failed: number;
     };
   };
@@ -221,10 +218,8 @@ const SenderAccounts = () => {
         const totalSent = emailSends.filter(e => e.status === 'sent').length;
         const totalFailed = emailSends.filter(e => e.status === 'failed').length;
         const totalOpened = emailSends.filter(e => e.opened_at).length;
-        const totalClicked = emailSends.filter(e => e.clicked_at).length;
         const successRate = emailSends.length > 0 ? Math.round((totalSent / emailSends.length) * 100) : 0;
         const openRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
-        const clickRate = totalOpened > 0 ? Math.round((totalClicked / totalOpened) * 100) : 0;
         
         // Get last sent email date
         const sentEmails = emailSends.filter(e => e.status === 'sent' && e.sent_at);
@@ -256,18 +251,17 @@ const SenderAccounts = () => {
         ).length;
 
         // Calculate date-specific counts
-        const dateSpecificCounts: { [date: string]: { sent: number; opened: number; clicked: number; failed: number; } } = {};
+        const dateSpecificCounts: { [date: string]: { sent: number; opened: number; failed: number; } } = {};
         emailSends.forEach(email => {
           if (email.sent_at) {
             const date = email.sent_at.split('T')[0];
             if (!dateSpecificCounts[date]) {
-              dateSpecificCounts[date] = { sent: 0, opened: 0, clicked: 0, failed: 0 };
+              dateSpecificCounts[date] = { sent: 0, opened: 0, failed: 0 };
             }
             
             if (email.status === 'sent') dateSpecificCounts[date].sent++;
             if (email.status === 'failed') dateSpecificCounts[date].failed++;
             if (email.opened_at) dateSpecificCounts[date].opened++;
-            if (email.clicked_at) dateSpecificCounts[date].clicked++;
           }
         });
 
@@ -275,10 +269,8 @@ const SenderAccounts = () => {
           totalSent,
           totalFailed,
           totalOpened,
-          totalClicked,
           successRate,
           openRate,
-          clickRate,
           lastSentAt,
           todaySent,
           thisWeekSent,
@@ -672,8 +664,8 @@ const SenderAccounts = () => {
                     })
                     .map((sender) => {
                       const stats = senderStats[sender.email] || { 
-                        totalSent: 0, totalFailed: 0, totalOpened: 0, totalClicked: 0,
-                        successRate: 0, openRate: 0, clickRate: 0, lastSentAt: null, todaySent: 0,
+                        totalSent: 0, totalFailed: 0, totalOpened: 0,
+                        successRate: 0, openRate: 0, lastSentAt: null, todaySent: 0,
                         thisWeekSent: 0, thisMonthSent: 0, dateSpecificCounts: {}
                       };
                       const emails = senderEmails[sender.email] || [];
@@ -723,10 +715,6 @@ const SenderAccounts = () => {
                                   <div className="text-center p-3 bg-background/50 rounded-lg">
                                     <div className="text-2xl font-bold">{stats.openRate}%</div>
                                     <div className="text-xs text-muted-foreground">Open Rate</div>
-                                  </div>
-                                  <div className="text-center p-3 bg-background/50 rounded-lg">
-                                    <div className="text-2xl font-bold">{stats.clickRate}%</div>
-                                    <div className="text-xs text-muted-foreground">Click Rate</div>
                                   </div>
                                 </div>
 

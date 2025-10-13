@@ -151,7 +151,6 @@ export type Database = {
       email_sends: {
         Row: {
           campaign_id: string
-          clicked_at: string | null
           contact_id: string
           created_at: string
           error_message: string | null
@@ -164,7 +163,6 @@ export type Database = {
         }
         Insert: {
           campaign_id: string
-          clicked_at?: string | null
           contact_id: string
           created_at?: string
           error_message?: string | null
@@ -177,7 +175,6 @@ export type Database = {
         }
         Update: {
           campaign_id?: string
-          clicked_at?: string | null
           contact_id?: string
           created_at?: string
           error_message?: string | null

@@ -14,7 +14,6 @@ import {
   CheckCircle,
   XCircle,
   Eye,
-  MousePointer,
   Calendar,
   TrendingUp,
   Activity,
@@ -37,7 +36,6 @@ interface DailyEmailStats {
   date: string;
   sent: number;
   opened: number;
-  clicked: number;
   failed: number;
 }
 
@@ -45,10 +43,8 @@ interface SenderProfileStats {
   totalSent: number;
   totalFailed: number;
   totalOpened: number;
-  totalClicked: number;
   successRate: number;
   openRate: number;
-  clickRate: number;
   lastSentAt: string | null;
   todaySent: number;
   dailyStats: DailyEmailStats[];
@@ -57,7 +53,6 @@ interface SenderProfileStats {
     status: string;
     sent_at: string | null;
     opened_at: string | null;
-    clicked_at: string | null;
     created_at: string;
     contact: {
       email: string;
@@ -151,10 +146,8 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
       const totalSent = emailSends?.filter(e => e.status === 'sent').length || 0;
       const totalFailed = emailSends?.filter(e => e.status === 'failed').length || 0;
       const totalOpened = emailSends?.filter(e => e.opened_at).length || 0;
-      const totalClicked = emailSends?.filter(e => e.clicked_at).length || 0;
       const successRate = emailSends && emailSends.length > 0 ? Math.round((totalSent / emailSends.length) * 100) : 0;
       const openRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
-      const clickRate = totalOpened > 0 ? Math.round((totalClicked / totalOpened) * 100) : 0;
       
       // Get last sent email date
       const sentEmails = emailSends?.filter(e => e.status === 'sent' && e.sent_at) || [];
@@ -170,21 +163,20 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
 
       // Calculate daily stats only for days when emails were actually sent
       const dailyStats: DailyEmailStats[] = [];
-      const dateStatsMap = new Map<string, { sent: number; opened: number; clicked: number; failed: number }>();
+      const dateStatsMap = new Map<string, { sent: number; opened: number; failed: number }>();
 
       // Group emails by date
       emailSends?.forEach(email => {
         if (email.sent_at) {
           const date = email.sent_at.split('T')[0];
           if (!dateStatsMap.has(date)) {
-            dateStatsMap.set(date, { sent: 0, opened: 0, clicked: 0, failed: 0 });
+            dateStatsMap.set(date, { sent: 0, opened: 0, failed: 0 });
           }
           
           const dayStats = dateStatsMap.get(date)!;
           if (email.status === 'sent') dayStats.sent++;
           if (email.status === 'failed') dayStats.failed++;
           if (email.opened_at) dayStats.opened++;
-          if (email.clicked_at) dayStats.clicked++;
         }
       });
 
@@ -194,7 +186,6 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
           date,
           sent: stats.sent,
           opened: stats.opened,
-          clicked: stats.clicked,
           failed: stats.failed
         });
       }
@@ -208,7 +199,6 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
         status: email.status,
         sent_at: email.sent_at,
         opened_at: email.opened_at,
-        clicked_at: email.clicked_at,
         created_at: email.created_at,
         contact: {
           email: email.contacts?.email || 'Unknown',
@@ -227,10 +217,8 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
         totalSent,
         totalFailed,
         totalOpened,
-        totalClicked,
         successRate,
         openRate,
-        clickRate,
         lastSentAt,
         todaySent,
         dailyStats, // Show newest to oldest
@@ -390,19 +378,6 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-2 mb-2">
-              <MousePointer className="w-5 h-5 text-purple-600" />
-              <span className="text-sm font-medium text-muted-foreground">Click Rate</span>
-            </div>
-            <div className="text-3xl font-bold text-purple-600">{stats.clickRate}%</div>
-            <div className="text-sm text-muted-foreground mt-1">
-              {stats.totalClicked} clicked
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Daily Email Activity */}
@@ -435,10 +410,6 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
                   <div className="text-center">
                     <div className="text-lg font-bold text-green-600">{day.opened}</div>
                     <div className="text-xs text-muted-foreground">Opened</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold text-blue-600">{day.clicked}</div>
-                    <div className="text-xs text-muted-foreground">Clicked</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-red-600">{day.failed}</div>
@@ -509,9 +480,6 @@ const SenderProfile = ({ senderEmail, onBack }: SenderProfileProps) => {
                   )}
                   {email.opened_at && (
                     <div className="text-green-600">Opened: {new Date(email.opened_at).toLocaleDateString()}</div>
-                  )}
-                  {email.clicked_at && (
-                    <div className="text-blue-600">Clicked: {new Date(email.clicked_at).toLocaleDateString()}</div>
                   )}
                 </div>
               </div>

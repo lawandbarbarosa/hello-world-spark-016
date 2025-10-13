@@ -50,7 +50,6 @@ interface ContactWithEmails {
     status: string;
     sent_at: string | null;
     opened_at: string | null;
-    clicked_at: string | null;
     error_message: string | null;
     campaign_name: string | null;
     sequence_step: number | null;
@@ -98,7 +97,6 @@ const ContactsList = () => {
             status,
             sent_at,
             opened_at,
-            clicked_at,
             error_message,
             campaigns!inner(name),
             email_sequences!inner(step_number)
@@ -128,7 +126,6 @@ const ContactsList = () => {
               status: send.status,
               sent_at: send.sent_at,
               opened_at: send.opened_at,
-              clicked_at: send.clicked_at,
               error_message: send.error_message,
               campaign_name: send.campaigns?.name || null,
               sequence_step: send.email_sequences?.step_number || null
@@ -151,7 +148,6 @@ const ContactsList = () => {
             status: send.status,
             sent_at: send.sent_at,
             opened_at: send.opened_at,
-            clicked_at: send.clicked_at,
             error_message: send.error_message,
             campaign_name: send.campaigns?.name || null,
             sequence_step: send.email_sequences?.step_number || null
@@ -215,10 +211,6 @@ const ContactsList = () => {
     
     if (latestSend.status === 'failed') {
       return { status: 'failed', label: 'Failed', color: 'destructive' };
-    }
-    
-    if (latestSend.clicked_at) {
-      return { status: 'clicked', label: 'Clicked', color: 'default' };
     }
     
     if (latestSend.opened_at) {
@@ -421,7 +413,6 @@ const ContactsList = () => {
                                   <div className="space-y-1 text-sm">
                                     <p><span className="font-medium">Sent:</span> {contact.email_sends.filter(s => s.sent_at).length}</p>
                                     <p><span className="font-medium">Opened:</span> {contact.email_sends.filter(s => s.opened_at).length}</p>
-                                    <p><span className="font-medium">Clicked:</span> {contact.email_sends.filter(s => s.clicked_at).length}</p>
                                     <p><span className="font-medium">Failed:</span> {contact.email_sends.filter(s => s.status === 'failed').length}</p>
                                   </div>
                                 </div>
@@ -437,7 +428,6 @@ const ContactsList = () => {
                                       <TableHead>Status</TableHead>
                                       <TableHead>Sent</TableHead>
                                       <TableHead>Opened</TableHead>
-                                      <TableHead>Clicked</TableHead>
                                     </TableRow>
                                   </TableHeader>
                                   <TableBody>
@@ -462,18 +452,15 @@ const ContactsList = () => {
                                         <TableCell>
                                           <div className="flex items-center gap-2">
                                             {send.status === 'failed' && <XCircle className="h-4 w-4 text-destructive" />}
-                                            {send.clicked_at && <Eye className="h-4 w-4 text-primary" />}
-                                            {send.opened_at && !send.clicked_at && <Eye className="h-4 w-4 text-secondary" />}
+                                            {send.opened_at && <Eye className="h-4 w-4 text-secondary" />}
                                             {send.sent_at && !send.opened_at && <CheckCircle className="h-4 w-4 text-muted-foreground" />}
                                             {!send.sent_at && <Clock className="h-4 w-4 text-muted-foreground" />}
                                             <Badge variant={
                                               send.status === 'failed' ? 'destructive' :
-                                              send.clicked_at ? 'default' :
                                               send.opened_at ? 'secondary' :
                                               send.sent_at ? 'outline' : 'secondary'
                                             }>
                                               {send.status === 'failed' ? 'Failed' :
-                                               send.clicked_at ? 'Clicked' :
                                                send.opened_at ? 'Opened' :
                                                send.sent_at ? 'Sent' : 'Pending'}
                                             </Badge>
@@ -500,10 +487,10 @@ const ContactsList = () => {
                                           )}
                                         </TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
-                                          {send.clicked_at ? (
+                                          {send.opened_at ? (
                                             <div className="flex items-center gap-1">
                                               <Calendar className="h-3 w-3" />
-                                              {new Date(send.clicked_at).toLocaleString()}
+                                              {new Date(send.opened_at).toLocaleString()}
                                             </div>
                                           ) : (
                                             <span>-</span>

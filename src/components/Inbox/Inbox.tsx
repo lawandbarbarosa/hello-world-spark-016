@@ -33,7 +33,6 @@ interface SentEmail {
   sender_account_id: string;
   sent_at: string | null;
   opened_at: string | null;
-  clicked_at: string | null;
   status: string;
   error_message: string | null;
   created_at: string;
@@ -137,7 +136,6 @@ const Inbox = () => {
         sender_account_id: email.sender_account_id,
         sent_at: email.sent_at,
         opened_at: email.opened_at,
-        clicked_at: email.clicked_at,
         status: email.status,
         error_message: email.error_message,
         created_at: email.created_at,
@@ -551,11 +549,6 @@ const Inbox = () => {
                                   <Eye className="w-3 h-3 mr-1" />
                                   Opened!
                                 </Badge>
-                              </div>
-                            )}
-                            {email.clicked_at && (
-                              <div>
-                                <strong>Clicked:</strong> {new Date(email.clicked_at).toLocaleString()}
                               </div>
                             )}
                           </div>
