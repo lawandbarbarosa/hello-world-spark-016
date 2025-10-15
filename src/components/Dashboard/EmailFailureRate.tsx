@@ -266,7 +266,8 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
         return;
       }
 
-      // Get all email sends for user's campaigns
+      // Get all email sends for user's campaigns AND direct emails
+      // Use a more flexible query that handles both campaign and direct emails
       const { data: emailSends, error: emailSendsError } = await supabase
         .from('email_sends')
         .select(`
@@ -274,10 +275,12 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
           status,
           error_message,
           created_at,
-          contacts!inner(email),
-          campaigns!inner(name)
+          campaign_id,
+          sender_account_id,
+          contacts(email),
+          campaigns(name)
         `)
-        .in('campaign_id', campaignIds)
+        .or(`campaign_id.in.(${campaignIds.join(',')}),campaign_id.is.null`)
         .order('created_at', { ascending: false });
 
       if (emailSendsError) {
@@ -288,8 +291,21 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
       const totalEmails = emailSends?.length || 0;
       const successfulEmails = emailSends?.filter(e => e.status === 'sent').length || 0;
       const failedEmails = emailSends?.filter(e => e.status === 'failed').length || 0;
+      const pendingEmails = emailSends?.filter(e => e.status === 'pending').length || 0;
       const successRate = totalEmails > 0 ? Math.round((successfulEmails / totalEmails) * 100) : 100;
       const failureRate = totalEmails > 0 ? Math.round((failedEmails / totalEmails) * 100) : 0;
+
+      // Debug logging to identify stuck emails
+      if (pendingEmails > 0) {
+        console.warn(`Found ${pendingEmails} emails stuck in pending status:`, 
+          emailSends?.filter(e => e.status === 'pending').map(e => ({
+            id: e.id,
+            created_at: e.created_at,
+            campaign_id: e.campaign_id,
+            sender_account_id: e.sender_account_id
+          }))
+        );
+      }
 
       // Get recent failures (last 10)
       const recentFailures = emailSends
@@ -298,7 +314,7 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
         .map(email => ({
           id: email.id,
           contact_email: email.contacts?.email || 'Unknown',
-          campaign_name: email.campaigns?.name || 'Unknown Campaign',
+          campaign_name: email.campaigns?.name || (email.campaign_id ? 'Unknown Campaign' : 'Direct Email'),
           status: email.status,
           failure_category: null,
           failure_reason: null,

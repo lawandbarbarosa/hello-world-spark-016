@@ -104,11 +104,11 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
               .eq('status', 'scheduled'),
             supabase
               .from('email_sends')
-              .select('id, opened_at')
+              .select('id, opened_at, status')
               .eq('campaign_id', campaign.id)
           ]);
 
-          const emailsSent = emailSendsResult.data?.length || 0;
+          const emailsSent = emailSendsResult.data?.filter(e => e.status === 'sent').length || 0;
           const emailsOpened = emailSendsResult.data?.filter(e => e.opened_at !== null).length || 0;
           
           return {
@@ -129,14 +129,27 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         .eq('user_id', user?.id)
         .eq('status', 'active');
 
+      // Fetch ALL email sends for the user (both campaign and direct emails)
+      // This query will now work with the updated RLS policy
       const { data: emailSendsData, error: emailSendsError } = await supabase
         .from('email_sends')
-        .select('id, status, opened_at')
-        .in('campaign_id', campaignData?.map(c => c.id) || []);
+        .select('id, status, opened_at, campaign_id, sender_account_id, created_at')
+        .or(`campaign_id.in.(${campaignData?.map(c => c.id).join(',') || ''}),campaign_id.is.null`);
 
       if (contactsError || emailSendsError) {
         console.error('Error fetching stats:', { contactsError, emailSendsError });
       }
+
+      // Debug logging to identify any issues
+      console.log('Email sends data:', {
+        total: emailSendsData?.length || 0,
+        campaignEmails: emailSendsData?.filter(e => e.campaign_id).length || 0,
+        directEmails: emailSendsData?.filter(e => !e.campaign_id).length || 0,
+        sentEmails: emailSendsData?.filter(e => e.status === 'sent').length || 0,
+        pendingEmails: emailSendsData?.filter(e => e.status === 'pending').length || 0,
+        failedEmails: emailSendsData?.filter(e => e.status === 'failed').length || 0,
+        openedEmails: emailSendsData?.filter(e => e.opened_at).length || 0
+      });
 
       const totalSent = emailSendsData?.filter(e => e.status === 'sent').length || 0;
       const totalOpened = emailSendsData?.filter(e => e.opened_at).length || 0;
