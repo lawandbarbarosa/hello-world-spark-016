@@ -266,9 +266,58 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
         return;
       }
 
-      // Get all email sends for user's campaigns AND direct emails
-      // Use a more flexible query that handles both campaign and direct emails
-      const { data: emailSends, error: emailSendsError } = await supabase
+      // Use count queries to avoid 1000 row limit
+      const orCondition = campaignIds.length > 0 
+        ? `campaign_id.in.(${campaignIds.join(',')}),campaign_id.is.null`
+        : 'campaign_id.is.null';
+
+      // Get counts for different email statuses
+      const [totalCountResult, successfulCountResult, failedCountResult, pendingCountResult] = await Promise.all([
+        supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .or(orCondition),
+        supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .or(orCondition)
+          .eq('status', 'sent'),
+        supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .or(orCondition)
+          .eq('status', 'failed'),
+        supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .or(orCondition)
+          .eq('status', 'pending')
+      ]);
+
+      if (totalCountResult.error || successfulCountResult.error || failedCountResult.error || pendingCountResult.error) {
+        console.error('Error fetching email send counts:', {
+          totalError: totalCountResult.error,
+          successfulError: successfulCountResult.error,
+          failedError: failedCountResult.error,
+          pendingError: pendingCountResult.error
+        });
+        return;
+      }
+
+      const totalEmails = totalCountResult.count || 0;
+      const successfulEmails = successfulCountResult.count || 0;
+      const failedEmails = failedCountResult.count || 0;
+      const pendingEmails = pendingCountResult.count || 0;
+      const successRate = totalEmails > 0 ? Math.round((successfulEmails / totalEmails) * 100) : 100;
+      const failureRate = totalEmails > 0 ? Math.round((failedEmails / totalEmails) * 100) : 0;
+
+      // Debug logging to identify stuck emails
+      if (pendingEmails > 0) {
+        console.warn(`Found ${pendingEmails} emails stuck in pending status`);
+      }
+
+      // Get recent failures (last 10) - this query can be limited to 10 records
+      const { data: recentFailuresData, error: recentFailuresError } = await supabase
         .from('email_sends')
         .select(`
           id,
@@ -276,53 +325,26 @@ const EmailFailureRate = ({ onRefresh }: EmailFailureRateProps) => {
           error_message,
           created_at,
           campaign_id,
-          sender_account_id,
           contacts(email),
           campaigns(name)
         `)
-        .or(`campaign_id.in.(${campaignIds.join(',')}),campaign_id.is.null`)
-        .order('created_at', { ascending: false });
+        .or(orCondition)
+        .eq('status', 'failed')
+        .order('created_at', { ascending: false })
+        .limit(10);
 
-      if (emailSendsError) {
-        console.error('Error fetching email sends:', emailSendsError);
-        return;
-      }
-
-      const totalEmails = emailSends?.length || 0;
-      const successfulEmails = emailSends?.filter(e => e.status === 'sent').length || 0;
-      const failedEmails = emailSends?.filter(e => e.status === 'failed').length || 0;
-      const pendingEmails = emailSends?.filter(e => e.status === 'pending').length || 0;
-      const successRate = totalEmails > 0 ? Math.round((successfulEmails / totalEmails) * 100) : 100;
-      const failureRate = totalEmails > 0 ? Math.round((failedEmails / totalEmails) * 100) : 0;
-
-      // Debug logging to identify stuck emails
-      if (pendingEmails > 0) {
-        console.warn(`Found ${pendingEmails} emails stuck in pending status:`, 
-          emailSends?.filter(e => e.status === 'pending').map(e => ({
-            id: e.id,
-            created_at: e.created_at,
-            campaign_id: e.campaign_id,
-            sender_account_id: e.sender_account_id
-          }))
-        );
-      }
-
-      // Get recent failures (last 10)
-      const recentFailures = emailSends
-        ?.filter(e => e.status === 'failed')
-        .slice(0, 10)
-        .map(email => ({
-          id: email.id,
-          contact_email: email.contacts?.email || 'Unknown',
-          campaign_name: email.campaigns?.name || (email.campaign_id ? 'Unknown Campaign' : 'Direct Email'),
-          status: email.status,
-          failure_category: null,
-          failure_reason: null,
-          bounce_type: null,
-          rejection_reason: null,
-          error_message: email.error_message || 'Unknown error',
-          created_at: email.created_at
-        })) || [];
+      const recentFailures = recentFailuresData?.map(email => ({
+        id: email.id,
+        contact_email: email.contacts?.email || 'Unknown',
+        campaign_name: email.campaigns?.name || (email.campaign_id ? 'Unknown Campaign' : 'Direct Email'),
+        status: email.status,
+        failure_category: null,
+        failure_reason: null,
+        bounce_type: null,
+        rejection_reason: null,
+        error_message: email.error_message || 'Unknown error',
+        created_at: email.created_at
+      })) || [];
 
       setStats({
         totalEmails,

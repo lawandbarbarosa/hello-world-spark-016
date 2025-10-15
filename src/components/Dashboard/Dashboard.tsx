@@ -129,37 +129,67 @@ const Dashboard = ({ onNavigate }: DashboardProps = {}) => {
         .eq('user_id', user?.id)
         .eq('status', 'active');
 
-      // Fetch ALL email sends for the user (both campaign and direct emails)
-      // This query will now work with the updated RLS policy
-      const { data: emailSendsData, error: emailSendsError } = await supabase
-        .from('email_sends')
-        .select('id, status, opened_at, campaign_id, sender_account_id, created_at')
-        .or(`campaign_id.in.(${campaignData?.map(c => c.id).join(',') || ''}),campaign_id.is.null`);
+      // Fetch email statistics using count queries to avoid 1000 row limit
+      // This approach is more efficient and doesn't hit Supabase's default limit
+      const campaignIds = campaignData?.map(c => c.id) || [];
+      
+      // Build the OR condition for the query
+      const orCondition = campaignIds.length > 0 
+        ? `campaign_id.in.(${campaignIds.join(',')}),campaign_id.is.null`
+        : 'campaign_id.is.null';
 
-      if (contactsError || emailSendsError) {
-        console.error('Error fetching stats:', { contactsError, emailSendsError });
+      // Get counts for different email statuses
+      const [sentCountResult, openedCountResult, failedCountResult, totalCountResult] = await Promise.all([
+        supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .or(orCondition)
+          .eq('status', 'sent'),
+        supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .or(orCondition)
+          .not('opened_at', 'is', null),
+        supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .or(orCondition)
+          .eq('status', 'failed'),
+        supabase
+          .from('email_sends')
+          .select('*', { count: 'exact', head: true })
+          .or(orCondition)
+      ]);
+
+      if (contactsError || sentCountResult.error || openedCountResult.error || failedCountResult.error || totalCountResult.error) {
+        console.error('Error fetching stats:', { 
+          contactsError, 
+          sentCountError: sentCountResult.error,
+          openedCountError: openedCountResult.error,
+          failedCountError: failedCountResult.error,
+          totalCountError: totalCountResult.error
+        });
       }
 
-      // Debug logging to identify any issues
-      console.log('Email sends data:', {
-        total: emailSendsData?.length || 0,
-        campaignEmails: emailSendsData?.filter(e => e.campaign_id).length || 0,
-        directEmails: emailSendsData?.filter(e => !e.campaign_id).length || 0,
-        sentEmails: emailSendsData?.filter(e => e.status === 'sent').length || 0,
-        pendingEmails: emailSendsData?.filter(e => e.status === 'pending').length || 0,
-        failedEmails: emailSendsData?.filter(e => e.status === 'failed').length || 0,
-        openedEmails: emailSendsData?.filter(e => e.opened_at).length || 0
-      });
+      const totalSent = sentCountResult.count || 0;
+      const totalOpened = openedCountResult.count || 0;
+      const totalFailed = failedCountResult.error ? 0 : (failedCountResult.count || 0);
+      const totalEmails = totalCountResult.count || 0;
 
-      const totalSent = emailSendsData?.filter(e => e.status === 'sent').length || 0;
-      const totalOpened = emailSendsData?.filter(e => e.opened_at).length || 0;
-      const totalFailed = emailSendsData?.filter(e => e.status === 'failed').length || 0;
+      // Debug logging to identify any issues
+      console.log('Email sends data (using count queries):', {
+        total: totalEmails,
+        sentEmails: totalSent,
+        openedEmails: totalOpened,
+        failedEmails: totalFailed,
+        campaignIds: campaignIds.length
+      });
       const totalContacted = contactsData?.length || 0;
       const totalReplied = contactsData?.filter(c => c.replied_at).length || 0;
       
       const openRate = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
       const replyRate = totalContacted > 0 ? Math.round((totalReplied / totalContacted) * 100) : 0;
-      const failureRate = emailSendsData && emailSendsData.length > 0 ? Math.round((totalFailed / emailSendsData.length) * 100) : 0;
+      const failureRate = totalEmails > 0 ? Math.round((totalFailed / totalEmails) * 100) : 0;
 
       setStats({
         totalCampaigns: campaignData?.length || 0,

@@ -13,39 +13,64 @@ async function testEmailCounting() {
     
     const campaignIds = campaigns?.map(c => c.id) || [];
     
-    // Test the main dashboard query
-    const { data: emailSendsData, error } = await supabase
-      .from('email_sends')
-      .select('id, status, opened_at, campaign_id, sender_account_id, created_at')
-      .or(`campaign_id.in.(${campaignIds.join(',')}),campaign_id.is.null`);
+    // Test using count queries to avoid 1000 row limit
+    const orCondition = campaignIds.length > 0 
+      ? `campaign_id.in.(${campaignIds.join(',')}),campaign_id.is.null`
+      : 'campaign_id.is.null';
+
+    const [totalResult, sentResult, openedResult, failedResult, pendingResult] = await Promise.all([
+      supabase
+        .from('email_sends')
+        .select('*', { count: 'exact', head: true })
+        .or(orCondition),
+      supabase
+        .from('email_sends')
+        .select('*', { count: 'exact', head: true })
+        .or(orCondition)
+        .eq('status', 'sent'),
+      supabase
+        .from('email_sends')
+        .select('*', { count: 'exact', head: true })
+        .or(orCondition)
+        .not('opened_at', 'is', null),
+      supabase
+        .from('email_sends')
+        .select('*', { count: 'exact', head: true })
+        .or(orCondition)
+        .eq('status', 'failed'),
+      supabase
+        .from('email_sends')
+        .select('*', { count: 'exact', head: true })
+        .or(orCondition)
+        .eq('status', 'pending')
+    ]);
     
-    if (error) {
-      console.error('❌ Query failed:', error);
+    if (totalResult.error || sentResult.error || openedResult.error || failedResult.error || pendingResult.error) {
+      console.error('❌ Query failed:', {
+        totalError: totalResult.error,
+        sentError: sentResult.error,
+        openedError: openedResult.error,
+        failedError: failedResult.error,
+        pendingError: pendingResult.error
+      });
       return;
     }
     
     // Analyze the results
     const analysis = {
-      total: emailSendsData?.length || 0,
-      campaignEmails: emailSendsData?.filter(e => e.campaign_id).length || 0,
-      directEmails: emailSendsData?.filter(e => !e.campaign_id).length || 0,
-      sentEmails: emailSendsData?.filter(e => e.status === 'sent').length || 0,
-      pendingEmails: emailSendsData?.filter(e => e.status === 'pending').length || 0,
-      failedEmails: emailSendsData?.filter(e => e.status === 'failed').length || 0,
-      openedEmails: emailSendsData?.filter(e => e.opened_at).length || 0
+      total: totalResult.count || 0,
+      sentEmails: sentResult.count || 0,
+      openedEmails: openedResult.count || 0,
+      failedEmails: failedResult.count || 0,
+      pendingEmails: pendingResult.count || 0,
+      campaignIds: campaignIds.length
     };
     
     console.log('📊 Email Analysis:', analysis);
     
     // Check for stuck emails
-    const stuckEmails = emailSendsData?.filter(e => e.status === 'pending');
-    if (stuckEmails && stuckEmails.length > 0) {
-      console.warn('⚠️ Found stuck emails:', stuckEmails.map(e => ({
-        id: e.id,
-        created_at: e.created_at,
-        campaign_id: e.campaign_id,
-        sender_account_id: e.sender_account_id
-      })));
+    if (analysis.pendingEmails > 0) {
+      console.warn(`⚠️ Found ${analysis.pendingEmails} emails stuck in pending status`);
     }
     
     // Calculate rates
