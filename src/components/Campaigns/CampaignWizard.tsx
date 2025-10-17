@@ -236,6 +236,36 @@ const CampaignWizard = ({ onBack }: CampaignWizardProps) => {
         return;
       }
 
+      // Call webhook to notify external system about campaign creation
+      try {
+        console.log("Calling webhook for campaign creation:", campaign.id);
+        const webhookResponse = await fetch('https://aithory.app.n8n.cloud/webhook-test/c7c09d49-a053-44ce-931a-211fcddb1320', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            campaignId: campaign.id,
+            campaignName: campaignData.name,
+            campaignDescription: campaignData.description,
+            contactsCount: campaignData.contacts.length,
+            senderAccountsCount: campaignData.senderAccounts.length,
+            emailSequenceCount: campaignData.sequence.length,
+            createdAt: new Date().toISOString(),
+            userId: user.id
+          })
+        });
+
+        if (webhookResponse.ok) {
+          console.log("Webhook called successfully");
+        } else {
+          console.warn("Webhook call failed:", webhookResponse.status, webhookResponse.statusText);
+        }
+      } catch (webhookError) {
+        console.error("Error calling webhook:", webhookError);
+        // Don't block campaign launch if webhook fails
+      }
+
       // Launch the campaign
       console.log("Invoking send-campaign-email function for campaign:", campaign.id);
       const { data: launchData, error: launchError } = await supabase.functions.invoke('send-campaign-email', {
