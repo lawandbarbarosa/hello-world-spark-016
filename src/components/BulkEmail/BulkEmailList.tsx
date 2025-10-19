@@ -6,10 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, FileText, Users, Trash2, Mail, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
-import { useCsvUpload } from "@/hooks/useCsvUpload";
 
 interface BulkEmailListProps {
   onCreateNew: () => void;
+}
+
+interface CsvEmailData {
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  company?: string;
+  [key: string]: any;
 }
 
 const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
@@ -17,18 +24,99 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
   const [campaignDescription, setCampaignDescription] = useState("");
   const [templates, setTemplates] = useState<Array<{id: string, subject: string, body: string}>>([]);
   const [newTemplate, setNewTemplate] = useState({ subject: "", body: "" });
-  
-  const { uploadCsv, isUploading, csvData } = useCsvUpload();
+  const [csvData, setCsvData] = useState<CsvEmailData[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const parseCsvContent = (csvContent: string): CsvEmailData[] => {
+    const lines = csvContent.split('\n').filter(line => line.trim());
+    if (lines.length === 0) return [];
+
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    const emailColumnIndex = headers.findIndex(h => 
+      h.includes('email') || h.includes('e-mail') || h.includes('mail')
+    );
+
+    if (emailColumnIndex === -1) {
+      throw new Error('No email column found. Please ensure your CSV has a column named "email", "e-mail", or similar.');
+    }
+
+    const firstNameIndex = headers.findIndex(h => 
+      h.includes('first') && h.includes('name') || h === 'firstname' || h === 'fname'
+    );
+    const lastNameIndex = headers.findIndex(h => 
+      h.includes('last') && h.includes('name') || h === 'lastname' || h === 'lname'
+    );
+    const companyIndex = headers.findIndex(h => 
+      h.includes('company') || h.includes('organization') || h.includes('org')
+    );
+
+    const emails: CsvEmailData[] = [];
+    const seenEmails = new Set<string>();
+
+    for (let i = 1; i < lines.length; i++) {
+      const columns = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
+      const email = columns[emailColumnIndex]?.trim().toLowerCase();
+
+      if (email && email.includes('@') && !seenEmails.has(email)) {
+        seenEmails.add(email);
+        
+        const emailData: CsvEmailData = { email };
+        
+        if (firstNameIndex !== -1 && columns[firstNameIndex]) {
+          emailData.firstName = columns[firstNameIndex].trim();
+        }
+        if (lastNameIndex !== -1 && columns[lastNameIndex]) {
+          emailData.lastName = columns[lastNameIndex].trim();
+        }
+        if (companyIndex !== -1 && columns[companyIndex]) {
+          emailData.company = columns[companyIndex].trim();
+        }
+
+        // Add all other columns as additional data
+        headers.forEach((header, index) => {
+          if (index !== emailColumnIndex && index !== firstNameIndex && 
+              index !== lastNameIndex && index !== companyIndex && columns[index]) {
+            emailData[header] = columns[index].trim();
+          }
+        });
+
+        emails.push(emailData);
+      }
+    }
+
+    return emails;
+  };
 
   const handleFileUpload = useCallback(async (file: File) => {
-    try {
-      await uploadCsv(file);
-      toast.success("CSV file uploaded successfully!");
-    } catch (error) {
-      console.error("Error uploading CSV:", error);
-      toast.error("Failed to upload CSV file. Please try again.");
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      toast.error('Please upload a CSV file');
+      return;
     }
-  }, [uploadCsv]);
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast.error('File size must be less than 10MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const csvContent = await file.text();
+      const emails = parseCsvContent(csvContent);
+      
+      if (emails.length === 0) {
+        toast.error('No valid emails found in the CSV file');
+        return;
+      }
+
+      setCsvData(emails);
+      toast.success(`CSV file uploaded successfully! Found ${emails.length} valid emails.`);
+    } catch (error: any) {
+      console.error("Error uploading CSV:", error);
+      toast.error(error.message || "Failed to upload CSV file. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  }, []);
 
   const handleAddTemplate = () => {
     if (newTemplate.subject && newTemplate.body) {
