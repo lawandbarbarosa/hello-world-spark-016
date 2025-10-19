@@ -22,6 +22,8 @@ interface CsvEmailData {
 const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
   const [campaignName, setCampaignName] = useState("");
   const [campaignDescription, setCampaignDescription] = useState("");
+  const [senderEmails, setSenderEmails] = useState<string[]>([]);
+  const [newSenderEmail, setNewSenderEmail] = useState("");
   const [templates, setTemplates] = useState<Array<{id: string, subject: string, body: string}>>([]);
   const [newTemplate, setNewTemplate] = useState({ subject: "", body: "" });
   const [csvData, setCsvData] = useState<CsvEmailData[]>([]);
@@ -119,6 +121,25 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
     }
   }, []);
 
+  const handleAddSenderEmail = () => {
+    if (newSenderEmail && newSenderEmail.includes('@')) {
+      if (!senderEmails.includes(newSenderEmail)) {
+        setSenderEmails(prev => [...prev, newSenderEmail]);
+        setNewSenderEmail("");
+        toast.success("Sender email added successfully!");
+      } else {
+        toast.error("This email address is already added.");
+      }
+    } else {
+      toast.error("Please enter a valid email address.");
+    }
+  };
+
+  const handleRemoveSenderEmail = (email: string) => {
+    setSenderEmails(prev => prev.filter(e => e !== email));
+    toast.success("Sender email removed successfully!");
+  };
+
   const handleAddTemplate = () => {
     if (newTemplate.subject && newTemplate.body) {
       const template = {
@@ -153,6 +174,11 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
       return;
     }
     
+    if (senderEmails.length === 0) {
+      toast.error("Please add at least one sender email address.");
+      return;
+    }
+    
     if (!csvData || csvData.length === 0) {
       toast.error("Please upload a CSV file with email addresses.");
       return;
@@ -170,10 +196,12 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
       const webhookData = {
         campaignName: campaignName,
         campaignDescription: campaignDescription,
+        senderEmails: senderEmails,
         contacts: csvData,
         templates: templates,
         totalContacts: csvData.length,
         totalTemplates: templates.length,
+        totalSenderEmails: senderEmails.length,
         timestamp: new Date().toISOString()
       };
 
@@ -192,6 +220,8 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
         // Reset form
         setCampaignName("");
         setCampaignDescription("");
+        setSenderEmails([]);
+        setNewSenderEmail("");
         setTemplates([]);
         setNewTemplate({ subject: "", body: "" });
         setCsvData([]);
@@ -242,6 +272,43 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
               onChange={(e) => setCampaignDescription(e.target.value)}
               rows={2}
             />
+          </div>
+          
+          {/* Sender Emails */}
+          <div className="space-y-3">
+            <Label>Sender Email Addresses *</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter sender email address"
+                value={newSenderEmail}
+                onChange={(e) => setNewSenderEmail(e.target.value)}
+                type="email"
+              />
+              <Button onClick={handleAddSenderEmail} variant="outline">
+                <Plus className="w-4 h-4 mr-2" />
+                Add
+              </Button>
+            </div>
+            
+            {senderEmails.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Added Sender Emails ({senderEmails.length})</p>
+                <div className="space-y-1">
+                  {senderEmails.map((email, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded">
+                      <span className="text-sm">{email}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveSenderEmail(email)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -382,6 +449,7 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
               <p className="font-medium text-green-800">Ready to Send!</p>
               <p className="text-sm text-green-600">
                 Campaign: {campaignName || "Unnamed"} | 
+                Senders: {senderEmails.length} | 
                 Contacts: {csvData?.length || 0} | 
                 Templates: {templates.length}
               </p>
