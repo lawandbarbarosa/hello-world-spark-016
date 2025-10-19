@@ -26,6 +26,7 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
   const [newTemplate, setNewTemplate] = useState({ subject: "", body: "" });
   const [csvData, setCsvData] = useState<CsvEmailData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
   const parseCsvContent = (csvContent: string): CsvEmailData[] => {
     const lines = csvContent.split('\n').filter(line => line.trim());
@@ -146,7 +147,7 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
     setTemplates(updatedTemplates);
   };
 
-  const handleSendBulkEmails = () => {
+  const handleSendBulkEmails = async () => {
     if (!campaignName) {
       toast.error("Please enter a campaign name.");
       return;
@@ -162,14 +163,47 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
       return;
     }
 
-    // Simulate sending emails
-    toast.success(`Bulk emails prepared successfully! ${csvData.length} emails will be sent with ${templates.length} templates.`);
-    
-    // Reset form
-    setCampaignName("");
-    setCampaignDescription("");
-    setTemplates([]);
-    setNewTemplate({ subject: "", body: "" });
+    try {
+      setIsSending(true);
+      
+      // Prepare data for webhook
+      const webhookData = {
+        campaignName: campaignName,
+        campaignDescription: campaignDescription,
+        contacts: csvData,
+        templates: templates,
+        totalContacts: csvData.length,
+        totalTemplates: templates.length,
+        timestamp: new Date().toISOString()
+      };
+
+      // Call webhook
+      const response = await fetch('https://ailawand.app.n8n.cloud/webhook-test/job title-career', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(webhookData)
+      });
+
+      if (response.ok) {
+        toast.success(`Bulk emails sent successfully! ${csvData.length} emails processed with ${templates.length} templates.`);
+        
+        // Reset form
+        setCampaignName("");
+        setCampaignDescription("");
+        setTemplates([]);
+        setNewTemplate({ subject: "", body: "" });
+        setCsvData([]);
+      } else {
+        toast.error("Failed to send bulk emails. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error sending bulk emails:", error);
+      toast.error("An error occurred while sending bulk emails. Please try again.");
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
@@ -355,10 +389,11 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
             <Button 
               onClick={handleSendBulkEmails}
               size="lg"
+              disabled={isSending}
               className="bg-gradient-primary text-primary-foreground hover:opacity-90"
             >
               <Send className="w-5 h-5 mr-2" />
-              Send Bulk Emails
+              {isSending ? "Sending..." : "Send Bulk Emails"}
             </Button>
           </div>
         </CardContent>
