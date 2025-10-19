@@ -14,7 +14,8 @@ import {
   Truck,
   Calendar,
   Target,
-  Filter
+  Filter,
+  Mailbox
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,6 +46,7 @@ const Sidebar = ({ activeTab, onTabChange }: SidebarProps) => {
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'campaigns', label: 'Emails', icon: Mail },
     { id: 'campaigns-overview', label: 'Campaigns', icon: Target },
+    { id: 'bulk-email', label: 'Email in Bulk', icon: Mailbox },
     { id: 'calendar', label: 'Calendar', icon: Calendar },
     { id: 'delivery', label: 'Deliverability', icon: Truck },
     { id: 'inbox', label: 'Inbox', icon: Inbox },
