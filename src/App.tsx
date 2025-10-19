@@ -48,11 +48,6 @@ const App = () => (
                       <Index />
                     </ProtectedRoute>
                   } />
-                  <Route path="/bulk-email/create" element={
-                    <ProtectedRoute>
-                      <Index />
-                    </ProtectedRoute>
-                  } />
                   <Route path="/campaigns/create" element={
                     <ProtectedRoute>
                       <Index />

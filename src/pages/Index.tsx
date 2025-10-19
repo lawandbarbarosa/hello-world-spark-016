@@ -16,7 +16,6 @@ import ReplyTracker from '@/components/Replies/ReplyTracker';
 import Calendar from '@/components/Calendar/Calendar';
 import SessionDebugger from '@/components/SessionDebugger';
 import BulkEmailList from '@/components/BulkEmail/BulkEmailList';
-import BulkEmailWizard from '@/components/BulkEmail/BulkEmailWizard';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -36,8 +35,6 @@ const Index = () => {
       setActiveTab('campaigns-overview');
     } else if (path === '/bulk-email') {
       setActiveTab('bulk-email');
-    } else if (path === '/bulk-email/create') {
-      setActiveTab('create-bulk-email');
     } else if (path === '/campaigns/create') {
       setActiveTab('create-campaign');
     } else if (path.startsWith('/campaigns/edit/')) {
@@ -79,9 +76,6 @@ const Index = () => {
         break;
       case 'bulk-email':
         navigate('/bulk-email');
-        break;
-      case 'create-bulk-email':
-        navigate('/bulk-email/create');
         break;
       case 'create-campaign':
         navigate('/campaigns/create');
@@ -132,9 +126,7 @@ const Index = () => {
       case 'campaigns-overview':
         return <CampaignsOverview onCreateNew={() => handleNavigation('create-campaign')} onEditCampaign={(id) => handleNavigation('edit-campaign', id)} />;
       case 'bulk-email':
-        return <BulkEmailList onCreateNew={() => handleNavigation('create-bulk-email')} />;
-      case 'create-bulk-email':
-        return <BulkEmailWizard onBack={() => handleNavigation('bulk-email')} />;
+        return <BulkEmailList onCreateNew={() => handleNavigation('bulk-email')} />;
       case 'create-campaign':
         return <CampaignWizard onBack={() => handleNavigation('campaigns')} />;
       case 'edit-campaign':
