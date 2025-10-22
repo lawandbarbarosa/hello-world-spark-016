@@ -361,12 +361,50 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
           </div>
           
           {csvData && csvData.length > 0 && (
-            <div className="bg-muted/50 p-4 rounded-lg">
-              <p className="text-sm font-medium mb-2">
-                CSV Data Loaded: {csvData.length} contacts
-              </p>
-              <div className="text-xs text-muted-foreground">
-                Columns: {Object.keys(csvData[0] || {}).join(", ")}
+            <div className="space-y-4">
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <p className="text-sm font-medium mb-2">
+                  CSV Data Loaded: {csvData.length} contacts
+                </p>
+                <div className="text-xs text-muted-foreground">
+                  Columns: {Object.keys(csvData[0] || {}).join(", ")}
+                </div>
+              </div>
+              
+              {/* CSV Data Table */}
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 p-3">
+                  <h4 className="font-medium text-sm">CSV Data Preview</h4>
+                </div>
+                <div className="overflow-x-auto max-h-60">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/30">
+                      <tr>
+                        {Object.keys(csvData[0] || {}).map((column, index) => (
+                          <th key={index} className="px-3 py-2 text-left font-medium text-muted-foreground border-r border-border last:border-r-0">
+                            {column}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {csvData.slice(0, 10).map((contact, rowIndex) => (
+                        <tr key={rowIndex} className="border-b border-border last:border-b-0">
+                          {Object.keys(contact).map((column, colIndex) => (
+                            <td key={colIndex} className="px-3 py-2 border-r border-border last:border-r-0">
+                              {contact[column] || '-'}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {csvData.length > 10 && (
+                    <div className="bg-muted/30 p-2 text-center text-xs text-muted-foreground">
+                      ... and {csvData.length - 10} more rows
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -410,46 +448,62 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
 
           {/* Templates List */}
           {templates.length > 0 && (
-            <div className="space-y-3">
+            <div className="space-y-4">
               <h4 className="font-medium">Created Templates ({templates.length})</h4>
-              {templates.map((template, index) => (
-                <div key={template.id} className="border border-border rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium">Template {index + 1}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleRemoveTemplate(template.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Subject</Label>
-                      <Input
-                        value={template.subject}
-                        onChange={(e) => handleUpdateTemplate(template.id, 'subject', e.target.value)}
-                        className="text-sm"
-                      />
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Body</Label>
-                      <Textarea
-                        value={template.body}
-                        onChange={(e) => handleUpdateTemplate(template.id, 'body', e.target.value)}
-                        rows={3}
-                        className="text-sm"
-                      />
-                    </div>
-                  </div>
+              
+              {/* Templates Table View */}
+              <div className="border border-border rounded-lg overflow-hidden">
+                <div className="bg-muted/50 p-3">
+                  <h5 className="font-medium text-sm">Email Templates Preview</h5>
                 </div>
-              ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted/30">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground border-r border-border">Template #</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground border-r border-border">Subject</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground border-r border-border">Body Preview</th>
+                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {templates.map((template, index) => (
+                        <tr key={template.id} className="border-b border-border last:border-b-0">
+                          <td className="px-3 py-2 border-r border-border font-medium">
+                            {index + 1}
+                          </td>
+                          <td className="px-3 py-2 border-r border-border">
+                            <Input
+                              value={template.subject}
+                              onChange={(e) => handleUpdateTemplate(template.id, 'subject', e.target.value)}
+                              className="text-sm border-0 p-0 h-auto"
+                            />
+                          </td>
+                          <td className="px-3 py-2 border-r border-border">
+                            <div className="max-w-xs">
+                              <Textarea
+                                value={template.body}
+                                onChange={(e) => handleUpdateTemplate(template.id, 'body', e.target.value)}
+                                rows={2}
+                                className="text-sm border-0 p-0 h-auto resize-none"
+                              />
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveTemplate(template.id)}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>
