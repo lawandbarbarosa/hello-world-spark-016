@@ -192,26 +192,12 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
     try {
       setIsSending(true);
       
-      // Prepare data for webhook - organize contacts by columns
-      const organizedContacts: { [key: string]: string[] } = {};
-      
-      // Get all unique column names from CSV data
-      const allColumns = new Set<string>();
-      csvData.forEach(contact => {
-        Object.keys(contact).forEach(key => allColumns.add(key));
-      });
-      
-      // Organize data by columns
-      allColumns.forEach(column => {
-        organizedContacts[column] = csvData.map(contact => contact[column] || '');
-      });
-
+      // Prepare data for webhook
       const webhookData = {
         campaignName: campaignName,
         campaignDescription: campaignDescription,
         senderEmails: senderEmails,
-        contacts: organizedContacts, // Now organized by columns
-        contactsArray: csvData, // Keep original format as backup
+        contacts: csvData,
         templates: templates,
         totalContacts: csvData.length,
         totalTemplates: templates.length,
