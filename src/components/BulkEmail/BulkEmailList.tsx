@@ -210,7 +210,8 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
       const formattedContacts: { [key: string]: string } = {};
       allColumns.forEach(column => {
         const values = csvData.map(contact => contact[column] || '').filter(value => value !== '');
-        formattedContacts[column] = `[${values.join('], [')}]`;
+        // Format as a single string with comma separation (no brackets to avoid JSON parsing)
+        formattedContacts[column] = values.join(', ');
       });
 
       const webhookData = {
