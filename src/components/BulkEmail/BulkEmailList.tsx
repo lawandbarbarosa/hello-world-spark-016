@@ -24,8 +24,6 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
   const [campaignDescription, setCampaignDescription] = useState("");
   const [senderEmails, setSenderEmails] = useState<string[]>([]);
   const [newSenderEmail, setNewSenderEmail] = useState("");
-  const [templates, setTemplates] = useState<Array<{id: string, subject: string, body: string}>>([]);
-  const [newTemplate, setNewTemplate] = useState({ subject: "", body: "" });
   const [csvData, setCsvData] = useState<CsvEmailData[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -140,34 +138,6 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
     toast.success("Sender email removed successfully!");
   };
 
-  const handleAddTemplate = () => {
-    if (newTemplate.subject && newTemplate.body) {
-      const template = {
-        id: Date.now().toString(),
-        subject: newTemplate.subject,
-        body: newTemplate.body
-      };
-      
-      setTemplates(prev => [...prev, template]);
-      setNewTemplate({ subject: "", body: "" });
-      toast.success("Email template added successfully!");
-    } else {
-      toast.error("Please fill in both subject and body.");
-    }
-  };
-
-  const handleRemoveTemplate = (templateId: string) => {
-    setTemplates(prev => prev.filter(t => t.id !== templateId));
-    toast.success("Email template removed successfully!");
-  };
-
-  const handleUpdateTemplate = (templateId: string, field: string, value: string) => {
-    const updatedTemplates = templates.map(t => 
-      t.id === templateId ? { ...t, [field]: value } : t
-    );
-    setTemplates(updatedTemplates);
-  };
-
   const handleSendBulkEmails = async () => {
     if (!campaignName) {
       toast.error("Please enter a campaign name.");
@@ -181,11 +151,6 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
     
     if (!csvData || csvData.length === 0) {
       toast.error("Please upload a CSV file with email addresses.");
-      return;
-    }
-    
-    if (templates.length === 0) {
-      toast.error("Please create at least one email template.");
       return;
     }
 
@@ -218,11 +183,9 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
         campaignName: campaignName,
         campaignDescription: campaignDescription,
         senderEmails: senderEmails,
-        contacts: formattedContacts, // Formatted as "name: [name1], [name2], [name3]"
+        contacts: formattedContacts, // Formatted as comma-separated strings
         contactsArray: csvData, // Keep original format as backup
-        templates: templates,
         totalContacts: csvData.length,
-        totalTemplates: templates.length,
         totalSenderEmails: senderEmails.length,
         timestamp: new Date().toISOString()
       };
@@ -237,15 +200,13 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
       });
 
       if (response.ok) {
-        toast.success(`Bulk emails sent successfully! ${csvData.length} emails processed with ${templates.length} templates.`);
+        toast.success(`Bulk emails sent successfully! ${csvData.length} emails processed.`);
         
         // Reset form
         setCampaignName("");
         setCampaignDescription("");
         setSenderEmails([]);
         setNewSenderEmail("");
-        setTemplates([]);
-        setNewTemplate({ subject: "", body: "" });
         setCsvData([]);
       } else {
         toast.error("Failed to send bulk emails. Please try again.");
@@ -419,104 +380,6 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
         </CardContent>
       </Card>
 
-      {/* Email Templates */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Email Templates</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Add New Template */}
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label htmlFor="subject">Email Subject *</Label>
-              <Input
-                id="subject"
-                placeholder="Enter email subject"
-                value={newTemplate.subject}
-                onChange={(e) => setNewTemplate(prev => ({ ...prev, subject: e.target.value }))}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="body">Email Body *</Label>
-              <Textarea
-                id="body"
-                placeholder="Enter email body content"
-                value={newTemplate.body}
-                onChange={(e) => setNewTemplate(prev => ({ ...prev, body: e.target.value }))}
-                rows={4}
-              />
-            </div>
-            
-            <Button onClick={handleAddTemplate} className="w-full">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Template
-            </Button>
-          </div>
-
-          {/* Templates List */}
-          {templates.length > 0 && (
-            <div className="space-y-4">
-              <h4 className="font-medium">Created Templates ({templates.length})</h4>
-              
-              {/* Templates Table View */}
-              <div className="border border-border rounded-lg overflow-hidden">
-                <div className="bg-muted/50 p-3">
-                  <h5 className="font-medium text-sm">Email Templates Preview</h5>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-muted/30">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground border-r border-border">Template #</th>
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground border-r border-border">Subject</th>
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground border-r border-border">Body Preview</th>
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {templates.map((template, index) => (
-                        <tr key={template.id} className="border-b border-border last:border-b-0">
-                          <td className="px-3 py-2 border-r border-border font-medium">
-                            {index + 1}
-                          </td>
-                          <td className="px-3 py-2 border-r border-border">
-                            <Input
-                              value={template.subject}
-                              onChange={(e) => handleUpdateTemplate(template.id, 'subject', e.target.value)}
-                              className="text-sm border-0 p-0 h-auto"
-                            />
-                          </td>
-                          <td className="px-3 py-2 border-r border-border">
-                            <div className="max-w-xs">
-                              <Textarea
-                                value={template.body}
-                                onChange={(e) => handleUpdateTemplate(template.id, 'body', e.target.value)}
-                                rows={2}
-                                className="text-sm border-0 p-0 h-auto resize-none"
-                              />
-                            </div>
-                          </td>
-                          <td className="px-3 py-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveTemplate(template.id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Send Button */}
       <Card className="bg-green-50 border-green-200">
         <CardContent className="pt-6">
@@ -526,8 +389,7 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
               <p className="text-sm text-green-600">
                 Campaign: {campaignName || "Unnamed"} | 
                 Senders: {senderEmails.length} | 
-                Contacts: {csvData?.length || 0} | 
-                Templates: {templates.length}
+                Contacts: {csvData?.length || 0}
               </p>
             </div>
             <Button 
