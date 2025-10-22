@@ -157,34 +157,12 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
     try {
       setIsSending(true);
       
-      // Prepare data for webhook - organize contacts by columns (like the table view)
-      const organizedContacts: { [key: string]: string[] } = {};
-      
-      // Get all unique column names from CSV data
-      const allColumns = new Set<string>();
-      csvData.forEach(contact => {
-        Object.keys(contact).forEach(key => allColumns.add(key));
-      });
-      
-      // Organize data by columns (same structure as the table)
-      allColumns.forEach(column => {
-        organizedContacts[column] = csvData.map(contact => contact[column] || '');
-      });
-
-      // Format the data as comma-separated strings for each column
-      const formattedContacts: { [key: string]: string } = {};
-      allColumns.forEach(column => {
-        const values = csvData.map(contact => contact[column] || '').filter(value => value !== '');
-        // Format as a single string with comma separation (no brackets to avoid JSON parsing)
-        formattedContacts[column] = values.join(', ');
-      });
-
+      // Send CSV data exactly as it is - original format
       const webhookData = {
         campaignName: campaignName,
         campaignDescription: campaignDescription,
         senderEmails: senderEmails,
-        contacts: formattedContacts, // Formatted as comma-separated strings
-        contactsArray: csvData, // Keep original format as backup
+        contacts: csvData, // Original CSV data format - each row as separate object
         totalContacts: csvData.length,
         totalSenderEmails: senderEmails.length,
         timestamp: new Date().toISOString()
