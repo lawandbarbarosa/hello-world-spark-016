@@ -206,11 +206,18 @@ const BulkEmailList = ({ onCreateNew }: BulkEmailListProps) => {
         organizedContacts[column] = csvData.map(contact => contact[column] || '');
       });
 
+      // Format the data as comma-separated strings for each column
+      const formattedContacts: { [key: string]: string } = {};
+      allColumns.forEach(column => {
+        const values = csvData.map(contact => contact[column] || '').filter(value => value !== '');
+        formattedContacts[column] = `[${values.join('], [')}]`;
+      });
+
       const webhookData = {
         campaignName: campaignName,
         campaignDescription: campaignDescription,
         senderEmails: senderEmails,
-        contacts: organizedContacts, // Column-based structure like the table
+        contacts: formattedContacts, // Formatted as "name: [name1], [name2], [name3]"
         contactsArray: csvData, // Keep original format as backup
         templates: templates,
         totalContacts: csvData.length,
